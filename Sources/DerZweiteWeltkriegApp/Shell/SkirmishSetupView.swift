@@ -120,6 +120,7 @@ struct SkirmishSetupView: View {
                                         controller.startBattleFromSetup()
                                     }
                                     .battlePrimaryButton()
+                                    .accessibilityIdentifier("deploy-force-button")
                                     .disabled(controller.playerSelectedPoints == 0 || controller.playerSelectedPoints > controller.pointsLimit || controller.currentOpponentPlan == nil)
 
                                     if controller.currentBattleConfiguration != nil {
@@ -150,5 +151,7 @@ struct SkirmishSetupView: View {
             }
             .padding(18)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("setup-screen")
     }
 }

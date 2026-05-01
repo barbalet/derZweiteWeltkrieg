@@ -8,6 +8,7 @@ struct BattleSidebarView: View {
         BattleSidebarPanel {
             VStack(alignment: .leading, spacing: 14) {
                 BattleInspectorSection(controller: controller)
+                BattleControlsSection(controller: controller, followUpChoice: $followUpChoice)
                 BattleArmiesSection(controller: controller)
                 BattleObjectivesSection(controller: controller)
 
@@ -18,8 +19,6 @@ struct BattleSidebarView: View {
                 if let pendingAllocation = controller.pendingHitAllocationChoice {
                     BattlePendingAllocationSection(controller: controller, pendingAllocation: pendingAllocation)
                 }
-
-                BattleControlsSection(controller: controller, followUpChoice: $followUpChoice)
 
                 if !controller.lastError.isEmpty {
                     BattleErrorSection(message: controller.lastError)

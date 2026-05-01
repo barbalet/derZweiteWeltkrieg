@@ -38,6 +38,16 @@
                ReferencedContainer = "container:DerZweiteWeltkriegDemo.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "1A2B3C4D5E6F7000000000D5"
+               BuildableName = "DerZweiteWeltkriegUITests.xctest"
+               BlueprintName = "DerZweiteWeltkriegUITests"
+               ReferencedContainer = "container:DerZweiteWeltkriegDemo.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <MacroExpansion>
          <BuildableReference

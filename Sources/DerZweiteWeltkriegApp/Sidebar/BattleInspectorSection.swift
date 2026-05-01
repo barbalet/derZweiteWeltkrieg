@@ -16,6 +16,7 @@ struct BattleInspectorSection: View {
                 if controller.isDeploymentMode {
                     Text("Facing: \(Int(unit.facingDegrees.rounded()))° • Drag on the board to change this unit’s starting position.")
                         .font(.system(size: 13, design: .monospaced))
+                        .accessibilityIdentifier("selected-facing-label")
                 }
                 Text("Models: \(unit.models)/\(unit.startingModels)")
                     .font(.system(size: 13, design: .monospaced))
@@ -48,12 +49,14 @@ struct BattleInspectorSection: View {
                     controller.cycleActiveUnit(forward: false)
                 }
                 .battleSecondaryButton()
+                .accessibilityIdentifier("prev-ready-button")
                 .keyboardShortcut("[", modifiers: [.command])
 
                 Button("Next Ready") {
                     controller.cycleActiveUnit(forward: true)
                 }
                 .battleSecondaryButton()
+                .accessibilityIdentifier("next-ready-button")
                 .keyboardShortcut("]", modifiers: [.command])
             }
 
@@ -62,6 +65,7 @@ struct BattleInspectorSection: View {
                     controller.clearSelection()
                 }
                 .battleSecondaryButton()
+                .accessibilityIdentifier("clear-selection-button")
                 .keyboardShortcut(.escape, modifiers: [])
             } else {
                 HStack {
@@ -69,6 +73,7 @@ struct BattleInspectorSection: View {
                         controller.selectNearestEnemy()
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("nearest-enemy-button")
                     .disabled(controller.selectedUnit == nil)
                     .keyboardShortcut("e", modifiers: [.command])
 
@@ -76,6 +81,7 @@ struct BattleInspectorSection: View {
                         controller.clearSelection()
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("clear-selection-button")
                     .keyboardShortcut(.escape, modifiers: [])
                 }
             }
@@ -84,6 +90,7 @@ struct BattleInspectorSection: View {
                 Divider()
                 Text("Target: \(target.name)")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .accessibilityIdentifier("selected-target-label")
                 Text(target.detailSummary)
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(BattlePalette.sidebarSecondaryText)

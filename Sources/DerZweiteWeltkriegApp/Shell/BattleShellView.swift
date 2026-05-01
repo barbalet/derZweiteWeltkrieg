@@ -18,6 +18,8 @@ struct BattleShellView: View {
         }
         .padding(18)
         .background(BattlePalette.shellBackground)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(controller.isDeploymentMode ? "deployment-screen" : "battle-screen")
         .onChange(of: controller.playerOneArmyID) { _, _ in
             controller.reconcileForceSelections()
         }

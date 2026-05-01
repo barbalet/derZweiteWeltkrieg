@@ -27,6 +27,7 @@ struct BattleSidebarPanel<Content: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(18)
         }
+        .accessibilityIdentifier("battle-sidebar-scroll")
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 22)

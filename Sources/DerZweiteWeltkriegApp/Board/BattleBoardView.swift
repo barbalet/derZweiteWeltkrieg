@@ -44,6 +44,9 @@ struct BattleBoardView: View {
             )
         }
         .aspectRatio(GameController.boardWidth / GameController.boardHeight, contentMode: .fit)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("battle-board")
+        .accessibilityLabel("Battle board")
     }
 
     private func grid(in size: CGSize) -> Path {
@@ -255,6 +258,10 @@ struct BattleBoardView: View {
                     controller.moveUnit(id: unit.id, to: point)
                 }
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("unit-token-\(unit.id)")
+        .accessibilityLabel(unit.name)
+        .accessibilityValue(unit.ownerName)
     }
 
     private func boardPoint(_ point: CGPoint, in size: CGSize) -> CGPoint {

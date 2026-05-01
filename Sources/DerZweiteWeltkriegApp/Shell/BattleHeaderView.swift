@@ -10,6 +10,7 @@ struct BattleHeaderView: View {
                     Text(controller.isDeploymentMode ? "derZweiteWeltkrieg Deployment" : "derZweiteWeltkrieg Operations Map")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
+                        .accessibilityIdentifier(controller.isDeploymentMode ? "deployment-title" : "battle-title")
                     if let configuration = controller.currentBattleConfiguration,
                        let playerArmy = controller.armyReference(id: configuration.playerArmyID),
                        let aiArmy = controller.armyReference(id: configuration.aiArmyID) {
@@ -22,9 +23,12 @@ struct BattleHeaderView: View {
                             .font(.system(size: 14, weight: .medium, design: .monospaced))
                             .foregroundStyle(Color.white.opacity(0.90))
                     } else {
-                        Text("Turn \(controller.game.turnNumber) • \(controller.game.activePlayerName) • \(controller.game.phaseName)")
+                        Text(battlePhaseSummary)
                             .font(.system(size: 14, weight: .medium, design: .monospaced))
                             .foregroundStyle(Color.white.opacity(0.90))
+                            .accessibilityIdentifier("battle-phase-label")
+                            .accessibilityLabel(battlePhaseSummary)
+                            .accessibilityValue(controller.game.phaseName)
                     }
                     Text("\(controller.mission.name) • \(controller.mission.scoreLine)")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -45,11 +49,13 @@ struct BattleHeaderView: View {
                         controller.returnToSetup()
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("setup-button")
 
                     Button("Restart") {
                         controller.reset()
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("restart-button")
                     .keyboardShortcut("r", modifiers: [.command])
 
                     Button("Save") {
@@ -67,18 +73,24 @@ struct BattleHeaderView: View {
                             controller.beginBattle()
                         }
                         .battlePrimaryButton()
+                        .accessibilityIdentifier("begin-battle-button")
                         .keyboardShortcut(.return, modifiers: [.command])
                     } else {
                         Button("Next Phase") {
                             controller.advancePhase()
                         }
                         .battlePrimaryButton()
+                        .accessibilityIdentifier("next-phase-button")
                         .keyboardShortcut("n", modifiers: [.command])
                         .disabled(controller.hasPendingDecision || !controller.isHumanTurn || controller.isAITurnInProgress)
                     }
                 }
             }
         }
+    }
+
+    private var battlePhaseSummary: String {
+        "Turn \(controller.game.turnNumber) • \(controller.game.activePlayerName) • \(controller.game.phaseName)"
     }
 
     private var statusLine: String {

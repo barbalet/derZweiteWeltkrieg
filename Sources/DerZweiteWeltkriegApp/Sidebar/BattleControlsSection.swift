@@ -18,22 +18,26 @@ struct BattleControlsSection: View {
                             controller.rotateSelected(by: -45)
                         }
                         .battleSecondaryButton()
+                        .accessibilityIdentifier("rotate-left-button")
 
                         Button("Rotate +45°") {
                             controller.rotateSelected(by: 45)
                         }
                         .battleSecondaryButton()
+                        .accessibilityIdentifier("rotate-right-button")
                     }
 
                     Toggle("Manual Cover", isOn: Binding(
                         get: { unit.inCover },
                         set: { controller.toggleCover($0) }
                     ))
+                    .accessibilityIdentifier("manual-cover-toggle")
 
                     Toggle("Hull Down", isOn: Binding(
                         get: { unit.hullDown },
                         set: { controller.toggleHullDown($0) }
                     ))
+                    .accessibilityIdentifier("hull-down-toggle")
 
                     if unit.mixedProfiles {
                         casualtyPrioritySection(for: unit)
@@ -44,6 +48,7 @@ struct BattleControlsSection: View {
                             controller.useSmoke()
                         }
                         .battleSecondaryButton()
+                        .accessibilityIdentifier("use-smoke-button")
                         .keyboardShortcut("m", modifiers: [.command])
                     }
 
@@ -88,6 +93,7 @@ struct BattleControlsSection: View {
                         controller.shootSelected()
                     }
                     .battlePrimaryButton()
+                    .accessibilityIdentifier("shoot-target-button")
                     .disabled(!(unit.canShootNow && controller.selectedTarget != nil))
                     .keyboardShortcut("s", modifiers: [.command])
 
@@ -102,6 +108,7 @@ struct BattleControlsSection: View {
                         controller.assaultSelected(followUp: followUpChoice)
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("assault-target-button")
                     .disabled(!(unit.canAssaultNow && controller.selectedTarget != nil))
                     .keyboardShortcut("a", modifiers: [.command])
                 }
@@ -122,11 +129,13 @@ struct BattleControlsSection: View {
                         controller.rotateSelected(by: -45)
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("rotate-left-button")
 
                     Button("Rotate +45°") {
                         controller.rotateSelected(by: 45)
                     }
                     .battleSecondaryButton()
+                    .accessibilityIdentifier("rotate-right-button")
                 }
             }
 
@@ -134,6 +143,7 @@ struct BattleControlsSection: View {
                 controller.beginBattle()
             }
             .battlePrimaryButton()
+            .accessibilityIdentifier("begin-battle-button")
         }
     }
 

@@ -39,6 +39,7 @@
 		1A2B3C4D5E6F700000000034 /* der_Zweite_Weltkrieg.c in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000014 /* der_Zweite_Weltkrieg.c */; };
 		1A2B3C4D5E6F700000000035 /* der_Zweite_Weltkrieg.h in Headers */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000015 /* der_Zweite_Weltkrieg.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		1A2B3C4D5E6F700000000036 /* DerZweiteWeltkriegTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000016 /* DerZweiteWeltkriegTests.swift */; };
+		1A2B3C4D5E6F7000000000D0 /* DerZweiteWeltkriegUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000D1 /* DerZweiteWeltkriegUITests.swift */; };
 		1A2B3C4D5E6F700000000037 /* libDerZweiteWeltkriegCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000018 /* libDerZweiteWeltkriegCore.a */; };
 		1A2B3C4D5E6F700000000038 /* libDerZweiteWeltkriegCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000018 /* libDerZweiteWeltkriegCore.a */; };
 /* End PBXBuildFile section */
@@ -57,6 +58,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 1A2B3C4D5E6F700000000052;
 			remoteInfo = DerZweiteWeltkriegCore;
+		};
+		1A2B3C4D5E6F7000000000D8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A2B3C4D5E6F700000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1A2B3C4D5E6F700000000051;
+			remoteInfo = DerZweiteWeltkriegApp;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -96,6 +104,8 @@
 		1A2B3C4D5E6F700000000017 /* DerZweiteWeltkriegApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DerZweiteWeltkriegApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A2B3C4D5E6F700000000018 /* libDerZweiteWeltkriegCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libDerZweiteWeltkriegCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A2B3C4D5E6F700000000019 /* DerZweiteWeltkriegTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DerZweiteWeltkriegTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A2B3C4D5E6F7000000000D1 /* DerZweiteWeltkriegUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DerZweiteWeltkriegUITests.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F7000000000D2 /* DerZweiteWeltkriegUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DerZweiteWeltkriegUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,6 +132,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1A2B3C4D5E6F7000000000D3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -140,6 +157,7 @@
 				1A2B3C4D5E6F700000000017 /* DerZweiteWeltkriegApp.app */,
 				1A2B3C4D5E6F700000000018 /* libDerZweiteWeltkriegCore.a */,
 				1A2B3C4D5E6F700000000019 /* DerZweiteWeltkriegTests.xctest */,
+				1A2B3C4D5E6F7000000000D2 /* DerZweiteWeltkriegUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -257,9 +275,26 @@
 		1A2B3C4D5E6F700000000008 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				1A2B3C4D5E6F7000000000DD /* DerZweiteWeltkriegTests */,
+				1A2B3C4D5E6F7000000000D4 /* DerZweiteWeltkriegUITests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		1A2B3C4D5E6F7000000000DD /* DerZweiteWeltkriegTests */ = {
+			isa = PBXGroup;
+			children = (
 				1A2B3C4D5E6F700000000016 /* DerZweiteWeltkriegTests.swift */,
 			);
-			path = Tests/DerZweiteWeltkriegTests;
+			path = DerZweiteWeltkriegTests;
+			sourceTree = "<group>";
+		};
+		1A2B3C4D5E6F7000000000D4 /* DerZweiteWeltkriegUITests */ = {
+			isa = PBXGroup;
+			children = (
+				1A2B3C4D5E6F7000000000D1 /* DerZweiteWeltkriegUITests.swift */,
+			);
+			path = DerZweiteWeltkriegUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -330,6 +365,24 @@
 			productReference = 1A2B3C4D5E6F700000000019 /* DerZweiteWeltkriegTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		1A2B3C4D5E6F7000000000D5 /* DerZweiteWeltkriegUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A2B3C4D5E6F7000000000D9 /* Build configuration list for PBXNativeTarget "DerZweiteWeltkriegUITests" */;
+			buildPhases = (
+				1A2B3C4D5E6F7000000000D6 /* Sources */,
+				1A2B3C4D5E6F7000000000D3 /* Frameworks */,
+				1A2B3C4D5E6F7000000000D7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1A2B3C4D5E6F7000000000DA /* PBXTargetDependency */,
+			);
+			name = DerZweiteWeltkriegUITests;
+			productName = DerZweiteWeltkriegUITests;
+			productReference = 1A2B3C4D5E6F7000000000D2 /* DerZweiteWeltkriegUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -347,6 +400,10 @@
 						CreatedOnToolsVersion = 26.3;
 					};
 					1A2B3C4D5E6F700000000053 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 1A2B3C4D5E6F700000000051;
+					};
+					1A2B3C4D5E6F7000000000D5 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 1A2B3C4D5E6F700000000051;
 					};
@@ -368,6 +425,7 @@
 				1A2B3C4D5E6F700000000052 /* DerZweiteWeltkriegCore */,
 				1A2B3C4D5E6F700000000051 /* DerZweiteWeltkriegApp */,
 				1A2B3C4D5E6F700000000053 /* DerZweiteWeltkriegTests */,
+				1A2B3C4D5E6F7000000000D5 /* DerZweiteWeltkriegUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -381,6 +439,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		1A2B3C4D5E6F700000000049 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1A2B3C4D5E6F7000000000D7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -441,6 +506,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		1A2B3C4D5E6F7000000000D6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A2B3C4D5E6F7000000000D0 /* DerZweiteWeltkriegUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -453,6 +526,11 @@
 			isa = PBXTargetDependency;
 			target = 1A2B3C4D5E6F700000000052 /* DerZweiteWeltkriegCore */;
 			targetProxy = 1A2B3C4D5E6F700000000064 /* PBXContainerItemProxy */;
+		};
+		1A2B3C4D5E6F7000000000DA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1A2B3C4D5E6F700000000051 /* DerZweiteWeltkriegApp */;
+			targetProxy = 1A2B3C4D5E6F7000000000D8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -601,6 +679,48 @@
 			};
 			name = Release;
 		};
+		1A2B3C4D5E6F7000000000DB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.barbalet.derzweiteweltkrieg.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = DerZweiteWeltkriegApp;
+			};
+			name = Debug;
+		};
+		1A2B3C4D5E6F7000000000DC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.barbalet.derzweiteweltkrieg.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = DerZweiteWeltkriegApp;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -636,6 +756,15 @@
 			buildConfigurations = (
 				1A2B3C4D5E6F70000000007B /* Debug */,
 				1A2B3C4D5E6F70000000007C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		1A2B3C4D5E6F7000000000D9 /* Build configuration list for PBXNativeTarget "DerZweiteWeltkriegUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A2B3C4D5E6F7000000000DB /* Debug */,
+				1A2B3C4D5E6F7000000000DC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
