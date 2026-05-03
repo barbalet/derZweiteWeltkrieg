@@ -142,6 +142,24 @@ typedef struct {
 } army_list_entry_t;
 
 typedef struct {
+    int id;
+    const char *name;
+    terrain_kind_t kind;
+    rect_t rect;
+    int cover_save;
+    bool blocks_line_of_sight;
+    bool hull_down;
+} guderian_scenario_zone_t;
+
+typedef struct {
+    int id;
+    const char *name;
+    float x;
+    float y;
+    float radius;
+} guderian_scenario_objective_t;
+
+typedef struct {
     bool active;
     int chooser_id;
     player_t chooser_owner;
@@ -244,6 +262,7 @@ game_t *game_create_demo(uint32_t seed);
 game_t *game_create_demo_with_armies(uint32_t seed, army_list_t player_one_army, army_list_t player_two_army);
 game_t *game_create_demo_with_forces(uint32_t seed, army_list_t player_one_army, int player_one_force, army_list_t player_two_army, int player_two_force);
 game_t *game_create_skirmish(uint32_t seed, army_list_t player_one_army, const army_list_entry_t *player_one_entries, int player_one_entry_count, army_list_t player_two_army, const army_list_entry_t *player_two_entries, int player_two_entry_count);
+bool game_apply_guderian_scenario_board(game_t *game, const char *mission_name, int target_score, const guderian_scenario_zone_t *zones, int zone_count, const guderian_scenario_objective_t *objectives, int objective_count);
 void game_destroy(game_t *game);
 void game_reset_demo(game_t *game, uint32_t seed);
 void game_reset_demo_with_armies(game_t *game, uint32_t seed, army_list_t player_one_army, army_list_t player_two_army);

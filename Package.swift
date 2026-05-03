@@ -20,7 +20,10 @@ let package = Package(
         .target(
             name: "DerZweiteWeltkriegCore",
             path: "Sources/DerZweiteWeltkriegCore",
-            publicHeadersPath: "include"
+            publicHeadersPath: "include",
+            cSettings: [
+                .define("HEINZ_GUDERIAN_GAME"),
+            ]
         ),
         .executableTarget(
             name: "DerZweiteWeltkriegApp",

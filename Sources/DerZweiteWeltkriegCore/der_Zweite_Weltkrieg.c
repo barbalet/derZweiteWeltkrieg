@@ -26,6 +26,9 @@
 #define TE_JAMMED_WEAPON_ARC_DEGREES 10
 #define TE_MAX_DEPLOYMENT_SLOTS_PER_SIDE 10
 #define TE_MAX_ARMY_CATALOG_UNITS 16
+#ifdef HEINZ_GUDERIAN_GAME
+#define TE_GUDERIAN_LABEL_LENGTH 80
+#endif
 
 #if defined(COMMAND_LINE_EXECUTION) && defined(DZWK_ENABLE_TRACE)
 static __thread unsigned int te_trace_depth = 0;
@@ -244,6 +247,11 @@ struct te_game {
     int player_two_score;
     int objective_count;
     objective_t objectives[TE_MAX_OBJECTIVES];
+#ifdef HEINZ_GUDERIAN_GAME
+    char guderian_mission_name[TE_GUDERIAN_LABEL_LENGTH];
+    char guderian_zone_names[TE_MAX_ZONES][TE_GUDERIAN_LABEL_LENGTH];
+    char guderian_objective_names[TE_MAX_OBJECTIVES][TE_GUDERIAN_LABEL_LENGTH];
+#endif
     bool pending_weapon_destroy_active;
     int pending_weapon_destroy_chooser_id;
     int pending_weapon_destroy_target_id;
@@ -5454,6 +5462,79 @@ game_t *game_create_skirmish(uint32_t seed, army_list_t player_one_army, const a
     begin_turn(game);
     return game;
 }
+
+#ifdef HEINZ_GUDERIAN_GAME
+static const char *copy_guderian_label(char destination[TE_GUDERIAN_LABEL_LENGTH], const char *source, const char *fallback) {
+    const char *label = source != NULL && source[0] != '\0' ? source : fallback;
+    snprintf(destination, TE_GUDERIAN_LABEL_LENGTH, "%s", label);
+    return destination;
+}
+
+bool game_apply_guderian_scenario_board(game_t *game, const char *mission_name, int target_score, const guderian_scenario_zone_t *zones, int zone_count, const guderian_scenario_objective_t *objectives, int objective_count) {
+    if (game == NULL) {
+        return false;
+    }
+    if (target_score <= 0) {
+        return fail(game, "Guderian scenario mission target score must be positive.");
+    }
+    if (zone_count < 0 || zone_count > TE_MAX_ZONES) {
+        return fail(game, "Guderian scenario zone count %d exceeds engine capacity %d.", zone_count, TE_MAX_ZONES);
+    }
+    if (objective_count < 0 || objective_count > TE_MAX_OBJECTIVES) {
+        return fail(game, "Guderian scenario objective count %d exceeds engine capacity %d.", objective_count, TE_MAX_OBJECTIVES);
+    }
+    if (zone_count > 0 && zones == NULL) {
+        return fail(game, "Guderian scenario zones were not provided.");
+    }
+    if (objective_count > 0 && objectives == NULL) {
+        return fail(game, "Guderian scenario objectives were not provided.");
+    }
+
+    game->zone_count = 0;
+    game->objective_count = 0;
+    game->player_one_score = 0;
+    game->player_two_score = 0;
+    game->mission_name = copy_guderian_label(game->guderian_mission_name, mission_name, "Guderian Scenario");
+    game->mission_target_score = target_score;
+
+    for (int index = 0; index < zone_count; index += 1) {
+        const guderian_scenario_zone_t *source = &zones[index];
+        if (source->rect.width <= 0.0f || source->rect.height <= 0.0f) {
+            return fail(game, "Guderian scenario zone %d has an invalid rectangle.", source->id);
+        }
+
+        zone_t *zone = &game->zones[game->zone_count];
+        game->zone_count += 1;
+        zone->id = source->id;
+        zone->name = copy_guderian_label(game->guderian_zone_names[index], source->name, "Guderian terrain");
+        zone->kind = source->kind;
+        zone->rect = source->rect;
+        zone->cover_save = source->cover_save;
+        zone->blocks_line_of_sight = source->blocks_line_of_sight;
+        zone->hull_down = source->hull_down;
+    }
+
+    for (int index = 0; index < objective_count; index += 1) {
+        const guderian_scenario_objective_t *source = &objectives[index];
+        if (source->radius <= 0.0f) {
+            return fail(game, "Guderian scenario objective %d has an invalid radius.", source->id);
+        }
+
+        objective_t *objective = &game->objectives[game->objective_count];
+        game->objective_count += 1;
+        objective->id = source->id;
+        objective->name = copy_guderian_label(game->guderian_objective_names[index], source->name, "Guderian objective");
+        objective->x = source->x;
+        objective->y = source->y;
+        objective->radius = source->radius;
+    }
+
+    clear_error(game);
+    te_log(game, "Loaded Guderian scenario board with %d terrain zones and %d objectives.", game->zone_count, game->objective_count);
+    log_mission_briefing(game);
+    return true;
+}
+#endif
 
 void game_destroy(game_t *game) {
     free(game);
