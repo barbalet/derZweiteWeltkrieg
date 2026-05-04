@@ -34,6 +34,8 @@
 		1A2B3C4D5E6F7000000000C5 /* SkirmishModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000095 /* SkirmishModels.swift */; };
 		1A2B3C4D5E6F7000000000C6 /* GameController+Skirmish.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000096 /* GameController+Skirmish.swift */; };
 		1A2B3C4D5E6F7000000000C7 /* SkirmishSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000097 /* SkirmishSetupView.swift */; };
+		1A2B3C4D5E6F7000000000E1 /* BattlefieldViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000E2 /* BattlefieldViewport.swift */; };
+		1A2B3C4D5E6F7000000000E3 /* DerZweiteWeltkriegPlayabilityDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000E4 /* DerZweiteWeltkriegPlayabilityDashboard.swift */; };
 		1A2B3C4D5E6F7000000000CA /* shared.c in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F70000000009A /* shared.c */; };
 		1A2B3C4D5E6F7000000000CC /* shared.h in Headers */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F70000000009B /* shared.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		1A2B3C4D5E6F700000000034 /* der_Zweite_Weltkrieg.c in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000014 /* der_Zweite_Weltkrieg.c */; };
@@ -71,7 +73,7 @@
 /* Begin PBXFileReference section */
 		1A2B3C4D5E6F700000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700000000012 /* GameController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameController.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F700000000013 /* DerZweiteWeltkriegApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DerZweiteWeltkriegApp.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F700000000013 /* DerZweiteWeltkriegApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../../DerZweiteWeltkriegAppHost/DerZweiteWeltkriegApp.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F70000000001A /* ArmyReferenceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArmyReferenceCatalog.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700000000081 /* GameSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameSnapshots.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700000000082 /* GameController+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameController+Actions.swift"; sourceTree = "<group>"; };
@@ -106,6 +108,8 @@
 		1A2B3C4D5E6F700000000019 /* DerZweiteWeltkriegTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DerZweiteWeltkriegTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A2B3C4D5E6F7000000000D1 /* DerZweiteWeltkriegUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DerZweiteWeltkriegUITests.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000D2 /* DerZweiteWeltkriegUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DerZweiteWeltkriegUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A2B3C4D5E6F7000000000E2 /* BattlefieldViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlefieldViewport.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F7000000000E4 /* DerZweiteWeltkriegPlayabilityDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DerZweiteWeltkriegPlayabilityDashboard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -221,7 +225,9 @@
 			children = (
 				1A2B3C4D5E6F700000000089 /* BattleHeaderView.swift */,
 				1A2B3C4D5E6F700000000088 /* BattleShellView.swift */,
+				1A2B3C4D5E6F7000000000E2 /* BattlefieldViewport.swift */,
 				1A2B3C4D5E6F700000000011 /* ContentView.swift */,
+				1A2B3C4D5E6F7000000000E4 /* DerZweiteWeltkriegPlayabilityDashboard.swift */,
 				1A2B3C4D5E6F700000000097 /* SkirmishSetupView.swift */,
 				1A2B3C4D5E6F700000000013 /* DerZweiteWeltkriegApp.swift */,
 			);
@@ -475,7 +481,9 @@
 				1A2B3C4D5E6F7000000000BE /* BattlePendingSections.swift in Sources */,
 				1A2B3C4D5E6F7000000000BA /* BattleSidebarView.swift in Sources */,
 				1A2B3C4D5E6F7000000000B8 /* BattleShellView.swift in Sources */,
+				1A2B3C4D5E6F7000000000E1 /* BattlefieldViewport.swift in Sources */,
 				1A2B3C4D5E6F700000000031 /* ContentView.swift in Sources */,
+				1A2B3C4D5E6F7000000000E3 /* DerZweiteWeltkriegPlayabilityDashboard.swift in Sources */,
 				1A2B3C4D5E6F7000000000B7 /* DisplayLabels.swift in Sources */,
 				1A2B3C4D5E6F700000000032 /* GameController.swift in Sources */,
 				1A2B3C4D5E6F7000000000B2 /* GameController+Actions.swift in Sources */,
