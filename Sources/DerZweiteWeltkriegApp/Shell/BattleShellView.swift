@@ -1,6 +1,7 @@
+import AppKit
 import SwiftUI
 
-private enum BattleShellPanel: String, CaseIterable, Identifiable {
+enum BattleShellPanel: String, CaseIterable, Identifiable {
     case command
     case inspector
     case forces
@@ -35,12 +36,204 @@ private enum BattleShellPanel: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
+private final class BattleShellWindowCoordinator: NSObject, ObservableObject, NSWindowDelegate {
+    @Published private(set) var visiblePanels: Set<BattleShellPanel> = []
+
+    private var windows: [BattleShellPanel: NSWindow] = [:]
+    private var panelsByWindowID: [ObjectIdentifier: BattleShellPanel] = [:]
+
+    func showDefaults(controller: GameController, followUpChoice: Binding<FollowUpChoice>) {
+        for panel in [BattleShellPanel.command, .inspector] {
+            show(panel, controller: controller, followUpChoice: followUpChoice)
+        }
+    }
+
+    func toggle(
+        _ panel: BattleShellPanel,
+        controller: GameController,
+        followUpChoice: Binding<FollowUpChoice>
+    ) {
+        if visiblePanels.contains(panel) {
+            hide(panel)
+        } else {
+            show(panel, controller: controller, followUpChoice: followUpChoice)
+        }
+    }
+
+    func show(
+        _ panel: BattleShellPanel,
+        controller: GameController,
+        followUpChoice: Binding<FollowUpChoice>
+    ) {
+        let window = windows[panel] ?? makeWindow(for: panel)
+        window.contentViewController = NSHostingController(
+            rootView: BattleShellPanelWindow(
+                panel: panel,
+                controller: controller,
+                followUpChoice: followUpChoice
+            )
+        )
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        visiblePanels.insert(panel)
+    }
+
+    func hide(_ panel: BattleShellPanel) {
+        windows[panel]?.orderOut(nil)
+        visiblePanels.remove(panel)
+    }
+
+    func closeAll() {
+        for window in windows.values {
+            window.delegate = nil
+            window.close()
+        }
+        windows.removeAll()
+        panelsByWindowID.removeAll()
+        visiblePanels.removeAll()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              let panel = panelsByWindowID[ObjectIdentifier(window)] else {
+            return
+        }
+        visiblePanels.remove(panel)
+    }
+
+    private func makeWindow(for panel: BattleShellPanel) -> NSWindow {
+        let frame = defaultFrame(for: panel)
+        let window = NSWindow(
+            contentRect: frame,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "derZweiteWeltkrieg \(panel.title)"
+        window.minSize = panel.minimumSize
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        windows[panel] = window
+        panelsByWindowID[ObjectIdentifier(window)] = panel
+        return window
+    }
+
+    private func defaultFrame(for panel: BattleShellPanel) -> CGRect {
+        let screen = NSScreen.main?.visibleFrame ?? CGRect(x: 80, y: 80, width: 1440, height: 900)
+        let size = panel.defaultSize
+        let origin: CGPoint
+        switch panel {
+        case .command:
+            origin = CGPoint(x: screen.minX + 36, y: screen.maxY - size.height - 72)
+        case .inspector:
+            origin = CGPoint(x: screen.maxX - size.width - 44, y: screen.maxY - size.height - 88)
+        case .forces:
+            origin = CGPoint(x: screen.maxX - size.width - 72, y: screen.minY + 68)
+        case .log:
+            origin = CGPoint(x: screen.minX + 64, y: screen.minY + 74)
+        }
+        return CGRect(origin: origin, size: size)
+    }
+}
+
+private extension BattleShellPanel {
+    var defaultSize: CGSize {
+        switch self {
+        case .command:
+            return CGSize(width: 860, height: 700)
+        case .inspector:
+            return CGSize(width: 340, height: 520)
+        case .forces:
+            return CGSize(width: 360, height: 560)
+        case .log:
+            return CGSize(width: 380, height: 460)
+        }
+    }
+
+    var minimumSize: CGSize {
+        switch self {
+        case .command:
+            return CGSize(width: 620, height: 420)
+        case .inspector:
+            return CGSize(width: 300, height: 360)
+        case .forces:
+            return CGSize(width: 320, height: 360)
+        case .log:
+            return CGSize(width: 320, height: 300)
+        }
+    }
+
+    var scrollIdentifier: String {
+        switch self {
+        case .command:
+            return "battle-sidebar-scroll"
+        case .inspector:
+            return "battle-inspector-scroll"
+        case .forces:
+            return "battle-forces-scroll"
+        case .log:
+            return "battle-log-scroll"
+        }
+    }
+}
+
+private struct BattleShellPanelWindow: View {
+    let panel: BattleShellPanel
+    @ObservedObject var controller: GameController
+    @Binding var followUpChoice: FollowUpChoice
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 14) {
+                content
+            }
+            .foregroundStyle(BattlePalette.sidebarPrimaryText)
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier(panel.scrollIdentifier)
+        .frame(minWidth: panel.minimumSize.width, minHeight: panel.minimumSize.height)
+        .background(BattlePalette.sidebarBackground)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch panel {
+        case .command:
+            BattleHeaderView(controller: controller)
+            BattleControlsSection(controller: controller, followUpChoice: $followUpChoice)
+
+            if let pendingChoice = controller.pendingWeaponDestroyChoice {
+                BattlePendingWeaponDestroySection(controller: controller, pendingChoice: pendingChoice)
+            }
+
+            if let pendingAllocation = controller.pendingHitAllocationChoice {
+                BattlePendingAllocationSection(controller: controller, pendingAllocation: pendingAllocation)
+            }
+
+            if !controller.lastError.isEmpty {
+                BattleErrorSection(message: controller.lastError)
+            }
+        case .inspector:
+            BattleInspectorSection(controller: controller)
+            BattleObjectivesSection(controller: controller)
+        case .forces:
+            BattleArmiesSection(controller: controller)
+            BattleLegendStripView()
+        case .log:
+            BattleGuideSection()
+            BattleLogSection(lines: controller.logs)
+        }
+    }
+}
+
 struct BattleShellView: View {
     @ObservedObject var controller: GameController
     @Binding var followUpChoice: FollowUpChoice
     @Binding var dragPreview: [Int: CGPoint]
+    @StateObject private var panelWindows = BattleShellWindowCoordinator()
     @State private var battlefieldZoom: CGFloat = 1
-    @State private var visiblePanels: Set<BattleShellPanel> = [.command, .inspector]
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -58,12 +251,16 @@ struct BattleShellView: View {
             }
             .padding(18)
             .zIndex(10)
-
-            floatingPanels
         }
         .background(BattlePalette.shellBackground)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(controller.isDeploymentMode ? "deployment-screen" : "battle-screen")
+        .onAppear {
+            panelWindows.showDefaults(controller: controller, followUpChoice: $followUpChoice)
+        }
+        .onDisappear {
+            panelWindows.closeAll()
+        }
         .onChange(of: controller.playerOneArmyID) { _, _ in
             controller.reconcileForceSelections()
         }
@@ -110,7 +307,7 @@ struct BattleShellView: View {
                 } label: {
                     Label(panel.title, systemImage: panel.systemImage)
                 }
-                .tint(visiblePanels.contains(panel) ? BattlePalette.playerOneAccent : Color.black.opacity(0.32))
+                .tint(panelWindows.visiblePanels.contains(panel) ? BattlePalette.playerOneAccent : Color.black.opacity(0.32))
                 .accessibilityIdentifier("toggle-\(panel.rawValue)-window")
             }
         }
@@ -128,101 +325,6 @@ struct BattleShellView: View {
         .shadow(color: .black.opacity(0.24), radius: 18, x: 0, y: 10)
     }
 
-    @ViewBuilder
-    private var floatingPanels: some View {
-        if visiblePanels.contains(.command) {
-            BattleFloatingWindow(
-                title: BattleShellPanel.command.title,
-                systemImage: BattleShellPanel.command.systemImage,
-                width: 860,
-                maxHeight: 700,
-                scrollIdentifier: "battle-sidebar-scroll",
-                onClose: { toggle(.command) }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    BattleHeaderView(controller: controller)
-                    BattleControlsSection(controller: controller, followUpChoice: $followUpChoice)
-
-                    if let pendingChoice = controller.pendingWeaponDestroyChoice {
-                        BattlePendingWeaponDestroySection(controller: controller, pendingChoice: pendingChoice)
-                    }
-
-                    if let pendingAllocation = controller.pendingHitAllocationChoice {
-                        BattlePendingAllocationSection(controller: controller, pendingAllocation: pendingAllocation)
-                    }
-
-                    if !controller.lastError.isEmpty {
-                        BattleErrorSection(message: controller.lastError)
-                    }
-                }
-            }
-            .padding(.top, 82)
-            .padding(.leading, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .zIndex(4)
-        }
-
-        if visiblePanels.contains(.inspector) {
-            BattleFloatingWindow(
-                title: BattleShellPanel.inspector.title,
-                systemImage: BattleShellPanel.inspector.systemImage,
-                width: 340,
-                maxHeight: 520,
-                scrollIdentifier: "battle-inspector-scroll",
-                onClose: { toggle(.inspector) }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    BattleInspectorSection(controller: controller)
-                    BattleObjectivesSection(controller: controller)
-                }
-            }
-            .padding(.top, 82)
-            .padding(.trailing, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            .zIndex(5)
-        }
-
-        if visiblePanels.contains(.forces) {
-            BattleFloatingWindow(
-                title: BattleShellPanel.forces.title,
-                systemImage: BattleShellPanel.forces.systemImage,
-                width: 360,
-                maxHeight: 560,
-                scrollIdentifier: "battle-forces-scroll",
-                onClose: { toggle(.forces) }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    BattleArmiesSection(controller: controller)
-                    BattleLegendStripView()
-                }
-            }
-            .padding(.trailing, 18)
-            .padding(.bottom, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            .zIndex(3)
-        }
-
-        if visiblePanels.contains(.log) {
-            BattleFloatingWindow(
-                title: BattleShellPanel.log.title,
-                systemImage: BattleShellPanel.log.systemImage,
-                width: 380,
-                maxHeight: 460,
-                scrollIdentifier: "battle-log-scroll",
-                onClose: { toggle(.log) }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    BattleGuideSection()
-                    BattleLogSection(lines: controller.logs)
-                }
-            }
-            .padding(.leading, 18)
-            .padding(.bottom, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .zIndex(3)
-        }
-    }
-
     private var zoomBinding: Binding<CGFloat> {
         Binding(
             get: { battlefieldZoom },
@@ -231,11 +333,7 @@ struct BattleShellView: View {
     }
 
     private func toggle(_ panel: BattleShellPanel) {
-        if visiblePanels.contains(panel) {
-            visiblePanels.remove(panel)
-        } else {
-            visiblePanels.insert(panel)
-        }
+        panelWindows.toggle(panel, controller: controller, followUpChoice: $followUpChoice)
     }
 
     private func adjustZoom(by delta: CGFloat) {
