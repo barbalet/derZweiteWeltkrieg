@@ -30,4 +30,16 @@ final class DerZweiteWeltkriegGuderianGameplayTests: XCTestCase {
         XCTAssertTrue(moved, afterMove.lastAction.detail)
         XCTAssertEqual(afterMove.lastAction.status, .succeeded)
     }
+
+    func testPlayableTestGameRunnerCoversBothSidesFromDZWPackage() throws {
+        let result = try PlayableTestGameRunner.runBattle(for: .tucholaForest, seed: 620_001)
+
+        XCTAssertTrue(result.completedToEnd, result.blockers.joined(separator: "\n"))
+        XCTAssertTrue(result.automatedSides.contains(.player))
+        XCTAssertTrue(result.automatedSides.contains(.guderianAI))
+        XCTAssertGreaterThan(result.antiGuderianStepCount, 0)
+        XCTAssertGreaterThan(result.germanStepCount, 0)
+        XCTAssertEqual(result.completion.completionRecord.scenarioID, .tucholaForest)
+        XCTAssertFalse(result.antiGuderianPlan.targetPriorities.isEmpty)
+    }
 }

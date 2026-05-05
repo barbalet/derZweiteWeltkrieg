@@ -112,6 +112,9 @@ public struct CampaignAutomationBattleReport: Identifiable, Codable, Hashable, S
     public let playableScreenParityCompleted: Bool
     public let playableScreenParitySummary: String
     public let playableScreenParityBlockers: [String]
+    public let playableTestGameCompleted: Bool
+    public let playableTestGameSummary: String
+    public let playableTestGameBlockers: [String]
     public let steps: [CampaignAutomationStep]
     public let issues: [CampaignAutomationIssue]
     public let engineLogTail: [String]
@@ -256,6 +259,7 @@ public enum CampaignAutomationRunner {
         recordNativePostShipAnalysis(scenario, accumulator: &accumulator)
         recordNativeCampaignSoak(scenario, accumulator: &accumulator)
         recordPlayableScreenParityIfRouted(scenario, accumulator: &accumulator)
+        recordPlayableTestGame(scenario, accumulator: &accumulator)
 
         let report = accumulator.finalize(loadout: loadout.summary, game: game)
         if report.status == .passed || (report.status == .warning && options.completeWarningRuns) {
@@ -464,6 +468,32 @@ public enum CampaignAutomationRunner {
                 "Playable Screen Parity",
                 .failed,
                 "DZW-style playable screen harness failed",
+                "\(error)"
+            )
+        }
+    }
+
+    private static func recordPlayableTestGame(
+        _ scenario: GuderianScenario,
+        accumulator: inout AutomationAccumulator
+    ) {
+        do {
+            let result = try PlayableTestGameRunner.runBattle(
+                scenario,
+                seed: UInt32(620_500 + scenario.order)
+            )
+            accumulator.recordPlayableTestGame(result)
+        } catch {
+            accumulator.issue(
+                .failure,
+                "Playable Test Game",
+                "Two-sided playable test game failed",
+                "\(scenario.title) could not play to debrief with both AI controllers: \(error)."
+            )
+            accumulator.step(
+                "Playable Test Game",
+                .failed,
+                "Two-sided playable test game failed",
                 "\(error)"
             )
         }
@@ -952,6 +982,9 @@ private struct AutomationAccumulator {
     var playableScreenParityCompleted = false
     var playableScreenParitySummary = ""
     var playableScreenParityBlockers: [String] = []
+    var playableTestGameCompleted = false
+    var playableTestGameSummary = ""
+    var playableTestGameBlockers: [String] = []
 
     mutating func step(_ stage: String, _ status: CampaignAutomationStatus, _ title: String, _ detail: String) {
         steps.append(
@@ -1156,6 +1189,26 @@ private struct AutomationAccumulator {
         }
     }
 
+    mutating func recordPlayableTestGame(_ result: PlayableTestGameBattleResult) {
+        playableTestGameCompleted = result.completedToEnd
+        playableTestGameSummary = result.summary
+        playableTestGameBlockers = result.blockers
+        completionRecord = result.completion.completionRecord
+        debriefSummary = result.completion.debriefSummary
+        actionsAttempted += result.steps.count
+        actionsSucceeded += result.steps.filter { $0.status != .blocked }.count
+        phaseAdvances += result.phaseAdvances
+        step(
+            "Playable Test Game",
+            result.completedToEnd ? .passed : .blocked,
+            result.completedToEnd ? "Two-sided playable test game completed" : "Two-sided playable test game blocked",
+            result.summary
+        )
+        for blocker in result.blockers {
+            issue(.blocker, "Playable Test Game", "Playable test game blocker", blocker)
+        }
+    }
+
     func finalize(loadout: AutomationLoadoutSummary?, game: OpaquePointer?) -> CampaignAutomationBattleReport {
         let gameView = game.map { game_view($0) }
         let mission = game.map { game_mission_view($0) }
@@ -1213,6 +1266,9 @@ private struct AutomationAccumulator {
             playableScreenParityCompleted: playableScreenParityCompleted,
             playableScreenParitySummary: playableScreenParitySummary,
             playableScreenParityBlockers: playableScreenParityBlockers,
+            playableTestGameCompleted: playableTestGameCompleted,
+            playableTestGameSummary: playableTestGameSummary,
+            playableTestGameBlockers: playableTestGameBlockers,
             steps: steps,
             issues: issues,
             engineLogTail: engineLogTail(in: game)
