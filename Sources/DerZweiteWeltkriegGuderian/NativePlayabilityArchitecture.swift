@@ -164,12 +164,7 @@ public enum NativePlayabilityArchitectureCatalog {
     public static func readiness(for scenario: GuderianScenario) -> NativeBattleReadinessReport {
         let bundle = ScenarioContentCatalog.bundle(for: scenario)
         let terrainCount = bundle.mapLayout.elements.filter { element in
-            switch element.kind {
-            case .road, .river, .town, .forest, .ridge, .bunker, .fortifiedLine, .bridge, .artillery, .airPressure:
-                return true
-            case .objective, .deployment:
-                return false
-            }
+            element.kind.isPlayableTerrainFeature
         }.count
 
         let loadout = NativeScenarioLoader.load(scenario, seed: UInt32(80_000 + scenario.order))

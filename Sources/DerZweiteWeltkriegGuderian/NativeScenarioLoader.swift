@@ -362,7 +362,7 @@ public struct NativeScenarioLoadout {
             : terrain.points
         let xs = points.map(\.x)
         let ys = points.map(\.y)
-        let padding = max(1.5, terrain.radius, terrain.kind == .road || terrain.kind == .river ? 1.75 : 2.75)
+        let padding = max(1.5, terrain.radius, isLinearTerrain(terrain.kind) ? 1.75 : 2.75)
         let minX = clamp((xs.min() ?? 0) - padding, min: 0, max: blueprint.engineBoardFrame.width - 1)
         let maxX = clamp((xs.max() ?? blueprint.engineBoardFrame.width) + padding, min: minX + 1, max: blueprint.engineBoardFrame.width)
         let minY = clamp((ys.min() ?? 0) - padding, min: 0, max: blueprint.engineBoardFrame.height - 1)
@@ -378,11 +378,11 @@ public struct NativeScenarioLoadout {
 
     private func engineTerrainKind(for kind: NativeBattleTerrainKind) -> terrain_kind_t {
         switch kind {
-        case .river:
+        case .river, .canal, .lake:
             return TE_TERRAIN_IMPASSABLE
-        case .town, .forest, .ridge, .bunker, .fortifiedLine:
+        case .town, .village, .urbanDistrict, .forest, .ridge, .bunker, .fortifiedLine, .marsh:
             return TE_TERRAIN_DIFFICULT
-        case .road, .bridge, .objective, .artilleryPark, .airPressure:
+        case .road, .railway, .bridge, .ford, .ferry, .objective, .artilleryPark, .airPressure, .phaseLine:
             return TE_TERRAIN_OPEN
         }
     }
@@ -391,29 +391,40 @@ public struct NativeScenarioLoadout {
         switch kind {
         case .bunker, .fortifiedLine:
             return 4
-        case .town, .forest, .ridge:
+        case .town, .village, .urbanDistrict, .forest, .ridge, .marsh:
             return 5
-        case .bridge, .artilleryPark:
+        case .bridge, .ford, .ferry, .artilleryPark:
             return 6
-        case .road, .river, .objective, .airPressure:
+        case .road, .river, .canal, .lake, .railway, .objective, .airPressure, .phaseLine:
             return 0
         }
     }
 
     private func terrainPriority(_ kind: NativeBattleTerrainKind) -> Int {
         switch kind {
-        case .river, .bunker, .fortifiedLine:
+        case .bunker, .fortifiedLine:
+            return 7
+        case .bridge, .ford, .ferry:
             return 6
-        case .town, .forest, .ridge:
+        case .town, .village, .urbanDistrict, .forest, .ridge, .marsh:
             return 5
-        case .bridge:
+        case .road, .railway, .phaseLine:
             return 4
-        case .road:
+        case .river, .canal, .lake:
             return 3
         case .artilleryPark:
             return 2
         case .objective, .airPressure:
             return 1
+        }
+    }
+
+    private func isLinearTerrain(_ kind: NativeBattleTerrainKind) -> Bool {
+        switch kind {
+        case .road, .railway, .river, .canal, .bridge, .ford, .ferry, .phaseLine:
+            return true
+        default:
+            return false
         }
     }
 

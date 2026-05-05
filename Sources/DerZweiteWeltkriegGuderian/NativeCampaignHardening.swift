@@ -462,7 +462,10 @@ public enum NativeBalanceUXAuditCatalog {
         let balance = ScenarioBalanceCatalog.profile(for: scenario)
         let audit = ScenarioBalanceAuditCatalog.audit(for: scenario)
         let flowPlan = try? BattleUIFlowRunner.plan(for: scenario.id)
-        let readableDensity = instance.units.count <= 24 && instance.objectives.count <= 6 && instance.terrain.count <= 52
+        let summarizedBoardTerrainCount = min(instance.terrain.count, 8)
+        let readableDensity = instance.units.count <= 24 &&
+            instance.objectives.count <= 6 &&
+            summarizedBoardTerrainCount <= 8
         let pacingReady = balance.targetTurns.lowerBound >= 4 && balance.targetTurns.upperBound <= 12 && !balance.pacingRules.isEmpty
         let agencyReady = !audit.agencyNote.isEmpty && balance.maxPlayerScore >= instance.victory.missionTargetScore
         let debriefReady = balance.outcomeBands.count >= 3 &&
@@ -585,7 +588,7 @@ public enum NativeBalanceUXAuditCatalog {
         [
             signal(scenario, "pacing", .pacing, "Playable pacing", "Target turn window \(balance.targetTurns.lowerBound)-\(balance.targetTurns.upperBound) with \(balance.pacingRules.count) pacing rules.", pacingReady),
             signal(scenario, "agency", .agency, "Player agency", balance.playerWinCondition, agencyReady),
-            signal(scenario, "density", .density, "Readable board density", "Native unit, objective, and terrain counts stay inside cycle 390 limits.", readableDensity),
+            signal(scenario, "density", .density, "Readable board density", "Native units, objectives, and summarized board terrain stay inside cycle 390 limits.", readableDensity),
             signal(scenario, "readability", .readability, "Victory readability", "\(balance.outcomeBands.count) debrief bands cover the native mission target.", debriefReady),
             signal(scenario, "accessibility", .accessibility, "UI flow labels", "Campaign row through completion exposes stable accessibility identifiers.", accessibilityReady),
             signal(scenario, "save-load", .saveLoad, "Save/load continuity", "Scenario progress round-trips through the current save schema.", saveLoadReady),

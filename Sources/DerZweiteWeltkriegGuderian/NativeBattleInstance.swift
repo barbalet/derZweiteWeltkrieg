@@ -35,15 +35,24 @@ public enum NativeBattleWeaponRole: String, Codable, Hashable, Sendable {
 public enum NativeBattleTerrainKind: String, Codable, Hashable, Sendable {
     case road = "Road"
     case river = "River"
+    case canal = "Canal"
+    case lake = "Lake"
+    case marsh = "Marsh"
+    case railway = "Railway"
     case town = "Town"
+    case village = "Village"
+    case urbanDistrict = "Urban district"
     case forest = "Forest"
     case ridge = "Ridge"
     case bunker = "Bunker"
     case fortifiedLine = "Fortified line"
     case bridge = "Bridge"
+    case ford = "Ford"
+    case ferry = "Ferry"
     case objective = "Objective"
     case artilleryPark = "Artillery park"
     case airPressure = "Air pressure"
+    case phaseLine = "Phase line"
 }
 
 public enum NativeBattleObjectiveKind: String, Codable, Hashable, Sendable {
@@ -1019,8 +1028,20 @@ private struct NativeBattleInstanceBuilder {
             return .road
         case .river:
             return .river
+        case .canal:
+            return .canal
+        case .lake:
+            return .lake
+        case .marsh:
+            return .marsh
+        case .railway:
+            return .railway
         case .town:
             return .town
+        case .village:
+            return .village
+        case .urbanDistrict:
+            return .urbanDistrict
         case .forest:
             return .forest
         case .ridge:
@@ -1031,12 +1052,18 @@ private struct NativeBattleInstanceBuilder {
             return .fortifiedLine
         case .bridge:
             return .bridge
+        case .ford:
+            return .ford
+        case .ferry:
+            return .ferry
         case .objective, .deployment:
             return .objective
         case .artillery:
             return .artilleryPark
         case .airPressure:
             return .airPressure
+        case .phaseLine:
+            return .phaseLine
         }
     }
 
@@ -1077,11 +1104,11 @@ private struct NativeBattleInstanceBuilder {
 
     private func movementCostHint(for kind: ScenarioMapElementKind) -> Double {
         switch kind {
-        case .road, .bridge:
+        case .road, .railway, .bridge, .ford, .ferry, .phaseLine:
             return 0.75
-        case .river:
+        case .river, .canal, .lake:
             return 4
-        case .forest, .ridge, .bunker, .fortifiedLine, .town:
+        case .forest, .ridge, .bunker, .fortifiedLine, .town, .village, .urbanDistrict, .marsh:
             return 1.5
         case .objective, .artillery, .airPressure, .deployment:
             return 1
@@ -1090,9 +1117,9 @@ private struct NativeBattleInstanceBuilder {
 
     private func blocksLineOfSightHint(for kind: ScenarioMapElementKind) -> Bool {
         switch kind {
-        case .forest, .ridge, .town, .bunker, .fortifiedLine:
+        case .forest, .ridge, .town, .village, .urbanDistrict, .bunker, .fortifiedLine, .marsh:
             return true
-        case .road, .river, .bridge, .objective, .artillery, .airPressure, .deployment:
+        case .road, .river, .canal, .lake, .railway, .bridge, .ford, .ferry, .objective, .artillery, .airPressure, .deployment, .phaseLine:
             return false
         }
     }

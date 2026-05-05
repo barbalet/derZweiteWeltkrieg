@@ -227,7 +227,7 @@ public enum FullCampaignShipReportCatalog {
 
     private static func performanceBudgets(for bundles: [ScenarioContentBundle]) -> [PerformanceBudget] {
         [
-            budget("map-elements", "Map element density", bundles.map { $0.mapLayout.elements.count }.max() ?? 0, 48, "Highest single-scenario map element count."),
+            budget("map-elements", "Map element density", bundles.map { $0.mapLayout.elements.count }.max() ?? 0, 64, "Highest single-scenario rendered map element count after map-detail enrichment."),
             budget("setup-units", "Setup unit density", bundles.map { $0.setup.units.count }.max() ?? 0, 18, "Highest single-scenario unit roster count."),
             budget("log-entries", "Operation log density", bundles.map { $0.logEntries.count }.max() ?? 0, 42, "Highest single-scenario operation-log entry count."),
             budget("ai-orders", "AI order density", bundles.map { $0.aiPlan.orders.count }.max() ?? 0, 10, "Highest single-scenario German AI order count."),
