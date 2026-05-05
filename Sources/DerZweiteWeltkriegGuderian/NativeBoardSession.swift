@@ -99,6 +99,54 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
     public let selected: Bool
     public let targeted: Bool
 
+    public init(
+        id: Int,
+        name: String,
+        engineName: String,
+        nativeUnitID: String?,
+        owner: NativeBoardPlayer,
+        kind: String,
+        mobility: String,
+        role: String,
+        historicalNote: String,
+        x: Double,
+        y: Double,
+        facingDegrees: Double,
+        totalWoundsRemaining: Int,
+        destroyed: Bool,
+        inCover: Bool,
+        hullDown: Bool,
+        pinned: Bool,
+        canMoveNow: Bool,
+        canShootNow: Bool,
+        canAssaultNow: Bool,
+        selected: Bool,
+        targeted: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.engineName = engineName
+        self.nativeUnitID = nativeUnitID
+        self.owner = owner
+        self.kind = kind
+        self.mobility = mobility
+        self.role = role
+        self.historicalNote = historicalNote
+        self.x = x
+        self.y = y
+        self.facingDegrees = facingDegrees
+        self.totalWoundsRemaining = totalWoundsRemaining
+        self.destroyed = destroyed
+        self.inCover = inCover
+        self.hullDown = hullDown
+        self.pinned = pinned
+        self.canMoveNow = canMoveNow
+        self.canShootNow = canShootNow
+        self.canAssaultNow = canAssaultNow
+        self.selected = selected
+        self.targeted = targeted
+    }
+
     public var roleLine: String {
         mobility == role ? role : "\(mobility) | \(role)"
     }
@@ -115,6 +163,30 @@ public struct NativeBoardZoneSnapshot: Identifiable, Codable, Hashable, Sendable
     public let coverSave: Int
     public let blocksLineOfSight: Bool
     public let hullDown: Bool
+
+    public init(
+        id: Int,
+        name: String,
+        kind: String,
+        x: Double,
+        y: Double,
+        width: Double,
+        height: Double,
+        coverSave: Int,
+        blocksLineOfSight: Bool,
+        hullDown: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.coverSave = coverSave
+        self.blocksLineOfSight = blocksLineOfSight
+        self.hullDown = hullDown
+    }
 }
 
 public struct NativeBoardObjectiveSnapshot: Identifiable, Codable, Hashable, Sendable {
@@ -126,6 +198,26 @@ public struct NativeBoardObjectiveSnapshot: Identifiable, Codable, Hashable, Sen
     public let controller: NativeBoardPlayer
     public let playerPresence: Int
     public let opponentPresence: Int
+
+    public init(
+        id: Int,
+        name: String,
+        x: Double,
+        y: Double,
+        radius: Double,
+        controller: NativeBoardPlayer,
+        playerPresence: Int,
+        opponentPresence: Int
+    ) {
+        self.id = id
+        self.name = name
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.controller = controller
+        self.playerPresence = playerPresence
+        self.opponentPresence = opponentPresence
+    }
 }
 
 public struct NativeBoardSnapshot: Codable, Hashable, Sendable {
@@ -142,6 +234,36 @@ public struct NativeBoardSnapshot: Codable, Hashable, Sendable {
     public let lastAction: NativeBoardActionMessage
     public let boardReport: NativeScenarioBoardReport
     public let deploymentReport: NativeScenarioDeploymentReport
+
+    public init(
+        scenarioID: GuderianBattleID,
+        scenarioTitle: String,
+        turnNumber: Int,
+        activePlayer: NativeBoardPlayer,
+        phase: NativeBoardPhase,
+        mission: NativeBoardMissionSnapshot,
+        units: [NativeBoardUnitSnapshot],
+        zones: [NativeBoardZoneSnapshot],
+        objectives: [NativeBoardObjectiveSnapshot],
+        logLines: [String],
+        lastAction: NativeBoardActionMessage,
+        boardReport: NativeScenarioBoardReport,
+        deploymentReport: NativeScenarioDeploymentReport
+    ) {
+        self.scenarioID = scenarioID
+        self.scenarioTitle = scenarioTitle
+        self.turnNumber = turnNumber
+        self.activePlayer = activePlayer
+        self.phase = phase
+        self.mission = mission
+        self.units = units
+        self.zones = zones
+        self.objectives = objectives
+        self.logLines = logLines
+        self.lastAction = lastAction
+        self.boardReport = boardReport
+        self.deploymentReport = deploymentReport
+    }
 
     public var isScenarioBoardPlayable: Bool {
         boardReport.isScenarioSpecific && !units.isEmpty && !objectives.isEmpty
