@@ -397,6 +397,26 @@ public struct NativeEngineUnitSpawn: Identifiable, Codable, Hashable, Sendable {
     public let y: Double
     public let deploymentZoneID: String
     public let weaponRoleIDs: [String]
+
+    public init(
+        id: String,
+        name: String,
+        side: NativeBattleSide,
+        mobility: NativeBattleUnitMobility,
+        x: Double,
+        y: Double,
+        deploymentZoneID: String,
+        weaponRoleIDs: [String]
+    ) {
+        self.id = id
+        self.name = name
+        self.side = side
+        self.mobility = mobility
+        self.x = x
+        self.y = y
+        self.deploymentZoneID = deploymentZoneID
+        self.weaponRoleIDs = weaponRoleIDs
+    }
 }
 
 public struct NativeEngineObjectiveSpawn: Identifiable, Codable, Hashable, Sendable {
@@ -406,6 +426,22 @@ public struct NativeEngineObjectiveSpawn: Identifiable, Codable, Hashable, Senda
     public let x: Double
     public let y: Double
     public let victoryPoints: Int
+
+    public init(
+        id: String,
+        name: String,
+        side: NativeBattleSide,
+        x: Double,
+        y: Double,
+        victoryPoints: Int
+    ) {
+        self.id = id
+        self.name = name
+        self.side = side
+        self.x = x
+        self.y = y
+        self.victoryPoints = victoryPoints
+    }
 }
 
 public struct NativeEngineTerrainSpawn: Identifiable, Codable, Hashable, Sendable {
@@ -416,6 +452,24 @@ public struct NativeEngineTerrainSpawn: Identifiable, Codable, Hashable, Sendabl
     public let radius: Double
     public let movementCostHint: Double
     public let blocksLineOfSightHint: Bool
+
+    public init(
+        id: String,
+        name: String,
+        kind: NativeBattleTerrainKind,
+        points: [NativeBattleCoordinate],
+        radius: Double,
+        movementCostHint: Double,
+        blocksLineOfSightHint: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.points = points
+        self.radius = radius
+        self.movementCostHint = movementCostHint
+        self.blocksLineOfSightHint = blocksLineOfSightHint
+    }
 }
 
 public struct NativeEngineBattleBlueprint: Identifiable, Codable, Hashable, Sendable {

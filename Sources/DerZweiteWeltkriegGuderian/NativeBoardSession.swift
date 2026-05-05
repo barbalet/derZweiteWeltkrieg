@@ -6,7 +6,7 @@ public enum NativeBoardPlayer: String, Codable, Hashable, Sendable {
     case player = "Player"
     case guderianAI = "Guderian AI"
 
-    init(_ player: player_t) {
+    public init(_ player: player_t) {
         switch player {
         case TE_PLAYER_ONE:
             self = .player
@@ -59,6 +59,20 @@ public struct NativeBoardMissionSnapshot: Codable, Hashable, Sendable {
     public let playerScore: Int
     public let opponentScore: Int
     public let winner: NativeBoardPlayer
+
+    public init(
+        name: String,
+        targetScore: Int,
+        playerScore: Int,
+        opponentScore: Int,
+        winner: NativeBoardPlayer
+    ) {
+        self.name = name
+        self.targetScore = targetScore
+        self.playerScore = playerScore
+        self.opponentScore = opponentScore
+        self.winner = winner
+    }
 }
 
 public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable {
