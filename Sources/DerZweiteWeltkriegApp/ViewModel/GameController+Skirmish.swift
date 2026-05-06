@@ -284,10 +284,10 @@ extension GameController {
               !isReplayingBattle,
               !isAITurnInProgress,
               mission.winner == nil,
-              game.activePlayer == TE_PLAYER_TWO else {
+              game.activePlayer == DZW_PLAYER_TWO else {
             return
         }
-        if pendingWeaponDestroyChoice?.chooserOwner == TE_PLAYER_ONE || pendingHitAllocationChoice?.chooserOwner == TE_PLAYER_ONE {
+        if pendingWeaponDestroyChoice?.chooserOwner == DZW_PLAYER_ONE || pendingHitAllocationChoice?.chooserOwner == DZW_PLAYER_ONE {
             return
         }
 
@@ -300,7 +300,7 @@ extension GameController {
     private func performAITurn() async {
         while !Task.isCancelled &&
                 appMode == .battle &&
-                game.activePlayer == TE_PLAYER_TWO &&
+                game.activePlayer == DZW_PLAYER_TWO &&
                 mission.winner == nil {
             if humanDecisionIsBlockingAI {
                 break
@@ -312,11 +312,11 @@ extension GameController {
             }
 
             switch game.phase {
-            case TE_PHASE_MOVEMENT:
+            case DZW_PHASE_MOVEMENT:
                 performAIMovementPhase()
-            case TE_PHASE_SHOOTING:
+            case DZW_PHASE_SHOOTING:
                 performAIShootingPhase()
-            case TE_PHASE_ASSAULT:
+            case DZW_PHASE_ASSAULT:
                 performAIAssaultPhase()
             default:
                 _ = executeRecordedAction(RecordedBattleAction(kind: .advancePhase), record: true, triggerAI: false)
@@ -330,11 +330,11 @@ extension GameController {
     }
 
     private var humanDecisionIsBlockingAI: Bool {
-        pendingWeaponDestroyChoice?.chooserOwner == TE_PLAYER_ONE || pendingHitAllocationChoice?.chooserOwner == TE_PLAYER_ONE
+        pendingWeaponDestroyChoice?.chooserOwner == DZW_PLAYER_ONE || pendingHitAllocationChoice?.chooserOwner == DZW_PLAYER_ONE
     }
 
     private func resolveAIPendingChoices() -> Bool {
-        if let pendingWeaponDestroyChoice, pendingWeaponDestroyChoice.chooserOwner == TE_PLAYER_TWO,
+        if let pendingWeaponDestroyChoice, pendingWeaponDestroyChoice.chooserOwner == DZW_PLAYER_TWO,
            let chosen = pendingWeaponDestroyChoice.options.max(by: { $0.id < $1.id }) {
             return executeRecordedAction(
                 RecordedBattleAction(kind: .chooseWeaponDestroy, optionID: chosen.id),
@@ -343,7 +343,7 @@ extension GameController {
             )
         }
 
-        if let pendingHitAllocationChoice, pendingHitAllocationChoice.chooserOwner == TE_PLAYER_TWO {
+        if let pendingHitAllocationChoice, pendingHitAllocationChoice.chooserOwner == DZW_PLAYER_TWO {
             let group = pendingHitAllocationGroups
                 .filter { $0.models > 0 }
                 .max {
@@ -493,7 +493,7 @@ extension GameController {
     }
 
     private func objectivePriority(for unit: UnitSnapshot, objective: ObjectiveSnapshot) -> CGFloat {
-        let ownershipPenalty: CGFloat = objective.controller == TE_PLAYER_TWO ? 100 : 0
+        let ownershipPenalty: CGFloat = objective.controller == DZW_PLAYER_TWO ? 100 : 0
         let distancePenalty = hypot(unit.x - objective.x, unit.y - objective.y)
         return ownershipPenalty + distancePenalty
     }
@@ -522,7 +522,7 @@ extension GameController {
     }
 
     private func aiMovementAllowance(for unit: UnitSnapshot) -> CGFloat {
-        if unit.kind == TE_UNIT_VEHICLE {
+        if unit.kind == DZW_UNIT_VEHICLE {
             return unit.fast ? 18 : 12
         }
         return 6
@@ -539,7 +539,7 @@ extension GameController {
     private func aiTargetPriority(for unit: UnitSnapshot, target: UnitSnapshot) -> CGFloat {
         let edgeDistance = max(0, distance(from: unit, to: target) - unit.footprintRadius - target.footprintRadius)
         let objectiveBias: CGFloat = objectiveStates.contains(where: {
-            $0.controller != TE_PLAYER_TWO && hypot(target.x - $0.x, target.y - $0.y) <= max($0.radius + 3, 6)
+            $0.controller != DZW_PLAYER_TWO && hypot(target.x - $0.x, target.y - $0.y) <= max($0.radius + 3, 6)
         }) ? -12 : 0
         let vehicleBias: CGFloat = target.usesVehicleRules ? -4 : 0
         return edgeDistance + objectiveBias + vehicleBias
@@ -635,10 +635,10 @@ extension GameController {
             game_reset_skirmish(
                 handle,
                 configuration.seed,
-                armyReference(id: configuration.playerArmyID)?.preset ?? TE_ARMY_DEMO,
+                armyReference(id: configuration.playerArmyID)?.preset ?? DZW_ARMY_DEMO,
                 playerEntries.baseAddress,
                 Int32(playerEntries.count),
-                armyReference(id: configuration.aiArmyID)?.preset ?? TE_ARMY_DEMO,
+                armyReference(id: configuration.aiArmyID)?.preset ?? DZW_ARMY_DEMO,
                 aiEntries.baseAddress,
                 Int32(aiEntries.count)
             )

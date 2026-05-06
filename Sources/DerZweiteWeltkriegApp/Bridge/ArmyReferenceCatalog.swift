@@ -31,12 +31,12 @@ enum ArmyReferenceCatalog {
     }
 
     private static let supportedArmies: [KnownArmy] = [
-        KnownArmy(id: "british", displayName: "British", allegiance: .allies, preset: TE_ARMY_BRITISH),
-        KnownArmy(id: "american", displayName: "American", allegiance: .allies, preset: TE_ARMY_AMERICAN),
-        KnownArmy(id: "australian", displayName: "Australian", allegiance: .allies, preset: TE_ARMY_AUSTRALIAN),
-        KnownArmy(id: "soviet", displayName: "Soviet", allegiance: .allies, preset: TE_ARMY_SOVIET),
-        KnownArmy(id: "german", displayName: "German", allegiance: .axis, preset: TE_ARMY_GERMAN),
-        KnownArmy(id: "italian", displayName: "Italian", allegiance: .axis, preset: TE_ARMY_ITALIAN),
+        KnownArmy(id: "british", displayName: "British", allegiance: .allies, preset: DZW_ARMY_BRITISH),
+        KnownArmy(id: "american", displayName: "American", allegiance: .allies, preset: DZW_ARMY_AMERICAN),
+        KnownArmy(id: "australian", displayName: "Australian", allegiance: .allies, preset: DZW_ARMY_AUSTRALIAN),
+        KnownArmy(id: "soviet", displayName: "Soviet", allegiance: .allies, preset: DZW_ARMY_SOVIET),
+        KnownArmy(id: "german", displayName: "German", allegiance: .axis, preset: DZW_ARMY_GERMAN),
+        KnownArmy(id: "italian", displayName: "Italian", allegiance: .axis, preset: DZW_ARMY_ITALIAN),
     ]
 
     static func load() -> [ArmyReference] {

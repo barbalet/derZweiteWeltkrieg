@@ -8,45 +8,45 @@
 extern "C" {
 #endif
 
-typedef struct te_game game_t;
+typedef struct dzw_game game_t;
 
 typedef enum {
-    TE_PLAYER_NONE = 0,
-    TE_PLAYER_ONE = 1,
-    TE_PLAYER_TWO = 2
+    DZW_PLAYER_NONE = 0,
+    DZW_PLAYER_ONE = 1,
+    DZW_PLAYER_TWO = 2
 } player_t;
 
 typedef enum {
-    TE_PHASE_MOVEMENT = 0,
-    TE_PHASE_SHOOTING = 1,
-    TE_PHASE_ASSAULT = 2
+    DZW_PHASE_MOVEMENT = 0,
+    DZW_PHASE_SHOOTING = 1,
+    DZW_PHASE_ASSAULT = 2
 } phase_t;
 
 typedef enum {
-    TE_UNIT_INFANTRY = 0,
-    TE_UNIT_VEHICLE = 1,
-    TE_UNIT_ASSAULT_GUN = 2
+    DZW_UNIT_INFANTRY = 0,
+    DZW_UNIT_VEHICLE = 1,
+    DZW_UNIT_ASSAULT_GUN = 2
 } unit_kind_t;
 
 typedef enum {
-    TE_TERRAIN_OPEN = 0,
-    TE_TERRAIN_DIFFICULT = 1,
-    TE_TERRAIN_IMPASSABLE = 2
+    DZW_TERRAIN_OPEN = 0,
+    DZW_TERRAIN_DIFFICULT = 1,
+    DZW_TERRAIN_IMPASSABLE = 2
 } terrain_kind_t;
 
 typedef enum {
-    TE_FOLLOW_UP_ADVANCE = 0,
-    TE_FOLLOW_UP_CONSOLIDATE = 1
+    DZW_FOLLOW_UP_ADVANCE = 0,
+    DZW_FOLLOW_UP_CONSOLIDATE = 1
 } follow_up_t;
 
 typedef enum {
-    TE_ARMY_DEMO = 0,
-    TE_ARMY_BRITISH = 1,
-    TE_ARMY_AMERICAN = 2,
-    TE_ARMY_AUSTRALIAN = 3,
-    TE_ARMY_SOVIET = 4,
-    TE_ARMY_GERMAN = 5,
-    TE_ARMY_ITALIAN = 6
+    DZW_ARMY_DEMO = 0,
+    DZW_ARMY_BRITISH = 1,
+    DZW_ARMY_AMERICAN = 2,
+    DZW_ARMY_AUSTRALIAN = 3,
+    DZW_ARMY_SOVIET = 4,
+    DZW_ARMY_GERMAN = 5,
+    DZW_ARMY_ITALIAN = 6
 } army_list_t;
 
 typedef struct {

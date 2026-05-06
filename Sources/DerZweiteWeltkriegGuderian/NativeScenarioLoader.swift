@@ -274,8 +274,8 @@ public struct NativeScenarioLoadout {
     }
 
     private func deployBlueprintUnits(in game: OpaquePointer) -> NativeScenarioDeploymentReport {
-        let playerIDs = engineUnitIDs(in: game, owner: TE_PLAYER_ONE)
-        let opponentIDs = engineUnitIDs(in: game, owner: TE_PLAYER_TWO)
+        let playerIDs = engineUnitIDs(in: game, owner: DZW_PLAYER_ONE)
+        let opponentIDs = engineUnitIDs(in: game, owner: DZW_PLAYER_TWO)
         let playerSpawns = blueprint.units.filter { $0.side == .player }
         let opponentSpawns = blueprint.units.filter { $0.side == .guderianAI }
 
@@ -379,11 +379,11 @@ public struct NativeScenarioLoadout {
     private func engineTerrainKind(for kind: NativeBattleTerrainKind) -> terrain_kind_t {
         switch kind {
         case .river, .canal, .lake:
-            return TE_TERRAIN_IMPASSABLE
+            return DZW_TERRAIN_IMPASSABLE
         case .town, .village, .urbanDistrict, .forest, .ridge, .bunker, .fortifiedLine, .marsh:
-            return TE_TERRAIN_DIFFICULT
+            return DZW_TERRAIN_DIFFICULT
         case .road, .railway, .bridge, .ford, .ferry, .objective, .artilleryPark, .airPressure, .phaseLine:
-            return TE_TERRAIN_OPEN
+            return DZW_TERRAIN_OPEN
         }
     }
 
@@ -577,7 +577,7 @@ public enum NativeScenarioLoader {
         var score = 1
         switch unit.mobility {
         case .armor:
-            if option.kind == TE_UNIT_VEHICLE || option.kind == TE_UNIT_ASSAULT_GUN { score += 8 }
+            if option.kind == DZW_UNIT_VEHICLE || option.kind == DZW_UNIT_ASSAULT_GUN { score += 8 }
             if containsAny(text, ["tank", "sherman", "stug", "m10", "semovente", "armored", "car"]) { score += 4 }
         case .gun, .artillery:
             if containsAny(text, ["mortar", "mg", "piat", "anti", "gun", "battery", "destroyer"]) { score += 7 }
@@ -586,15 +586,15 @@ public enum NativeScenarioLoader {
         case .command:
             if containsAny(text, ["command", "hq", "officer", "observer"]) { score += 8 }
         case .cavalry:
-            if option.kind == TE_UNIT_INFANTRY { score += 4 }
+            if option.kind == DZW_UNIT_INFANTRY { score += 4 }
             if containsAny(text, ["recon", "scout", "dingo", "jeep"]) { score += 5 }
         case .airPressure, .navalSupport:
             if containsAny(text, ["mortar", "battery", "observer", "command"]) { score += 4 }
         case .armoredTrain:
-            if option.kind == TE_UNIT_VEHICLE || option.kind == TE_UNIT_ASSAULT_GUN { score += 5 }
+            if option.kind == DZW_UNIT_VEHICLE || option.kind == DZW_UNIT_ASSAULT_GUN { score += 5 }
             if containsAny(text, ["gun", "tank", "transport"]) { score += 3 }
         case .infantry:
-            if option.kind == TE_UNIT_INFANTRY { score += 6 }
+            if option.kind == DZW_UNIT_INFANTRY { score += 6 }
         }
 
         for weapon in unit.weapons {
@@ -602,7 +602,7 @@ public enum NativeScenarioLoader {
             case .antiTank:
                 if containsAny(text, ["anti", "piat", "tank", "destroyer", "gun"]) { score += 3 }
             case .armorGun:
-                if option.kind == TE_UNIT_VEHICLE || option.kind == TE_UNIT_ASSAULT_GUN { score += 3 }
+                if option.kind == DZW_UNIT_VEHICLE || option.kind == DZW_UNIT_ASSAULT_GUN { score += 3 }
             case .artillery:
                 if containsAny(text, ["mortar", "battery", "gun"]) { score += 3 }
             case .demolition:
@@ -670,9 +670,9 @@ public enum NativeScenarioLoader {
     private static func armyMapping(for scenario: GuderianScenario) -> (playerArmy: army_list_t, opponentArmy: army_list_t) {
         switch scenario.theater {
         case .easternFront1941:
-            return (TE_ARMY_SOVIET, TE_ARMY_GERMAN)
+            return (DZW_ARMY_SOVIET, DZW_ARMY_GERMAN)
         case .france1940, .poland1939:
-            return (TE_ARMY_BRITISH, TE_ARMY_GERMAN)
+            return (DZW_ARMY_BRITISH, DZW_ARMY_GERMAN)
         }
     }
 

@@ -48,22 +48,22 @@ typedef struct {
 } cli_choice_node_t;
 
 static const army_list_t cli_allied_army_pool[] = {
-    TE_ARMY_BRITISH,
-    TE_ARMY_AMERICAN,
-    TE_ARMY_AUSTRALIAN,
-    TE_ARMY_SOVIET
+    DZW_ARMY_BRITISH,
+    DZW_ARMY_AMERICAN,
+    DZW_ARMY_AUSTRALIAN,
+    DZW_ARMY_SOVIET
 };
 
 static const army_list_t cli_axis_army_pool[] = {
-    TE_ARMY_GERMAN,
-    TE_ARMY_ITALIAN
+    DZW_ARMY_GERMAN,
+    DZW_ARMY_ITALIAN
 };
 
 static const char *player_label(player_t player) {
     switch (player) {
-        case TE_PLAYER_ONE:
+        case DZW_PLAYER_ONE:
             return "Player 1";
-        case TE_PLAYER_TWO:
+        case DZW_PLAYER_TWO:
             return "Player 2";
         default:
             return "None";
@@ -72,11 +72,11 @@ static const char *player_label(player_t player) {
 
 static const char *phase_label(phase_t phase) {
     switch (phase) {
-        case TE_PHASE_MOVEMENT:
+        case DZW_PHASE_MOVEMENT:
             return "Movement";
-        case TE_PHASE_SHOOTING:
+        case DZW_PHASE_SHOOTING:
             return "Shooting";
-        case TE_PHASE_ASSAULT:
+        case DZW_PHASE_ASSAULT:
             return "Assault";
         default:
             return "Unknown";
@@ -85,11 +85,11 @@ static const char *phase_label(phase_t phase) {
 
 static const char *terrain_label(terrain_kind_t kind) {
     switch (kind) {
-        case TE_TERRAIN_OPEN:
+        case DZW_TERRAIN_OPEN:
             return "Open";
-        case TE_TERRAIN_DIFFICULT:
+        case DZW_TERRAIN_DIFFICULT:
             return "Difficult";
-        case TE_TERRAIN_IMPASSABLE:
+        case DZW_TERRAIN_IMPASSABLE:
             return "Impassable";
         default:
             return "Unknown";
@@ -98,11 +98,11 @@ static const char *terrain_label(terrain_kind_t kind) {
 
 static const char *unit_kind_label(unit_kind_t kind) {
     switch (kind) {
-        case TE_UNIT_INFANTRY:
+        case DZW_UNIT_INFANTRY:
             return "Infantry";
-        case TE_UNIT_VEHICLE:
+        case DZW_UNIT_VEHICLE:
             return "Vehicle";
-        case TE_UNIT_ASSAULT_GUN:
+        case DZW_UNIT_ASSAULT_GUN:
             return "Assault Gun";
         default:
             return "Unknown";
@@ -111,15 +111,15 @@ static const char *unit_kind_label(unit_kind_t kind) {
 
 static const char *allegiance_label(army_list_t army) {
     switch (army) {
-        case TE_ARMY_BRITISH:
-        case TE_ARMY_AMERICAN:
-        case TE_ARMY_AUSTRALIAN:
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_BRITISH:
+        case DZW_ARMY_AMERICAN:
+        case DZW_ARMY_AUSTRALIAN:
+        case DZW_ARMY_SOVIET:
             return "Allies";
-        case TE_ARMY_GERMAN:
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_GERMAN:
+        case DZW_ARMY_ITALIAN:
             return "Axis";
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
         default:
             return "Training";
     }
@@ -172,11 +172,11 @@ static float edge_distance_between(const unit_view_t *lhs, const unit_view_t *rh
 }
 
 static bool unit_uses_vehicle_rules(const unit_view_t *unit) {
-    return unit->kind != TE_UNIT_INFANTRY || unit->front_armour > 0 || unit->side_armour > 0 || unit->rear_armour > 0;
+    return unit->kind != DZW_UNIT_INFANTRY || unit->front_armour > 0 || unit->side_armour > 0 || unit->rear_armour > 0;
 }
 
 static float movement_allowance_for_unit(const unit_view_t *unit) {
-    if (unit->kind == TE_UNIT_VEHICLE) {
+    if (unit->kind == DZW_UNIT_VEHICLE) {
         return unit->fast ? 18.0f : 12.0f;
     }
     return 6.0f;
@@ -582,25 +582,25 @@ static void print_battle_overview(const game_t *game, uint32_t seed, const cli_a
     printf("=== derZweiteWeltkrieg World War II Battle Report ===\n");
     printf("Seed: %" PRIu32 "\n", seed);
     printf("Matchup: %s %s vs %s %s\n",
-        allegiance_label(game_player_army(game, TE_PLAYER_ONE)),
-        army_name(game_player_army(game, TE_PLAYER_ONE)),
-        allegiance_label(game_player_army(game, TE_PLAYER_TWO)),
-        army_name(game_player_army(game, TE_PLAYER_TWO)));
+        allegiance_label(game_player_army(game, DZW_PLAYER_ONE)),
+        army_name(game_player_army(game, DZW_PLAYER_ONE)),
+        allegiance_label(game_player_army(game, DZW_PLAYER_TWO)),
+        army_name(game_player_army(game, DZW_PLAYER_TWO)));
     printf("Mission: %s, target %d VP\n", mission.name, mission.target_score);
     printf("Initial State: Turn %d, %s to act in %s phase\n", view.turn_number, player_label(view.active_player), phase_label(view.phase));
     printf("Initial Score: Player 1 %d VP, Player 2 %d VP\n\n", mission.player_one_score, mission.player_two_score);
 
-    print_army_list("Player 1 Army", game_player_army(game, TE_PLAYER_ONE), player_one_list);
-    print_army_list("Player 2 Army", game_player_army(game, TE_PLAYER_TWO), player_two_list);
+    print_army_list("Player 1 Army", game_player_army(game, DZW_PLAYER_ONE), player_one_list);
+    print_army_list("Player 2 Army", game_player_army(game, DZW_PLAYER_TWO), player_two_list);
     printf("\n");
 
     print_zones(game);
     printf("\n");
     print_objectives(game);
     printf("\n");
-    print_units_by_player(game, TE_PLAYER_ONE);
+    print_units_by_player(game, DZW_PLAYER_ONE);
     printf("\n");
-    print_units_by_player(game, TE_PLAYER_TWO);
+    print_units_by_player(game, DZW_PLAYER_TWO);
     printf("\n");
 }
 
@@ -814,7 +814,7 @@ static bool transport_can_fire_passenger(const game_t *game, const unit_view_t *
     }
 
     game_view_t view = game_view(game);
-    if (view.phase != TE_PHASE_SHOOTING) {
+    if (view.phase != DZW_PHASE_SHOOTING) {
         return false;
     }
 
@@ -909,7 +909,7 @@ static void perform_assault_phase(game_t *game, int *last_log_index) {
         int excluded_count = 0;
         unit_view_t target;
         while (choose_best_target(game, view.active_player, &unit, true, excluded_ids, excluded_count, &target) && excluded_count < CLI_MAX_UNITS) {
-            if (game_assault_unit(game, unit.id, target.id, TE_FOLLOW_UP_ADVANCE)) {
+            if (game_assault_unit(game, unit.id, target.id, DZW_FOLLOW_UP_ADVANCE)) {
                 print_new_logs(game, last_log_index);
                 resolve_pending_choices(game, last_log_index);
                 break;
@@ -925,27 +925,27 @@ static void perform_assault_phase(game_t *game, int *last_log_index) {
 
 static player_t determine_debug_winner(const game_t *game) {
     mission_view_t mission = game_mission_view(game);
-    if (mission.winner != TE_PLAYER_NONE) {
+    if (mission.winner != DZW_PLAYER_NONE) {
         return mission.winner;
     }
 
     if (mission.player_one_score != mission.player_two_score) {
-        return mission.player_one_score > mission.player_two_score ? TE_PLAYER_ONE : TE_PLAYER_TWO;
+        return mission.player_one_score > mission.player_two_score ? DZW_PLAYER_ONE : DZW_PLAYER_TWO;
     }
 
-    int player_one_survivors = count_surviving_units(game, TE_PLAYER_ONE);
-    int player_two_survivors = count_surviving_units(game, TE_PLAYER_TWO);
+    int player_one_survivors = count_surviving_units(game, DZW_PLAYER_ONE);
+    int player_two_survivors = count_surviving_units(game, DZW_PLAYER_TWO);
     if (player_one_survivors != player_two_survivors) {
-        return player_one_survivors > player_two_survivors ? TE_PLAYER_ONE : TE_PLAYER_TWO;
+        return player_one_survivors > player_two_survivors ? DZW_PLAYER_ONE : DZW_PLAYER_TWO;
     }
 
-    int player_one_wounds = total_remaining_wounds(game, TE_PLAYER_ONE);
-    int player_two_wounds = total_remaining_wounds(game, TE_PLAYER_TWO);
+    int player_one_wounds = total_remaining_wounds(game, DZW_PLAYER_ONE);
+    int player_two_wounds = total_remaining_wounds(game, DZW_PLAYER_TWO);
     if (player_one_wounds != player_two_wounds) {
-        return player_one_wounds > player_two_wounds ? TE_PLAYER_ONE : TE_PLAYER_TWO;
+        return player_one_wounds > player_two_wounds ? DZW_PLAYER_ONE : DZW_PLAYER_TWO;
     }
 
-    return TE_PLAYER_NONE;
+    return DZW_PLAYER_NONE;
 }
 
 static void print_final_summary(const game_t *game, bool reached_safety_limit) {
@@ -954,9 +954,9 @@ static void print_final_summary(const game_t *game, bool reached_safety_limit) {
     player_t debug_winner = determine_debug_winner(game);
 
     printf("\n=== Battle Result ===\n");
-    if (mission.winner != TE_PLAYER_NONE) {
+    if (mission.winner != DZW_PLAYER_NONE) {
         printf("Winner: %s by mission victory.\n", player_label(mission.winner));
-    } else if (debug_winner != TE_PLAYER_NONE) {
+    } else if (debug_winner != DZW_PLAYER_NONE) {
         printf("Winner: %s on debug tiebreak%s.\n",
             player_label(debug_winner),
             reached_safety_limit ? " after reaching the safety limit" : "");
@@ -967,40 +967,40 @@ static void print_final_summary(const game_t *game, bool reached_safety_limit) {
     printf("Final State: Turn %d, %s in %s phase\n", view.turn_number, player_label(view.active_player), phase_label(view.phase));
     printf("Final Score: Player 1 %d VP, Player 2 %d VP\n", mission.player_one_score, mission.player_two_score);
     printf("Remaining Forces: Player 1 has %d unit(s) and %d wound(s); Player 2 has %d unit(s) and %d wound(s)\n",
-        count_surviving_units(game, TE_PLAYER_ONE),
-        total_remaining_wounds(game, TE_PLAYER_ONE),
-        count_surviving_units(game, TE_PLAYER_TWO),
-        total_remaining_wounds(game, TE_PLAYER_TWO));
+        count_surviving_units(game, DZW_PLAYER_ONE),
+        total_remaining_wounds(game, DZW_PLAYER_ONE),
+        count_surviving_units(game, DZW_PLAYER_TWO),
+        total_remaining_wounds(game, DZW_PLAYER_TWO));
     printf("\n");
     print_objectives(game);
     printf("\n");
-    print_units_by_player(game, TE_PLAYER_ONE);
+    print_units_by_player(game, DZW_PLAYER_ONE);
     printf("\n");
-    print_units_by_player(game, TE_PLAYER_TWO);
+    print_units_by_player(game, DZW_PLAYER_TWO);
 }
 
 static bool autoplay_battle(game_t *game, int *last_log_index) {
     for (int step = 0; step < CLI_MAX_AUTOPLAY_STEPS; step += 1) {
         mission_view_t mission = game_mission_view(game);
-        if (mission.winner != TE_PLAYER_NONE) {
+        if (mission.winner != DZW_PLAYER_NONE) {
             return true;
         }
 
         resolve_pending_choices(game, last_log_index);
         mission = game_mission_view(game);
-        if (mission.winner != TE_PLAYER_NONE) {
+        if (mission.winner != DZW_PLAYER_NONE) {
             return true;
         }
 
         game_view_t view = game_view(game);
         switch (view.phase) {
-            case TE_PHASE_MOVEMENT:
+            case DZW_PHASE_MOVEMENT:
                 perform_movement_phase(game, last_log_index);
                 break;
-            case TE_PHASE_SHOOTING:
+            case DZW_PHASE_SHOOTING:
                 perform_shooting_phase(game, last_log_index);
                 break;
-            case TE_PHASE_ASSAULT:
+            case DZW_PHASE_ASSAULT:
                 perform_assault_phase(game, last_log_index);
                 break;
             default:
@@ -1053,9 +1053,9 @@ int main(int argc, const char *argv[]) {
     bool completed = autoplay_battle(game, &last_log_index);
     print_final_summary(game, !completed);
     mission_view_t mission = game_mission_view(game);
-    player_t final_winner = mission.winner != TE_PLAYER_NONE ? mission.winner : determine_debug_winner(game);
-    const char *final_winner_label = final_winner == TE_PLAYER_NONE ? "Draw" : player_label(final_winner);
-    const char *final_outcome = mission.winner != TE_PLAYER_NONE ? "mission victory" : (final_winner == TE_PLAYER_NONE ? "no winner" : "debug tiebreak");
+    player_t final_winner = mission.winner != DZW_PLAYER_NONE ? mission.winner : determine_debug_winner(game);
+    const char *final_winner_label = final_winner == DZW_PLAYER_NONE ? "Draw" : player_label(final_winner);
+    const char *final_outcome = mission.winner != DZW_PLAYER_NONE ? "mission victory" : (final_winner == DZW_PLAYER_NONE ? "no winner" : "debug tiebreak");
 
     game_destroy(game);
     printf("FINAL WINNER: %s (%s)\n", final_winner_label, final_outcome);

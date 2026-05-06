@@ -52,13 +52,13 @@ struct BattleControlsSection: View {
                         .keyboardShortcut("m", modifiers: [.command])
                     }
 
-                    if unit.kind == TE_UNIT_INFANTRY && !unit.embarked {
+                    if unit.kind == DZW_UNIT_INFANTRY && !unit.embarked {
                         ForEach(controller.eligibleEmbarkTransports(for: unit)) { transport in
                             Button("Embark \(transport.name)") {
                                 controller.embarkSelected(into: transport.id)
                             }
                             .battleSecondaryButton()
-                            .disabled(controller.game.phase != TE_PHASE_MOVEMENT)
+                            .disabled(controller.game.phase != DZW_PHASE_MOVEMENT)
                         }
                     }
 
@@ -67,7 +67,7 @@ struct BattleControlsSection: View {
                             controller.disembarkSelected()
                         }
                         .battleSecondaryButton()
-                        .disabled(controller.game.phase != TE_PHASE_MOVEMENT)
+                        .disabled(controller.game.phase != DZW_PHASE_MOVEMENT)
                         .keyboardShortcut("d", modifiers: [.command])
 
                         Button("Passenger Fire Target") {
@@ -78,12 +78,12 @@ struct BattleControlsSection: View {
                         .keyboardShortcut("f", modifiers: [.command])
                     }
 
-                    if unit.kind == TE_UNIT_VEHICLE {
+                    if unit.kind == DZW_UNIT_VEHICLE {
                         Button("Tank Shock Target") {
                             controller.tankShockSelected()
                         }
                         .battleSecondaryButton()
-                        .disabled(!(controller.game.phase == TE_PHASE_MOVEMENT && controller.selectedTarget != nil))
+                        .disabled(!(controller.game.phase == DZW_PHASE_MOVEMENT && controller.selectedTarget != nil))
                         .keyboardShortcut("t", modifiers: [.command])
                     }
 

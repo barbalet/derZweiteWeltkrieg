@@ -57,9 +57,9 @@ public enum DZWScenarioLoader {
         switch scenario.theater {
         case .easternFront1941:
             return DZWForceMapping(
-                playerArmy: TE_ARMY_SOVIET,
+                playerArmy: DZW_ARMY_SOVIET,
                 playerForceIndex: scenario.id == .moscowTulaKashira ? 1 : 0,
-                opponentArmy: TE_ARMY_GERMAN,
+                opponentArmy: DZW_ARMY_GERMAN,
                 opponentForceIndex: 1,
                 notes: [
                     "Uses the inherited Soviet and German dzw rosters until Guderian-specific 1941 data tables exist.",
@@ -68,9 +68,9 @@ public enum DZWScenarioLoader {
             )
         case .france1940:
             return DZWForceMapping(
-                playerArmy: TE_ARMY_BRITISH,
+                playerArmy: DZW_ARMY_BRITISH,
                 playerForceIndex: 0,
-                opponentArmy: TE_ARMY_GERMAN,
+                opponentArmy: DZW_ARMY_GERMAN,
                 opponentForceIndex: 0,
                 notes: [
                     "Uses the inherited British roster as a Western Allied unit-stat proxy until a native French 1940 C roster is added.",
@@ -80,9 +80,9 @@ public enum DZWScenarioLoader {
             )
         case .poland1939:
             return DZWForceMapping(
-                playerArmy: TE_ARMY_BRITISH,
+                playerArmy: DZW_ARMY_BRITISH,
                 playerForceIndex: 0,
-                opponentArmy: TE_ARMY_GERMAN,
+                opponentArmy: DZW_ARMY_GERMAN,
                 opponentForceIndex: 0,
                 notes: [
                     "Uses the inherited British roster as a temporary Allied infantry proxy until a Polish 1939 C roster is added.",

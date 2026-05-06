@@ -17,7 +17,7 @@ This ledger records how `derZweiteWeltkrieg` models World War II armor, transpor
 | Grounded recon and carrier movement | Universal Carrier, Jeep Recon Patrol, Daimler Dingo Scout Car, and AB41 Armored Car use fast or recon behavior where appropriate |
 | Heavy transport | M3 Half-track, Sd.Kfz. 251 Half-track, 15-cwt truck, Australian Carrier, and Italian Truck support embarkation, disembarkation, passenger damage, and embarked firing |
 | Turreted battle tank | Sherman Firefly and Matilda II style profiles use turret or hull-mounted weapons with period armament names |
-| Assault gun or tank destroyer | `TE_UNIT_ASSAULT_GUN` represents casemate assault guns and tank destroyers such as StuG III, Semovente 75/18, and M10 Tank Destroyer |
+| Assault gun or tank destroyer | `DZW_UNIT_ASSAULT_GUN` represents casemate assault guns and tank destroyers such as StuG III, Semovente 75/18, and M10 Tank Destroyer |
 | Scout car | Daimler Dingo Scout Car and AB41 Armored Car use ground vehicle movement, recon tagging, and period light weapons |
 | Artillery battery | Mortar Battery and field-gun style weapons use barrage, ordnance, blast, and pinning behavior with World War II weapon names |
 

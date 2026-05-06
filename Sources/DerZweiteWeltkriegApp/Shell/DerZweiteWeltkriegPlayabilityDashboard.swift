@@ -47,7 +47,7 @@ private final class DerZweiteWeltkriegPlayabilityViewModel: ObservableObject {
         record("Selection And Targeting", controller.selectedUnit != nil && controller.selectedTarget != nil, targetDetail(from: controller))
 
         controller.advancePhase()
-        record("Phase Flow", controller.game.phase == TE_PHASE_SHOOTING, "Next Phase advanced to \(controller.game.phaseName).")
+        record("Phase Flow", controller.game.phase == DZW_PHASE_SHOOTING, "Next Phase advanced to \(controller.game.phaseName).")
 
         controller.selectNearestEnemy()
         controller.shootSelected()

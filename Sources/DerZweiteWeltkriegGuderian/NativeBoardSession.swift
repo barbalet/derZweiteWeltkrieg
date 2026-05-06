@@ -8,9 +8,9 @@ public enum NativeBoardPlayer: String, Codable, Hashable, Sendable {
 
     public init(_ player: player_t) {
         switch player {
-        case TE_PLAYER_ONE:
+        case DZW_PLAYER_ONE:
             self = .player
-        case TE_PLAYER_TWO:
+        case DZW_PLAYER_TWO:
             self = .guderianAI
         default:
             self = .none
@@ -25,9 +25,9 @@ public enum NativeBoardPhase: String, Codable, Hashable, Sendable {
 
     init(_ phase: phase_t) {
         switch phase {
-        case TE_PHASE_SHOOTING:
+        case DZW_PHASE_SHOOTING:
             self = .shooting
-        case TE_PHASE_ASSAULT:
+        case DZW_PHASE_ASSAULT:
             self = .assault
         default:
             self = .movement
@@ -364,7 +364,7 @@ public final class NativeBoardSession {
         }
         selectedTargetID = (0..<Int(game_unit_count(handle))).lazy
             .map { game_unit_view(self.handle, Int32($0)) }
-            .filter { $0.owner != selected.owner && $0.owner != TE_PLAYER_NONE && !$0.destroyed && !$0.embarked }
+            .filter { $0.owner != selected.owner && $0.owner != DZW_PLAYER_NONE && !$0.destroyed && !$0.embarked }
             .min { lhs, rhs in
                 distance(from: selected, to: lhs) < distance(from: selected, to: rhs)
             }
@@ -496,7 +496,7 @@ public final class NativeBoardSession {
         guard NativeBoardPhase(game_view(handle).phase) == .assault, unit.can_assault_now else {
             return failAction("Assault blocked", "\(unitDisplayName(unit)) cannot assault in the current phase.")
         }
-        let followUp = advance ? TE_FOLLOW_UP_ADVANCE : TE_FOLLOW_UP_CONSOLIDATE
+        let followUp = advance ? DZW_FOLLOW_UP_ADVANCE : DZW_FOLLOW_UP_CONSOLIDATE
         if game_assault_unit(handle, Int32(attackerID), Int32(targetID), followUp) {
             selectedUnitID = attackerID
             selectedTargetID = targetID
@@ -797,9 +797,9 @@ private func nativeBoardCString(_ pointer: UnsafePointer<CChar>?) -> String {
 
 private func unitKindName(_ kind: unit_kind_t) -> String {
     switch kind {
-    case TE_UNIT_VEHICLE:
+    case DZW_UNIT_VEHICLE:
         return "Vehicle"
-    case TE_UNIT_ASSAULT_GUN:
+    case DZW_UNIT_ASSAULT_GUN:
         return "Assault gun"
     default:
         return "Infantry"
@@ -808,9 +808,9 @@ private func unitKindName(_ kind: unit_kind_t) -> String {
 
 private func terrainKindName(_ kind: terrain_kind_t) -> String {
     switch kind {
-    case TE_TERRAIN_DIFFICULT:
+    case DZW_TERRAIN_DIFFICULT:
         return "Difficult"
-    case TE_TERRAIN_IMPASSABLE:
+    case DZW_TERRAIN_IMPASSABLE:
         return "Impassable"
     default:
         return "Open"

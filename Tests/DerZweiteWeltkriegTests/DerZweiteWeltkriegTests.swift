@@ -13,8 +13,8 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
         let view = game_view(game)
         XCTAssertEqual(Int(view.turn_number), 1)
-        XCTAssertEqual(view.active_player, TE_PLAYER_ONE)
-        XCTAssertEqual(view.phase, TE_PHASE_MOVEMENT)
+        XCTAssertEqual(view.active_player, DZW_PLAYER_ONE)
+        XCTAssertEqual(view.phase, DZW_PHASE_MOVEMENT)
         XCTAssertEqual(Int(game_unit_count(game)), 14)
         XCTAssertEqual(Int(game_zone_count(game)), 4)
 
@@ -29,15 +29,15 @@ final class DerZweiteWeltkriegTests: XCTestCase {
     }
 
     func testArmyPresetDemoLoadsSelectedMatchup() {
-        guard let game = game_create_demo_with_armies(500, TE_ARMY_BRITISH, TE_ARMY_ITALIAN) else {
+        guard let game = game_create_demo_with_armies(500, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
             XCTFail("Failed to create army preset demo")
             return
         }
         defer { game_destroy(game) }
 
-        XCTAssertEqual(game_player_army(game, TE_PLAYER_ONE), TE_ARMY_BRITISH)
-        XCTAssertEqual(game_player_army(game, TE_PLAYER_TWO), TE_ARMY_ITALIAN)
-        XCTAssertEqual(String(cString: army_name(TE_ARMY_BRITISH)), "British")
+        XCTAssertEqual(game_player_army(game, DZW_PLAYER_ONE), DZW_ARMY_BRITISH)
+        XCTAssertEqual(game_player_army(game, DZW_PLAYER_TWO), DZW_ARMY_ITALIAN)
+        XCTAssertEqual(String(cString: army_name(DZW_ARMY_BRITISH)), "British")
         XCTAssertEqual(Int(game_unit_count(game)), 13)
 
         let names = unitNames(in: game)
@@ -55,10 +55,10 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         }
         defer { game_destroy(game) }
 
-        game_reset_demo_with_armies(game, 501, TE_ARMY_AUSTRALIAN, TE_ARMY_SOVIET)
+        game_reset_demo_with_armies(game, 501, DZW_ARMY_AUSTRALIAN, DZW_ARMY_SOVIET)
 
-        XCTAssertEqual(game_player_army(game, TE_PLAYER_ONE), TE_ARMY_AUSTRALIAN)
-        XCTAssertEqual(game_player_army(game, TE_PLAYER_TWO), TE_ARMY_SOVIET)
+        XCTAssertEqual(game_player_army(game, DZW_PLAYER_ONE), DZW_ARMY_AUSTRALIAN)
+        XCTAssertEqual(game_player_army(game, DZW_PLAYER_TWO), DZW_ARMY_SOVIET)
         XCTAssertEqual(Int(game_unit_count(game)), 11)
 
         let names = unitNames(in: game)
@@ -71,26 +71,26 @@ final class DerZweiteWeltkriegTests: XCTestCase {
     }
 
     func testArmyForceCatalogExposesCuratedVariants() {
-        XCTAssertEqual(Int(army_force_count(TE_ARMY_BRITISH)), 2)
-        XCTAssertEqual(Int(army_force_count(TE_ARMY_ITALIAN)), 2)
+        XCTAssertEqual(Int(army_force_count(DZW_ARMY_BRITISH)), 2)
+        XCTAssertEqual(Int(army_force_count(DZW_ARMY_ITALIAN)), 2)
 
-        let britishDefault = army_force_view(TE_ARMY_BRITISH, 0)
+        let britishDefault = army_force_view(DZW_ARMY_BRITISH, 0)
         XCTAssertEqual(britishDefault.name.map { String(cString: $0) }, "British Rifle Platoon")
 
-        let italianVariant = army_force_view(TE_ARMY_ITALIAN, 1)
+        let italianVariant = army_force_view(DZW_ARMY_ITALIAN, 1)
         XCTAssertEqual(italianVariant.name.map { String(cString: $0) }, "Italian Alpini Detachment")
         XCTAssertFalse((italianVariant.summary.map { String(cString: $0) } ?? "").isEmpty)
     }
 
     func testArmyCatalogExposesUnitChoicesWithPoints() {
-        XCTAssertGreaterThan(Int(army_catalog_unit_count(TE_ARMY_AMERICAN)), 0)
+        XCTAssertGreaterThan(Int(army_catalog_unit_count(DZW_ARMY_AMERICAN)), 0)
 
-        let tactical = army_catalog_unit_view(TE_ARMY_AMERICAN, 0)
+        let tactical = army_catalog_unit_view(DZW_ARMY_AMERICAN, 0)
         XCTAssertEqual(tactical.name.map { String(cString: $0) }, "US Rifle Squad")
         XCTAssertEqual(Int(tactical.points), 150)
         XCTAssertEqual(Int(tactical.max_count), 2)
         XCTAssertTrue(cString(tactical.source_note).contains("American roster"))
-        XCTAssertEqual(tactical.unit.kind, TE_UNIT_INFANTRY)
+        XCTAssertEqual(tactical.unit.kind, DZW_UNIT_INFANTRY)
         XCTAssertEqual(Int(tactical.unit.models), 10)
     }
 
@@ -115,7 +115,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                     XCTAssertGreaterThan(Int(unit.models), 0, "\(armyName) force \(forceIndex) unit \(unitIndex) should have models")
                     XCTAssertGreaterThan(Int(unit.total_wounds), 0, "\(armyName) force \(forceIndex) unit \(unitIndex) should have wounds")
 
-                    if unit.kind == TE_UNIT_INFANTRY {
+                    if unit.kind == DZW_UNIT_INFANTRY {
                         hasInfantry = true
                     } else {
                         XCTAssertGreaterThan(Int(unit.front_armour), 0, "\(armyName) vehicle \(unitIndex) should have front armour")
@@ -140,8 +140,8 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                     continue
                 }
 
-                XCTAssertEqual(game_player_army(game, TE_PLAYER_ONE), army)
-                XCTAssertEqual(game_player_force(game, TE_PLAYER_ONE), Int32(forceIndex))
+                XCTAssertEqual(game_player_army(game, DZW_PLAYER_ONE), army)
+                XCTAssertEqual(game_player_force(game, DZW_PLAYER_ONE), Int32(forceIndex))
                 XCTAssertGreaterThan(Int(game_unit_count(game)), 0)
                 game_destroy(game)
             }
@@ -169,7 +169,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 XCTAssertGreaterThan(Int(entry.unit.models), 0, "\(unitName) preview should have models")
                 XCTAssertGreaterThan(Int(entry.unit.total_wounds), 0, "\(unitName) preview should have wounds")
 
-                if entry.unit.kind == TE_UNIT_VEHICLE || entry.unit.kind == TE_UNIT_ASSAULT_GUN {
+                if entry.unit.kind == DZW_UNIT_VEHICLE || entry.unit.kind == DZW_UNIT_ASSAULT_GUN {
                     XCTAssertGreaterThan(Int(entry.unit.front_armour), 0, "\(unitName) should expose front armour")
                     XCTAssertGreaterThan(Int(entry.unit.side_armour), 0, "\(unitName) should expose side armour")
                     XCTAssertGreaterThan(Int(entry.unit.rear_armour), 0, "\(unitName) should expose rear armour")
@@ -259,11 +259,11 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         ]
 
         let total = selections.withUnsafeBufferPointer { buffer in
-            army_list_total_points(TE_ARMY_AMERICAN, buffer.baseAddress, Int32(buffer.count))
+            army_list_total_points(DZW_ARMY_AMERICAN, buffer.baseAddress, Int32(buffer.count))
         }
 
         XCTAssertEqual(Int(total), 200)
-        XCTAssertEqual(Int(army_list_total_points(TE_ARMY_AMERICAN, nil, 0)), 0)
+        XCTAssertEqual(Int(army_list_total_points(DZW_ARMY_AMERICAN, nil, 0)), 0)
     }
 
     func testSkirmishCreationLoadsCustomArmyLists() {
@@ -280,10 +280,10 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             italians.withUnsafeBufferPointer { italianBuffer in
                 game_create_skirmish(
                     90210,
-                    TE_ARMY_AMERICAN,
+                    DZW_ARMY_AMERICAN,
                     americanBuffer.baseAddress,
                     Int32(americanBuffer.count),
-                    TE_ARMY_ITALIAN,
+                    DZW_ARMY_ITALIAN,
                     italianBuffer.baseAddress,
                     Int32(italianBuffer.count)
                 )
@@ -296,8 +296,8 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         }
         defer { game_destroy(game) }
 
-        XCTAssertEqual(game_player_army(game, TE_PLAYER_ONE), TE_ARMY_AMERICAN)
-        XCTAssertEqual(game_player_army(game, TE_PLAYER_TWO), TE_ARMY_ITALIAN)
+        XCTAssertEqual(game_player_army(game, DZW_PLAYER_ONE), DZW_ARMY_AMERICAN)
+        XCTAssertEqual(game_player_army(game, DZW_PLAYER_TWO), DZW_ARMY_ITALIAN)
         XCTAssertEqual(Int(game_unit_count(game)), 4)
 
         let names = unitNames(in: game)
@@ -319,10 +319,10 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             italians.withUnsafeBufferPointer { italianBuffer in
                 game_create_skirmish(
                     4444,
-                    TE_ARMY_AMERICAN,
+                    DZW_ARMY_AMERICAN,
                     americanBuffer.baseAddress,
                     Int32(americanBuffer.count),
-                    TE_ARMY_ITALIAN,
+                    DZW_ARMY_ITALIAN,
                     italianBuffer.baseAddress,
                     Int32(italianBuffer.count)
                 )
@@ -365,38 +365,38 @@ final class DerZweiteWeltkriegTests: XCTestCase {
     }
 
     func testArmyRosterPreviewExposesPresetUnits() {
-        XCTAssertEqual(Int(army_roster_unit_count(TE_ARMY_BRITISH)), 8)
-        XCTAssertEqual(Int(army_roster_unit_count(TE_ARMY_ITALIAN)), 5)
+        XCTAssertEqual(Int(army_roster_unit_count(DZW_ARMY_BRITISH)), 8)
+        XCTAssertEqual(Int(army_roster_unit_count(DZW_ARMY_ITALIAN)), 5)
 
-        let firstBritishUnit = army_roster_unit_view(TE_ARMY_BRITISH, 0)
+        let firstBritishUnit = army_roster_unit_view(DZW_ARMY_BRITISH, 0)
         XCTAssertEqual(firstBritishUnit.name.map { String(cString: $0) }, "British Rifle Section")
-        XCTAssertEqual(firstBritishUnit.kind, TE_UNIT_INFANTRY)
+        XCTAssertEqual(firstBritishUnit.kind, DZW_UNIT_INFANTRY)
         XCTAssertEqual(Int(firstBritishUnit.models), 10)
         XCTAssertEqual(firstBritishUnit.primary_weapon_name.map { String(cString: $0) }, "Lee-Enfield No.4 Mk I")
 
-        let australianRifle = army_roster_unit_view(TE_ARMY_AUSTRALIAN, 0)
+        let australianRifle = army_roster_unit_view(DZW_ARMY_AUSTRALIAN, 0)
         XCTAssertEqual(australianRifle.name.map { String(cString: $0) }, "Australian Rifle Section")
         XCTAssertTrue(australianRifle.mixed_profiles)
 
-        let firefly = army_roster_unit_view(TE_ARMY_AUSTRALIAN, 4)
+        let firefly = army_roster_unit_view(DZW_ARMY_AUSTRALIAN, 4)
         XCTAssertEqual(firefly.name.map { String(cString: $0) }, "Matilda II")
-        XCTAssertEqual(firefly.kind, TE_UNIT_VEHICLE)
+        XCTAssertEqual(firefly.kind, DZW_UNIT_VEHICLE)
         XCTAssertEqual(Int(firefly.front_armour), 14)
         XCTAssertEqual(Int(firefly.side_armour), 12)
         XCTAssertEqual(Int(firefly.rear_armour), 10)
         XCTAssertEqual(firefly.primary_weapon_name.map { String(cString: $0) }, "17-pounder Anti-Tank Gun")
 
-        let bersaglieri = army_roster_unit_view(TE_ARMY_ITALIAN, 2)
+        let bersaglieri = army_roster_unit_view(DZW_ARMY_ITALIAN, 2)
         XCTAssertEqual(bersaglieri.name.map { String(cString: $0) }, "Italian Bersaglieri Squad")
         XCTAssertTrue(bersaglieri.mixed_profiles)
         XCTAssertEqual(Int(bersaglieri.total_wounds), 4)
     }
 
     func testArmyForceRosterPreviewExposesAlternateVariantUnits() {
-        XCTAssertEqual(Int(army_force_roster_unit_count(TE_ARMY_AMERICAN, 1)), 7)
+        XCTAssertEqual(Int(army_force_roster_unit_count(DZW_ARMY_AMERICAN, 1)), 7)
 
-        let names = (0..<Int(army_force_roster_unit_count(TE_ARMY_AMERICAN, 1))).map { index in
-            army_force_roster_unit_view(TE_ARMY_AMERICAN, 1, Int32(index)).name.map { String(cString: $0) } ?? ""
+        let names = (0..<Int(army_force_roster_unit_count(DZW_ARMY_AMERICAN, 1))).map { index in
+            army_force_roster_unit_view(DZW_ARMY_AMERICAN, 1, Int32(index)).name.map { String(cString: $0) } ?? ""
         }
 
         XCTAssertTrue(names.contains("M10 Tank Destroyer"))
@@ -404,27 +404,27 @@ final class DerZweiteWeltkriegTests: XCTestCase {
     }
 
     func testArmyRosterPreviewExposesStartingTransportDeployment() {
-        let command = army_roster_unit_view(TE_ARMY_BRITISH, 5)
+        let command = army_roster_unit_view(DZW_ARMY_BRITISH, 5)
         XCTAssertEqual(command.name.map { String(cString: $0) }, "British Platoon HQ")
         XCTAssertEqual(command.embarked_transport_name.map { String(cString: $0) }, "Universal Carrier Transport")
 
-        let transport = army_roster_unit_view(TE_ARMY_BRITISH, 7)
+        let transport = army_roster_unit_view(DZW_ARMY_BRITISH, 7)
         XCTAssertEqual(transport.name.map { String(cString: $0) }, "Universal Carrier Transport")
         XCTAssertEqual(transport.embarked_unit_name.map { String(cString: $0) }, "British Platoon HQ")
     }
 
     func testArmyForceRosterPreviewExposesAlternateTransportDeployment() {
-        let bersaglieriAssaultSquad = army_force_roster_unit_view(TE_ARMY_ITALIAN, 1, 1)
+        let bersaglieriAssaultSquad = army_force_roster_unit_view(DZW_ARMY_ITALIAN, 1, 1)
         XCTAssertEqual(bersaglieriAssaultSquad.name.map { String(cString: $0) }, "Bersaglieri Assault Squad")
         XCTAssertEqual(bersaglieriAssaultSquad.embarked_transport_name.map { String(cString: $0) }, "Italian Truck")
 
-        let truck = army_force_roster_unit_view(TE_ARMY_ITALIAN, 1, 2)
+        let truck = army_force_roster_unit_view(DZW_ARMY_ITALIAN, 1, 2)
         XCTAssertEqual(truck.name.map { String(cString: $0) }, "Italian Truck")
         XCTAssertEqual(truck.embarked_unit_name.map { String(cString: $0) }, "Bersaglieri Assault Squad")
     }
 
     func testArmyRosterPreviewRejectsOutOfRangeIndex() {
-        let invalid = army_roster_unit_view(TE_ARMY_SOVIET, 99)
+        let invalid = army_roster_unit_view(DZW_ARMY_SOVIET, 99)
         XCTAssertNil(invalid.name)
         XCTAssertEqual(Int(invalid.models), 0)
     }
@@ -441,7 +441,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertEqual(Int(mission.target_score), 8)
         XCTAssertEqual(Int(mission.player_one_score), 0)
         XCTAssertEqual(Int(mission.player_two_score), 0)
-        XCTAssertEqual(mission.winner, TE_PLAYER_NONE)
+        XCTAssertEqual(mission.winner, DZW_PLAYER_NONE)
         XCTAssertEqual(Int(game_objective_count(game)), 4)
         XCTAssertEqual(Int(game_zone_count(game)), 4)
 
@@ -462,41 +462,41 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertEqual(bocageRidge.name.map { String(cString: $0) }, "Bocage Ridge")
         XCTAssertEqual(shellHoleField.name.map { String(cString: $0) }, "Shell-Hole Field")
         XCTAssertEqual(markedMinefield.name.map { String(cString: $0) }, "Marked Minefield")
-        XCTAssertEqual(markedMinefield.kind, TE_TERRAIN_IMPASSABLE)
-        XCTAssertEqual(ammunitionCache.controller, TE_PLAYER_TWO)
-        XCTAssertEqual(observationPost.controller, TE_PLAYER_ONE)
-        XCTAssertEqual(roadJunction.controller, TE_PLAYER_NONE)
+        XCTAssertEqual(markedMinefield.kind, DZW_TERRAIN_IMPASSABLE)
+        XCTAssertEqual(ammunitionCache.controller, DZW_PLAYER_TWO)
+        XCTAssertEqual(observationPost.controller, DZW_PLAYER_ONE)
+        XCTAssertEqual(roadJunction.controller, DZW_PLAYER_NONE)
     }
 
     func testArmyPresetDeploymentStartsPassengersEmbarked() {
-        guard let game = game_create_demo_with_armies(502, TE_ARMY_AUSTRALIAN, TE_ARMY_GERMAN) else {
+        guard let game = game_create_demo_with_armies(502, DZW_ARMY_AUSTRALIAN, DZW_ARMY_GERMAN) else {
             XCTFail("Failed to create army preset demo")
             return
         }
         defer { game_destroy(game) }
 
-        let infantry = unitView(named: "Australian Rifle Section", owner: TE_PLAYER_ONE, in: game)
-        let carrier = unitView(named: "Australian Carrier", owner: TE_PLAYER_ONE, in: game)
+        let infantry = unitView(named: "Australian Rifle Section", owner: DZW_PLAYER_ONE, in: game)
+        let carrier = unitView(named: "Australian Carrier", owner: DZW_PLAYER_ONE, in: game)
         XCTAssertTrue(infantry.embarked)
         XCTAssertEqual(infantry.embarked_in_transport_id, carrier.id)
         XCTAssertEqual(carrier.embarked_unit_id, infantry.id)
 
-        let pioneers = unitView(named: "German Pioneer Squad", owner: TE_PLAYER_TWO, in: game)
-        let transport = unitView(named: "Sd.Kfz. 251 Half-track", owner: TE_PLAYER_TWO, in: game)
+        let pioneers = unitView(named: "German Pioneer Squad", owner: DZW_PLAYER_TWO, in: game)
+        let transport = unitView(named: "Sd.Kfz. 251 Half-track", owner: DZW_PLAYER_TWO, in: game)
         XCTAssertTrue(pioneers.embarked)
         XCTAssertEqual(pioneers.embarked_in_transport_id, transport.id)
         XCTAssertEqual(transport.embarked_unit_id, pioneers.id)
     }
 
     func testArmyForceDemoCreatesSelectedVariantMatchup() {
-        guard let game = game_create_demo_with_forces(503, TE_ARMY_AMERICAN, 1, TE_ARMY_ITALIAN, 1) else {
+        guard let game = game_create_demo_with_forces(503, DZW_ARMY_AMERICAN, 1, DZW_ARMY_ITALIAN, 1) else {
             XCTFail("Failed to create force preset demo")
             return
         }
         defer { game_destroy(game) }
 
-        XCTAssertEqual(game_player_force(game, TE_PLAYER_ONE), 1)
-        XCTAssertEqual(game_player_force(game, TE_PLAYER_TWO), 1)
+        XCTAssertEqual(game_player_force(game, DZW_PLAYER_ONE), 1)
+        XCTAssertEqual(game_player_force(game, DZW_PLAYER_TWO), 1)
 
         let names = unitNames(in: game)
         XCTAssertTrue(names.contains("M10 Tank Destroyer"))
@@ -504,8 +504,8 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertFalse(names.contains("British Commando Section"))
         XCTAssertFalse(names.contains("Italian Bersaglieri Squad"))
 
-        let bersaglieriAssaultSquad = unitView(named: "Bersaglieri Assault Squad", owner: TE_PLAYER_TWO, in: game)
-        let truck = unitView(named: "Italian Truck", owner: TE_PLAYER_TWO, in: game)
+        let bersaglieriAssaultSquad = unitView(named: "Bersaglieri Assault Squad", owner: DZW_PLAYER_TWO, in: game)
+        let truck = unitView(named: "Italian Truck", owner: DZW_PLAYER_TWO, in: game)
         XCTAssertTrue(bersaglieriAssaultSquad.embarked)
         XCTAssertEqual(bersaglieriAssaultSquad.embarked_in_transport_id, truck.id)
         XCTAssertEqual(truck.embarked_unit_id, bersaglieriAssaultSquad.id)
@@ -525,12 +525,12 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         let mission = game_mission_view(game)
         XCTAssertEqual(Int(mission.player_one_score), 1)
         XCTAssertEqual(Int(mission.player_two_score), 1)
-        XCTAssertEqual(mission.winner, TE_PLAYER_NONE)
+        XCTAssertEqual(mission.winner, DZW_PLAYER_NONE)
 
         let gameView = game_view(game)
         XCTAssertEqual(Int(gameView.turn_number), 2)
-        XCTAssertEqual(gameView.active_player, TE_PLAYER_TWO)
-        XCTAssertEqual(gameView.phase, TE_PHASE_MOVEMENT)
+        XCTAssertEqual(gameView.active_player, DZW_PLAYER_TWO)
+        XCTAssertEqual(gameView.phase, DZW_PHASE_MOVEMENT)
     }
 
     func testMovementRejectsTooLongAnInfantryMove() {
@@ -643,8 +643,8 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
         let view = game_view(game)
         XCTAssertEqual(Int(view.turn_number), 2)
-        XCTAssertEqual(view.active_player, TE_PLAYER_TWO)
-        XCTAssertEqual(view.phase, TE_PHASE_MOVEMENT)
+        XCTAssertEqual(view.active_player, DZW_PLAYER_TWO)
+        XCTAssertEqual(view.phase, DZW_PHASE_MOVEMENT)
     }
 
     func testTankShockMovesVehicle() {
@@ -685,7 +685,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
 
             game_seed(game, UInt32(seed))
-            guard game_assault_unit(game, 11, 7, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 11, 7, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -1079,13 +1079,13 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         var foundPausedVehicleFire = false
 
         for seed in 1...1024 {
-            guard let game = game_create_demo_with_armies(UInt32(seed), TE_ARMY_AUSTRALIAN, TE_ARMY_ITALIAN) else {
+            guard let game = game_create_demo_with_armies(UInt32(seed), DZW_ARMY_AUSTRALIAN, DZW_ARMY_ITALIAN) else {
                 XCTFail("Failed to create army demo game")
                 return
             }
 
-            let carrier = unitView(named: "Australian Carrier", owner: TE_PLAYER_ONE, in: game)
-            let bersaglieri = unitView(named: "Italian Bersaglieri Squad", owner: TE_PLAYER_TWO, in: game)
+            let carrier = unitView(named: "Australian Carrier", owner: DZW_PLAYER_ONE, in: game)
+            let bersaglieri = unitView(named: "Italian Bersaglieri Squad", owner: DZW_PLAYER_TWO, in: game)
             game_advance_phase(game)
 
             guard game_shoot_unit(game, carrier.id, bersaglieri.id) else {
@@ -1132,7 +1132,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
             game_advance_phase(game)
             game_advance_phase(game)
-            guard game_assault_unit(game, 12, 14, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 12, 14, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -1175,7 +1175,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             game_advance_phase(game)
             game_advance_phase(game)
             game_advance_phase(game)
-            guard game_assault_unit(game, 12, 14, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 12, 14, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -1221,7 +1221,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
             game_advance_phase(game)
             game_advance_phase(game)
-            guard game_assault_unit(game, 12, 14, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 12, 14, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -1260,13 +1260,13 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         var foundPendingMeleeAllocation = false
 
         for seed in 1...512 {
-            guard let game = game_create_demo_with_armies(UInt32(seed), TE_ARMY_AUSTRALIAN, TE_ARMY_ITALIAN) else {
+            guard let game = game_create_demo_with_armies(UInt32(seed), DZW_ARMY_AUSTRALIAN, DZW_ARMY_ITALIAN) else {
                 XCTFail("Failed to create army demo game")
                 return
             }
 
-            let command = unitView(named: "Australian Platoon HQ", owner: TE_PLAYER_ONE, in: game)
-            let bersaglieri = unitView(named: "Italian Bersaglieri Squad", owner: TE_PLAYER_TWO, in: game)
+            let command = unitView(named: "Australian Platoon HQ", owner: DZW_PLAYER_ONE, in: game)
+            let bersaglieri = unitView(named: "Italian Bersaglieri Squad", owner: DZW_PLAYER_TWO, in: game)
 
             guard game_move_unit(game, command.id, 25.0, 33.0) else {
                 game_destroy(game)
@@ -1291,7 +1291,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             game_advance_phase(game)
             game_advance_phase(game)
 
-            guard game_assault_unit(game, command.id, bersaglieri.id, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, command.id, bersaglieri.id, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -1347,7 +1347,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         game_advance_phase(game)
         game_advance_phase(game)
 
-        XCTAssertTrue(game_assault_unit(game, 1, 13, TE_FOLLOW_UP_ADVANCE))
+        XCTAssertTrue(game_assault_unit(game, 1, 13, DZW_FOLLOW_UP_ADVANCE))
 
         let logLines = (0..<Int(game_log_count(game))).map { index in
             String(cString: game_log_line(game, Int32(index)))
@@ -1369,7 +1369,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         game_advance_phase(game)
         game_advance_phase(game)
 
-        XCTAssertTrue(game_assault_unit(game, 14, 12, TE_FOLLOW_UP_ADVANCE))
+        XCTAssertTrue(game_assault_unit(game, 14, 12, DZW_FOLLOW_UP_ADVANCE))
 
         let logLines = (0..<Int(game_log_count(game))).map { index in
             String(cString: game_log_line(game, Int32(index)))
@@ -1391,7 +1391,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         game_advance_phase(game)
         game_advance_phase(game)
 
-        XCTAssertTrue(game_assault_unit(game, 14, 12, TE_FOLLOW_UP_ADVANCE))
+        XCTAssertTrue(game_assault_unit(game, 14, 12, DZW_FOLLOW_UP_ADVANCE))
 
         let logLines = (0..<Int(game_log_count(game))).map { index in
             String(cString: game_log_line(game, Int32(index)))
@@ -1473,7 +1473,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
         game_advance_phase(game)
         game_advance_phase(game)
-        XCTAssertTrue(game_assault_unit(game, 4, 3, TE_FOLLOW_UP_ADVANCE))
+        XCTAssertTrue(game_assault_unit(game, 4, 3, DZW_FOLLOW_UP_ADVANCE))
 
         let italians = unitView(withID: 4, in: game)
         let reconVehicle = unitView(withID: 3, in: game)
@@ -1492,7 +1492,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertTrue(game_move_unit(game, 2, 19, 28))
         game_advance_phase(game)
         game_advance_phase(game)
-        XCTAssertTrue(game_assault_unit(game, 2, 11, TE_FOLLOW_UP_ADVANCE))
+        XCTAssertTrue(game_assault_unit(game, 2, 11, DZW_FOLLOW_UP_ADVANCE))
 
         let rifleSection = unitView(withID: 2, in: game)
         XCTAssertTrue(rifleSection.assaulted_this_turn)
@@ -1519,7 +1519,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             game_advance_phase(game)
             game_advance_phase(game)
 
-            guard game_assault_unit(game, 11, 12, TE_FOLLOW_UP_CONSOLIDATE) else {
+            guard game_assault_unit(game, 11, 12, DZW_FOLLOW_UP_CONSOLIDATE) else {
                 game_destroy(game)
                 continue
             }
@@ -1574,7 +1574,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             game_advance_phase(game)
             game_advance_phase(game)
 
-            guard game_assault_unit(game, 11, 12, TE_FOLLOW_UP_CONSOLIDATE) else {
+            guard game_assault_unit(game, 11, 12, DZW_FOLLOW_UP_CONSOLIDATE) else {
                 game_destroy(game)
                 continue
             }
@@ -1634,7 +1634,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             game_advance_phase(game)
             game_advance_phase(game)
 
-            XCTAssertFalse(game_assault_unit(game, 2, 14, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertFalse(game_assault_unit(game, 2, 14, DZW_FOLLOW_UP_ADVANCE))
             let error = String(cString: game_last_error(game))
             if !error.contains("legal way to contact") {
                 game_destroy(game)
@@ -1665,18 +1665,18 @@ final class DerZweiteWeltkriegTests: XCTestCase {
     }
 
     func testDisembarkCanUseOuterPartOfTwoInchZone() {
-        guard let game = game_create_demo_with_armies(601, TE_ARMY_BRITISH, TE_ARMY_ITALIAN) else {
+        guard let game = game_create_demo_with_armies(601, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
             XCTFail("Failed to create army preset demo")
             return
         }
         defer { game_destroy(game) }
 
-        let transport = unitView(named: "Universal Carrier Transport", owner: TE_PLAYER_ONE, in: game)
-        let command = unitView(named: "British Platoon HQ", owner: TE_PLAYER_ONE, in: game)
-        let reconVehicle = unitView(named: "Universal Carrier", owner: TE_PLAYER_ONE, in: game)
-        let mortar = unitView(named: "3-inch Mortar Battery", owner: TE_PLAYER_ONE, in: game)
-        let assault = unitView(named: "British Commando Section", owner: TE_PLAYER_ONE, in: game)
-        let tactical = unitView(named: "British Rifle Section", owner: TE_PLAYER_ONE, in: game)
+        let transport = unitView(named: "Universal Carrier Transport", owner: DZW_PLAYER_ONE, in: game)
+        let command = unitView(named: "British Platoon HQ", owner: DZW_PLAYER_ONE, in: game)
+        let reconVehicle = unitView(named: "Universal Carrier", owner: DZW_PLAYER_ONE, in: game)
+        let mortar = unitView(named: "3-inch Mortar Battery", owner: DZW_PLAYER_ONE, in: game)
+        let assault = unitView(named: "British Commando Section", owner: DZW_PLAYER_ONE, in: game)
+        let tactical = unitView(named: "British Rifle Section", owner: DZW_PLAYER_ONE, in: game)
         XCTAssertTrue(command.embarked)
 
         let innerRadius = Double(transport.footprint_radius + command.footprint_radius) + 1.0
@@ -1701,8 +1701,8 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
         XCTAssertTrue(game_disembark_unit(game, Int32(transport.id)))
 
-        let transportAfter = unitView(named: "Universal Carrier Transport", owner: TE_PLAYER_ONE, in: game)
-        let commandAfter = unitView(named: "British Platoon HQ", owner: TE_PLAYER_ONE, in: game)
+        let transportAfter = unitView(named: "Universal Carrier Transport", owner: DZW_PLAYER_ONE, in: game)
+        let commandAfter = unitView(named: "British Platoon HQ", owner: DZW_PLAYER_ONE, in: game)
         XCTAssertFalse(commandAfter.embarked)
 
         let edgeDistance = hypot(Double(commandAfter.x - transportAfter.x), Double(commandAfter.y - transportAfter.y)) - Double(commandAfter.footprint_radius + transportAfter.footprint_radius)
@@ -1751,7 +1751,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            XCTAssertTrue(game_assault_unit(game, 11, 10, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertTrue(game_assault_unit(game, 11, 10, DZW_FOLLOW_UP_ADVANCE))
 
             let transport = unitView(withID: 10, in: game)
             let command = unitView(withID: 9, in: game)
@@ -1787,7 +1787,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            XCTAssertTrue(game_assault_unit(game, 11, 10, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertTrue(game_assault_unit(game, 11, 10, DZW_FOLLOW_UP_ADVANCE))
 
             let transport = unitView(withID: 10, in: game)
             let commandAfterCrash = unitView(withID: 9, in: game)
@@ -1829,7 +1829,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            XCTAssertTrue(game_assault_unit(game, 11, 10, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertTrue(game_assault_unit(game, 11, 10, DZW_FOLLOW_UP_ADVANCE))
 
             let transport = unitView(withID: 10, in: game)
             let command = unitView(withID: 9, in: game)
@@ -1874,7 +1874,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            guard game_assault_unit(game, 11, 10, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 11, 10, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -1918,7 +1918,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            XCTAssertTrue(game_assault_unit(game, 11, 10, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertTrue(game_assault_unit(game, 11, 10, DZW_FOLLOW_UP_ADVANCE))
 
             let transportAfterAssault = unitView(withID: 10, in: game)
             let commandAfterAssault = unitView(withID: 9, in: game)
@@ -1962,7 +1962,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            let sovietGuards = unitView(named: "Soviet Guards SMG Squad", owner: TE_PLAYER_TWO, in: game)
+            let sovietGuards = unitView(named: "Soviet Guards SMG Squad", owner: DZW_PLAYER_TWO, in: game)
             let reconVehicleBeforeShock = unitView(withID: 3, in: game)
             game_seed(game, UInt32(seed))
 
@@ -2014,7 +2014,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 game_advance_phase(game)
             }
 
-            XCTAssertTrue(game_assault_unit(game, 11, 10, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertTrue(game_assault_unit(game, 11, 10, DZW_FOLLOW_UP_ADVANCE))
 
             let transportAfterAssault = unitView(withID: 10, in: game)
             if transportAfterAssault.destroyed {
@@ -2053,7 +2053,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
 
             game_seed(game, UInt32(assaultSeed))
-            guard game_assault_unit(game, 11, 7, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 11, 7, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -2089,7 +2089,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
 
             game_seed(game, firstImmobilizeSeed)
-            guard game_assault_unit(game, 11, 7, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 11, 7, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -2112,7 +2112,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
 
             game_seed(game, UInt32(secondAssaultSeed))
-            guard game_assault_unit(game, 11, 7, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 11, 7, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -2177,7 +2177,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
             let assaultGun = unitView(withID: 11, in: game)
             XCTAssertFalse(assaultGun.can_assault_now)
-            XCTAssertFalse(game_assault_unit(game, 11, 2, TE_FOLLOW_UP_ADVANCE))
+            XCTAssertFalse(game_assault_unit(game, 11, 2, DZW_FOLLOW_UP_ADVANCE))
             let error = String(cString: game_last_error(game))
             XCTAssertFalse(error.isEmpty)
             game_destroy(game)
@@ -2189,12 +2189,12 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
     func testCrewStunnedAssaultGunDoesNotStrikeBackWhileLockedInContinuingCombat() {
         func prepareScenario() -> OpaquePointer? {
-            guard let game = game_create_demo_with_forces(3, TE_ARMY_AMERICAN, 1, TE_ARMY_ITALIAN, 0) else {
+            guard let game = game_create_demo_with_forces(3, DZW_ARMY_AMERICAN, 1, DZW_ARMY_ITALIAN, 0) else {
                 return nil
             }
 
-            let americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: TE_PLAYER_ONE, in: game)
-            let italianAssaultGun = unitView(named: "Semovente 75/18", owner: TE_PLAYER_TWO, in: game)
+            let americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: DZW_PLAYER_ONE, in: game)
+            let italianAssaultGun = unitView(named: "Semovente 75/18", owner: DZW_PLAYER_TWO, in: game)
 
             guard game_move_unit(game, Int32(americanTankDestroyer.id), 26.0, 10.0) else {
                 game_destroy(game)
@@ -2240,18 +2240,18 @@ final class DerZweiteWeltkriegTests: XCTestCase {
                 return
             }
 
-            var americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: TE_PLAYER_ONE, in: game)
-            var italianAssaultGun = unitView(named: "Semovente 75/18", owner: TE_PLAYER_TWO, in: game)
+            var americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: DZW_PLAYER_ONE, in: game)
+            var italianAssaultGun = unitView(named: "Semovente 75/18", owner: DZW_PLAYER_TWO, in: game)
 
             let firstAssaultLogStart = Int(game_log_count(game))
             game_seed(game, UInt32(assaultSeed))
-            guard game_assault_unit(game, Int32(americanTankDestroyer.id), Int32(italianAssaultGun.id), TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, Int32(americanTankDestroyer.id), Int32(italianAssaultGun.id), DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
 
-            americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: TE_PLAYER_ONE, in: game)
-            italianAssaultGun = unitView(named: "Semovente 75/18", owner: TE_PLAYER_TWO, in: game)
+            americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: DZW_PLAYER_ONE, in: game)
+            italianAssaultGun = unitView(named: "Semovente 75/18", owner: DZW_PLAYER_TWO, in: game)
             let firstAssaultLogs = (firstAssaultLogStart..<Int(game_log_count(game))).map { index in
                 String(cString: game_log_line(game, Int32(index)))
             }
@@ -2268,17 +2268,17 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             game_advance_phase(game)
             game_advance_phase(game)
 
-            let tankDestroyerStatusBeforeContinuingCombat = unitView(named: "M10 Tank Destroyer", owner: TE_PLAYER_ONE, in: game)
-            americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: TE_PLAYER_ONE, in: game)
-            italianAssaultGun = unitView(named: "Semovente 75/18", owner: TE_PLAYER_TWO, in: game)
+            let tankDestroyerStatusBeforeContinuingCombat = unitView(named: "M10 Tank Destroyer", owner: DZW_PLAYER_ONE, in: game)
+            americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: DZW_PLAYER_ONE, in: game)
+            italianAssaultGun = unitView(named: "Semovente 75/18", owner: DZW_PLAYER_TWO, in: game)
             let logStart = Int(game_log_count(game))
             game_seed(game, 1)
-            guard game_assault_unit(game, Int32(italianAssaultGun.id), Int32(americanTankDestroyer.id), TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, Int32(italianAssaultGun.id), Int32(americanTankDestroyer.id), DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
 
-            americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: TE_PLAYER_ONE, in: game)
+            americanTankDestroyer = unitView(named: "M10 Tank Destroyer", owner: DZW_PLAYER_ONE, in: game)
             let newLogs = (logStart..<Int(game_log_count(game))).map { index in
                 String(cString: game_log_line(game, Int32(index)))
             }
@@ -2369,7 +2369,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
 
             game_seed(game, UInt32(assaultSeed))
-            guard game_assault_unit(game, 11, 7, TE_FOLLOW_UP_ADVANCE) else {
+            guard game_assault_unit(game, 11, 7, DZW_FOLLOW_UP_ADVANCE) else {
                 game_destroy(game)
                 continue
             }
@@ -2429,25 +2429,25 @@ final class DerZweiteWeltkriegTests: XCTestCase {
 
     private var playableArmies: [army_list_t] {
         [
-            TE_ARMY_BRITISH,
-            TE_ARMY_AMERICAN,
-            TE_ARMY_AUSTRALIAN,
-            TE_ARMY_SOVIET,
-            TE_ARMY_GERMAN,
-            TE_ARMY_ITALIAN,
+            DZW_ARMY_BRITISH,
+            DZW_ARMY_AMERICAN,
+            DZW_ARMY_AUSTRALIAN,
+            DZW_ARMY_SOVIET,
+            DZW_ARMY_GERMAN,
+            DZW_ARMY_ITALIAN,
         ]
     }
 
     private func opposingArmy(for army: army_list_t) -> army_list_t {
         switch army {
-        case TE_ARMY_BRITISH, TE_ARMY_AMERICAN, TE_ARMY_AUSTRALIAN, TE_ARMY_SOVIET:
-            return TE_ARMY_GERMAN
-        case TE_ARMY_GERMAN:
-            return TE_ARMY_BRITISH
-        case TE_ARMY_ITALIAN:
-            return TE_ARMY_AMERICAN
+        case DZW_ARMY_BRITISH, DZW_ARMY_AMERICAN, DZW_ARMY_AUSTRALIAN, DZW_ARMY_SOVIET:
+            return DZW_ARMY_GERMAN
+        case DZW_ARMY_GERMAN:
+            return DZW_ARMY_BRITISH
+        case DZW_ARMY_ITALIAN:
+            return DZW_ARMY_AMERICAN
         default:
-            return TE_ARMY_GERMAN
+            return DZW_ARMY_GERMAN
         }
     }
 

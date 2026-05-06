@@ -14,24 +14,24 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define TE_BOARD_WIDTH 72.0f
-#define TE_BOARD_HEIGHT 48.0f
-#define TE_MAX_UNITS 20
-#define TE_MAX_ZONES 8
-#define TE_MAX_OBJECTIVES 8
-#define TE_MAX_WEAPONS 3
-#define TE_MAX_PROFILE_GROUPS 3
-#define TE_MAX_LOG_LINES 256
-#define TE_LOG_LINE_LENGTH 192
-#define TE_JAMMED_WEAPON_ARC_DEGREES 10
-#define TE_MAX_DEPLOYMENT_SLOTS_PER_SIDE 10
-#define TE_MAX_ARMY_CATALOG_UNITS 16
+#define DZW_BOARD_WIDTH 72.0f
+#define DZW_BOARD_HEIGHT 48.0f
+#define DZW_MAX_UNITS 20
+#define DZW_MAX_ZONES 8
+#define DZW_MAX_OBJECTIVES 8
+#define DZW_MAX_WEAPONS 3
+#define DZW_MAX_PROFILE_GROUPS 3
+#define DZW_MAX_LOG_LINES 256
+#define DZW_LOG_LINE_LENGTH 192
+#define DZW_JAMMED_WEAPON_ARC_DEGREES 10
+#define DZW_MAX_DEPLOYMENT_SLOTS_PER_SIDE 10
+#define DZW_MAX_ARMY_CATALOG_UNITS 16
 #ifdef HEINZ_GUDERIAN_GAME
-#define TE_GUDERIAN_LABEL_LENGTH 80
+#define DZW_GUDERIAN_LABEL_LENGTH 80
 #endif
 
 #if defined(COMMAND_LINE_EXECUTION) && defined(DZWK_ENABLE_TRACE)
-static __thread unsigned int te_trace_depth = 0;
+static __thread unsigned int dzw_trace_depth = 0;
 
 __attribute__((no_instrument_function))
 static const char *trace_symbol_name(void *address) {
@@ -56,56 +56,56 @@ static void trace_function_call(const char *direction, unsigned int depth, void 
 
 __attribute__((no_instrument_function))
 void __cyg_profile_func_enter(void *this_fn, void *call_site) {
-    trace_function_call("->", te_trace_depth, this_fn, call_site);
-    te_trace_depth += 1;
+    trace_function_call("->", dzw_trace_depth, this_fn, call_site);
+    dzw_trace_depth += 1;
 }
 
 __attribute__((no_instrument_function))
 void __cyg_profile_func_exit(void *this_fn, void *call_site) {
-    if (te_trace_depth > 0) {
-        te_trace_depth -= 1;
+    if (dzw_trace_depth > 0) {
+        dzw_trace_depth -= 1;
     }
-    trace_function_call("<-", te_trace_depth, this_fn, call_site);
+    trace_function_call("<-", dzw_trace_depth, this_fn, call_site);
 }
 #endif
 
 float game_board_width(void) {
-    return TE_BOARD_WIDTH;
+    return DZW_BOARD_WIDTH;
 }
 
 float game_board_height(void) {
-    return TE_BOARD_HEIGHT;
+    return DZW_BOARD_HEIGHT;
 }
 
 typedef enum {
-    TE_WEAPON_RAPID_FIRE_INTERNAL = 0,
-    TE_WEAPON_ASSAULT_INTERNAL = 1,
-    TE_WEAPON_HEAVY_INTERNAL = 2,
-    TE_WEAPON_PISTOL_INTERNAL = 3
+    DZW_WEAPON_RAPID_FIRE_INTERNAL = 0,
+    DZW_WEAPON_ASSAULT_INTERNAL = 1,
+    DZW_WEAPON_HEAVY_INTERNAL = 2,
+    DZW_WEAPON_PISTOL_INTERNAL = 3
 } weapon_mode_internal_t;
 
 typedef enum {
-    TE_WEAPON_MOUNT_FIXED_INTERNAL = 0,
-    TE_WEAPON_MOUNT_TURRET_INTERNAL = 1,
-    TE_WEAPON_MOUNT_SPONSON_INTERNAL = 2,
-    TE_WEAPON_MOUNT_PINTLE_INTERNAL = 3
+    DZW_WEAPON_MOUNT_FIXED_INTERNAL = 0,
+    DZW_WEAPON_MOUNT_TURRET_INTERNAL = 1,
+    DZW_WEAPON_MOUNT_SPONSON_INTERNAL = 2,
+    DZW_WEAPON_MOUNT_PINTLE_INTERNAL = 3
 } weapon_mount_internal_t;
 
 typedef enum {
-    TE_PENDING_HIT_ALLOCATION_SHOOTING = 0,
-    TE_PENDING_HIT_ALLOCATION_MELEE = 1
+    DZW_PENDING_HIT_ALLOCATION_SHOOTING = 0,
+    DZW_PENDING_HIT_ALLOCATION_MELEE = 1
 } pending_hit_allocation_kind_t;
 
 typedef enum {
-    TE_PENDING_ONE_SIDED_MELEE_NONE = 0,
-    TE_PENDING_ONE_SIDED_MELEE_COVER_ATTACKER_STRIKE = 1,
-    TE_PENDING_ONE_SIDED_MELEE_FINALIZE_ASSAULT = 2
+    DZW_PENDING_ONE_SIDED_MELEE_NONE = 0,
+    DZW_PENDING_ONE_SIDED_MELEE_COVER_ATTACKER_STRIKE = 1,
+    DZW_PENDING_ONE_SIDED_MELEE_FINALIZE_ASSAULT = 2
 } pending_one_sided_melee_step_t;
 
 typedef enum {
-    TE_PENDING_SIMULTANEOUS_MELEE_NONE = 0,
-    TE_PENDING_SIMULTANEOUS_MELEE_RESOLVE_COUNTER = 1,
-    TE_PENDING_SIMULTANEOUS_MELEE_CONTINUE_BANDS = 2
+    DZW_PENDING_SIMULTANEOUS_MELEE_NONE = 0,
+    DZW_PENDING_SIMULTANEOUS_MELEE_RESOLVE_COUNTER = 1,
+    DZW_PENDING_SIMULTANEOUS_MELEE_CONTINUE_BANDS = 2
 } pending_simultaneous_melee_step_t;
 
 typedef struct {
@@ -210,7 +210,7 @@ typedef struct {
     bool assaulted_this_turn;
     float moved_distance;
     int weapon_count;
-    weapon_slot_t weapons[TE_MAX_WEAPONS];
+    weapon_slot_t weapons[DZW_MAX_WEAPONS];
     bool locked_in_assault;
     int locked_with;
     int pinned_until_turn;
@@ -233,10 +233,10 @@ typedef struct {
     bool embarked_this_turn;
     int profile_group_count;
     int preferred_casualty_group_index;
-    profile_group_t profile_groups[TE_MAX_PROFILE_GROUPS];
+    profile_group_t profile_groups[DZW_MAX_PROFILE_GROUPS];
 } unit_t;
 
-struct te_game {
+struct dzw_game {
     uint32_t rng_state;
     int turn_number;
     player_t active_player;
@@ -246,25 +246,25 @@ struct te_game {
     army_list_t player_two_army;
     int player_two_force;
     int unit_count;
-    unit_t units[TE_MAX_UNITS];
+    unit_t units[DZW_MAX_UNITS];
     int zone_count;
-    zone_t zones[TE_MAX_ZONES];
+    zone_t zones[DZW_MAX_ZONES];
     const char *mission_name;
     int mission_target_score;
     int player_one_score;
     int player_two_score;
     int objective_count;
-    objective_t objectives[TE_MAX_OBJECTIVES];
+    objective_t objectives[DZW_MAX_OBJECTIVES];
 #ifdef HEINZ_GUDERIAN_GAME
-    char guderian_mission_name[TE_GUDERIAN_LABEL_LENGTH];
-    char guderian_zone_names[TE_MAX_ZONES][TE_GUDERIAN_LABEL_LENGTH];
-    char guderian_objective_names[TE_MAX_OBJECTIVES][TE_GUDERIAN_LABEL_LENGTH];
+    char guderian_mission_name[DZW_GUDERIAN_LABEL_LENGTH];
+    char guderian_zone_names[DZW_MAX_ZONES][DZW_GUDERIAN_LABEL_LENGTH];
+    char guderian_objective_names[DZW_MAX_OBJECTIVES][DZW_GUDERIAN_LABEL_LENGTH];
 #endif
     bool pending_weapon_destroy_active;
     int pending_weapon_destroy_chooser_id;
     int pending_weapon_destroy_target_id;
     int pending_weapon_destroy_option_count;
-    int pending_weapon_destroy_option_indices[TE_MAX_WEAPONS];
+    int pending_weapon_destroy_option_indices[DZW_MAX_WEAPONS];
     bool pending_hit_allocation_active;
     pending_hit_allocation_kind_t pending_hit_allocation_kind;
     player_t pending_hit_allocation_chooser_owner;
@@ -278,7 +278,7 @@ struct te_game {
     int pending_hit_allocation_target_models_before;
     int pending_hit_allocation_hits_remaining;
     int pending_hit_allocation_total_hits;
-    int pending_hit_allocation_allocated_hits[TE_MAX_PROFILE_GROUPS];
+    int pending_hit_allocation_allocated_hits[DZW_MAX_PROFILE_GROUPS];
     bool pending_banded_melee_active;
     int pending_banded_melee_attacker_id;
     int pending_banded_melee_target_id;
@@ -324,8 +324,8 @@ struct te_game {
     int pending_vehicle_shot_next_weapon_index;
     int pending_vehicle_shot_weapons_remaining;
     int log_count;
-    char logs[TE_MAX_LOG_LINES][TE_LOG_LINE_LENGTH];
-    char last_error[TE_LOG_LINE_LENGTH];
+    char logs[DZW_MAX_LOG_LINES][DZW_LOG_LINE_LENGTH];
+    char last_error[DZW_LOG_LINE_LENGTH];
 };
 
 static int apply_infantry_damage(game_t *game, unit_t *unit, int wounds, int damage_strength, const char *source_name, bool count_for_shooting_phase, int *out_models_lost);
@@ -397,8 +397,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_M1911A1_PISTOL] = {
@@ -407,8 +407,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_PISTOL_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_PISTOL_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_BROWNING_M1919A4] = {
@@ -417,8 +417,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 4,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_17_POUNDER_AT_GUN] = {
@@ -427,8 +427,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 9,
         .ap = 2,
         .shots = 1,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_75MM_TANK_GUN] = {
@@ -437,8 +437,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 8,
         .ap = 3,
         .shots = 1,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .blast_diameter = 5,
         .ordnance = true,
@@ -449,8 +449,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 4,
         .shots = 1,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .blast_diameter = 5,
         .ordnance = true,
@@ -462,8 +462,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .flame = true,
         .ignores_cover = true,
@@ -474,8 +474,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 2,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_PPSH_41_SMG] = {
@@ -484,8 +484,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_TOKAREV_TT33] = {
@@ -494,8 +494,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 3,
         .ap = 6,
         .shots = 1,
-        .mode = TE_WEAPON_PISTOL_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_PISTOL_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_CARCANO_M91] = {
@@ -504,8 +504,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 3,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_BREDA_M1930] = {
@@ -514,8 +514,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 5,
         .shots = 3,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_MOSIN_NAGANT_1891_30] = {
@@ -524,8 +524,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 3,
         .ap = 0,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_NAGANT_M1895] = {
@@ -534,8 +534,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 3,
         .ap = 0,
         .shots = 1,
-        .mode = TE_WEAPON_PISTOL_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_PISTOL_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_M1_BAZOOKA] = {
@@ -544,8 +544,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 7,
         .ap = 2,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_M2_BROWNING_HMG] = {
@@ -554,8 +554,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 6,
         .ap = 6,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_HULL_BROWNING_M1919A4] = {
@@ -564,8 +564,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 4,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_MG42] = {
@@ -574,8 +574,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 4,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_TWIN_MG42] = {
@@ -584,8 +584,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 4,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_PANZERFAUST] = {
@@ -594,8 +594,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_M3_GREASE_GUN] = {
@@ -604,8 +604,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 3,
         .ap = 0,
         .shots = 1,
-        .mode = TE_WEAPON_PISTOL_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_PISTOL_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_120MM_MORTAR] = {
@@ -614,8 +614,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 8,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .blast_diameter = 3,
     },
@@ -625,8 +625,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_20MM_AUTOCANNON] = {
@@ -635,8 +635,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 6,
         .ap = 4,
         .shots = 4,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_PIAT] = {
@@ -645,8 +645,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 7,
         .ap = 2,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_THOMPSON_SMG] = {
@@ -655,8 +655,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_KAR98K] = {
@@ -665,8 +665,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_MP40] = {
@@ -675,8 +675,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_ASSAULT_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_ASSAULT_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_DP27_LMG] = {
@@ -685,8 +685,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 5,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_M1_GARAND] = {
@@ -695,8 +695,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 4,
         .ap = 5,
         .shots = 1,
-        .mode = TE_WEAPON_RAPID_FIRE_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_VICKERS_HMG] = {
@@ -705,8 +705,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 5,
         .ap = 4,
         .shots = 3,
-        .mode = TE_WEAPON_HEAVY_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_HEAVY_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
     [DZWK_WEAPON_WEBLEY_REVOLVER] = {
@@ -715,8 +715,8 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .strength = 3,
         .ap = 6,
         .shots = 1,
-        .mode = TE_WEAPON_PISTOL_INTERNAL,
-        .mount = TE_WEAPON_MOUNT_FIXED_INTERNAL,
+        .mode = DZW_WEAPON_PISTOL_INTERNAL,
+        .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
     },
 };
@@ -753,16 +753,16 @@ weapon_profile_view_t wwii_weapon_profile_view(int index) {
     view.blast_diameter = profile.blast_diameter;
 
     switch (profile.mode) {
-        case TE_WEAPON_RAPID_FIRE_INTERNAL:
+        case DZW_WEAPON_RAPID_FIRE_INTERNAL:
             view.rapid_fire = true;
             break;
-        case TE_WEAPON_PISTOL_INTERNAL:
+        case DZW_WEAPON_PISTOL_INTERNAL:
             view.pistol = true;
             break;
-        case TE_WEAPON_ASSAULT_INTERNAL:
+        case DZW_WEAPON_ASSAULT_INTERNAL:
             view.assault = true;
             break;
-        case TE_WEAPON_HEAVY_INTERNAL:
+        case DZW_WEAPON_HEAVY_INTERNAL:
             view.heavy = true;
             break;
     }
@@ -786,19 +786,19 @@ static bool fail(game_t *game, const char *format, ...) {
     return false;
 }
 
-static void te_log(game_t *game, const char *format, ...) {
+static void dzw_log(game_t *game, const char *format, ...) {
     if (game == NULL) {
         return;
     }
 
-    if (game->log_count >= TE_MAX_LOG_LINES) {
-        memmove(game->logs, game->logs + 1, sizeof(game->logs[0]) * (TE_MAX_LOG_LINES - 1));
-        game->log_count = TE_MAX_LOG_LINES - 1;
+    if (game->log_count >= DZW_MAX_LOG_LINES) {
+        memmove(game->logs, game->logs + 1, sizeof(game->logs[0]) * (DZW_MAX_LOG_LINES - 1));
+        game->log_count = DZW_MAX_LOG_LINES - 1;
     }
 
     va_list args;
     va_start(args, format);
-    vsnprintf(game->logs[game->log_count], TE_LOG_LINE_LENGTH, format, args);
+    vsnprintf(game->logs[game->log_count], DZW_LOG_LINE_LENGTH, format, args);
     va_end(args);
     game->log_count += 1;
 }
@@ -833,18 +833,18 @@ static int roll_highest_of_2d6(game_t *game) {
     return shared_roll_highest_of_2d6((shared_rng_t *)game);
 }
 
-static float te_distance(float x1, float y1, float x2, float y2) {
+static float dzw_distance(float x1, float y1, float x2, float y2) {
     return shared_point_distance(
         shared_make_point(x1, y1),
         shared_make_point(x2, y2)
     );
 }
 
-static shared_point_t te_shared_point(float x, float y) {
+static shared_point_t dzw_shared_point(float x, float y) {
     return shared_make_point(x, y);
 }
 
-static shared_rect_t te_shared_rect(rect_t rect) {
+static shared_rect_t dzw_shared_rect(rect_t rect) {
     return shared_make_rect(rect.x, rect.y, rect.width, rect.height);
 }
 
@@ -868,7 +868,7 @@ static float smallest_angle_between(float left, float right) {
 }
 
 static bool point_in_rect(float x, float y, rect_t rect) {
-    return shared_point_in_rect(te_shared_point(x, y), te_shared_rect(rect));
+    return shared_point_in_rect(dzw_shared_point(x, y), dzw_shared_rect(rect));
 }
 
 static bool segment_intersects_circle(float x1, float y1, float x2, float y2, float center_x, float center_y, float radius) {
@@ -876,7 +876,7 @@ static bool segment_intersects_circle(float x1, float y1, float x2, float y2, fl
     float dy = y2 - y1;
     float length_squared = dx * dx + dy * dy;
     if (length_squared < 0.0001f) {
-        return te_distance(x1, y1, center_x, center_y) <= radius;
+        return dzw_distance(x1, y1, center_x, center_y) <= radius;
     }
 
     float projection = ((center_x - x1) * dx + (center_y - y1) * dy) / length_squared;
@@ -888,14 +888,14 @@ static bool segment_intersects_circle(float x1, float y1, float x2, float y2, fl
 
     float closest_x = x1 + projection * dx;
     float closest_y = y1 + projection * dy;
-    return te_distance(closest_x, closest_y, center_x, center_y) <= radius + 0.001f;
+    return dzw_distance(closest_x, closest_y, center_x, center_y) <= radius + 0.001f;
 }
 
 static bool segment_intersects_rect(float x1, float y1, float x2, float y2, rect_t rect) {
     return shared_segment_intersects_rect(
-        te_shared_point(x1, y1),
-        te_shared_point(x2, y2),
-        te_shared_rect(rect)
+        dzw_shared_point(x1, y1),
+        dzw_shared_point(x2, y2),
+        dzw_shared_rect(rect)
     );
 }
 
@@ -981,8 +981,8 @@ static void clear_pending_hit_allocation_choice(game_t *game) {
     }
 
     game->pending_hit_allocation_active = false;
-    game->pending_hit_allocation_kind = TE_PENDING_HIT_ALLOCATION_SHOOTING;
-    game->pending_hit_allocation_chooser_owner = TE_PLAYER_NONE;
+    game->pending_hit_allocation_kind = DZW_PENDING_HIT_ALLOCATION_SHOOTING;
+    game->pending_hit_allocation_chooser_owner = DZW_PLAYER_NONE;
     game->pending_hit_allocation_attacker_name = NULL;
     game->pending_hit_allocation_source_name = NULL;
     game->pending_hit_allocation_target_id = 0;
@@ -1004,7 +1004,7 @@ static void clear_pending_banded_melee_resolution(game_t *game) {
     game->pending_banded_melee_active = false;
     game->pending_banded_melee_attacker_id = 0;
     game->pending_banded_melee_target_id = 0;
-    game->pending_banded_melee_follow_up = TE_FOLLOW_UP_ADVANCE;
+    game->pending_banded_melee_follow_up = DZW_FOLLOW_UP_ADVANCE;
     game->pending_banded_melee_charging = false;
     game->pending_banded_melee_next_initiative = 0;
     game->pending_banded_melee_attacker_wounds = 0;
@@ -1055,10 +1055,10 @@ static void clear_pending_one_sided_melee_resolution(game_t *game) {
     game->pending_one_sided_melee_accumulated_wounds = 0;
     game->pending_one_sided_melee_counts_for_attacker_score = false;
     game->pending_one_sided_melee_resolved_initiative = 0;
-    game->pending_one_sided_melee_next_step = TE_PENDING_ONE_SIDED_MELEE_NONE;
+    game->pending_one_sided_melee_next_step = DZW_PENDING_ONE_SIDED_MELEE_NONE;
     game->pending_one_sided_melee_assault_attacker_id = 0;
     game->pending_one_sided_melee_assault_target_id = 0;
-    game->pending_one_sided_melee_follow_up = TE_FOLLOW_UP_ADVANCE;
+    game->pending_one_sided_melee_follow_up = DZW_FOLLOW_UP_ADVANCE;
     game->pending_one_sided_melee_attacker_wounds = 0;
     game->pending_one_sided_melee_defender_wounds = 0;
 }
@@ -1108,7 +1108,7 @@ static void clear_pending_simultaneous_melee_resolution(game_t *game) {
     game->pending_simultaneous_melee_active = false;
     game->pending_simultaneous_melee_attacker_id = 0;
     game->pending_simultaneous_melee_target_id = 0;
-    game->pending_simultaneous_melee_follow_up = TE_FOLLOW_UP_ADVANCE;
+    game->pending_simultaneous_melee_follow_up = DZW_FOLLOW_UP_ADVANCE;
     game->pending_simultaneous_melee_charging = false;
     game->pending_simultaneous_melee_resolved_initiative = 0;
     game->pending_simultaneous_melee_next_initiative = 0;
@@ -1117,7 +1117,7 @@ static void clear_pending_simultaneous_melee_resolution(game_t *game) {
     game->pending_simultaneous_melee_band_attacker_wounds = 0;
     game->pending_simultaneous_melee_band_defender_wounds = 0;
     game->pending_simultaneous_melee_pending_counts_for_attacker_score = false;
-    game->pending_simultaneous_melee_step = TE_PENDING_SIMULTANEOUS_MELEE_NONE;
+    game->pending_simultaneous_melee_step = DZW_PENDING_SIMULTANEOUS_MELEE_NONE;
     game->pending_simultaneous_melee_counter_source_valid = false;
     memset(&game->pending_simultaneous_melee_counter_source, 0, sizeof(game->pending_simultaneous_melee_counter_source));
 }
@@ -1199,7 +1199,7 @@ static int collect_vehicle_weapon_destroy_indices(const unit_t *vehicle, int *ou
         if (vehicle->weapons[index].destroyed) {
             continue;
         }
-        if (out_indices != NULL && count < TE_MAX_WEAPONS) {
+        if (out_indices != NULL && count < DZW_MAX_WEAPONS) {
             out_indices[count] = index;
         }
         count += 1;
@@ -1216,14 +1216,14 @@ static void destroy_vehicle_weapon_by_choice(game_t *game, const unit_t *chooser
     slot->destroyed = true;
     if (chooser != NULL) {
         if (only_weapon_left) {
-            te_log(game, "%s chooses %s on %s; it was the only weapon left.", chooser->name, slot->profile.name, vehicle->name);
+            dzw_log(game, "%s chooses %s on %s; it was the only weapon left.", chooser->name, slot->profile.name, vehicle->name);
         } else {
-            te_log(game, "%s chooses %s on %s for the Weapon Destroyed result.", chooser->name, slot->profile.name, vehicle->name);
+            dzw_log(game, "%s chooses %s on %s for the Weapon Destroyed result.", chooser->name, slot->profile.name, vehicle->name);
         }
     } else if (only_weapon_left) {
-        te_log(game, "%s loses %s; it was the only weapon left.", vehicle->name, slot->profile.name);
+        dzw_log(game, "%s loses %s; it was the only weapon left.", vehicle->name, slot->profile.name);
     } else {
-        te_log(game, "%s loses %s.", vehicle->name, slot->profile.name);
+        dzw_log(game, "%s loses %s.", vehicle->name, slot->profile.name);
     }
 }
 
@@ -1232,7 +1232,7 @@ static void handle_weapon_destroy_result(game_t *game, const unit_t *chooser, un
         return;
     }
 
-    int option_indices[TE_MAX_WEAPONS];
+    int option_indices[DZW_MAX_WEAPONS];
     int option_count = collect_vehicle_weapon_destroy_indices(vehicle, option_indices);
     if (option_count <= 0) {
         destroy_unit(game, vehicle, no_weapon_reason);
@@ -1252,7 +1252,7 @@ static void handle_weapon_destroy_result(game_t *game, const unit_t *chooser, un
     memcpy(game->pending_weapon_destroy_option_indices, option_indices, (size_t)option_count * sizeof(int));
 
     const char *chooser_name = chooser != NULL ? chooser->name : "The attacker";
-    te_log(game, "%s scores Weapon Destroyed on %s; %s chooses which weapon is lost.", chooser_name, vehicle->name, chooser_name);
+    dzw_log(game, "%s scores Weapon Destroyed on %s; %s chooses which weapon is lost.", chooser_name, vehicle->name, chooser_name);
 }
 
 static bool assert_no_pending_weapon_destroy_choice(game_t *game) {
@@ -1282,11 +1282,11 @@ static bool assert_no_pending_resolution_choice(game_t *game) {
 }
 
 static bool unit_uses_vehicle_rules(const unit_t *unit) {
-    return unit != NULL && (unit->kind == TE_UNIT_VEHICLE || unit->kind == TE_UNIT_ASSAULT_GUN);
+    return unit != NULL && (unit->kind == DZW_UNIT_VEHICLE || unit->kind == DZW_UNIT_ASSAULT_GUN);
 }
 
 static bool unit_is_transport(const unit_t *unit) {
-    return unit != NULL && unit->kind == TE_UNIT_VEHICLE && unit->transport_capacity > 0;
+    return unit != NULL && unit->kind == DZW_UNIT_VEHICLE && unit->transport_capacity > 0;
 }
 
 static bool unit_is_embarked(const unit_t *unit) {
@@ -1317,15 +1317,15 @@ static player_t evaluate_objective(const game_t *game, const objective_t *object
                 continue;
             }
 
-            float distance = te_distance(unit->x, unit->y, objective->x, objective->y);
+            float distance = dzw_distance(unit->x, unit->y, objective->x, objective->y);
             if (distance > objective->radius + unit->footprint_radius) {
                 continue;
             }
 
             int value = objective_presence_value(unit);
-            if (unit->owner == TE_PLAYER_ONE) {
+            if (unit->owner == DZW_PLAYER_ONE) {
                 player_one_presence += value;
-            } else if (unit->owner == TE_PLAYER_TWO) {
+            } else if (unit->owner == DZW_PLAYER_TWO) {
                 player_two_presence += value;
             }
         }
@@ -1339,9 +1339,9 @@ static player_t evaluate_objective(const game_t *game, const objective_t *object
     }
 
     if (player_one_presence == player_two_presence) {
-        return TE_PLAYER_NONE;
+        return DZW_PLAYER_NONE;
     }
-    return player_one_presence > player_two_presence ? TE_PLAYER_ONE : TE_PLAYER_TWO;
+    return player_one_presence > player_two_presence ? DZW_PLAYER_ONE : DZW_PLAYER_TWO;
 }
 
 static bool unit_has_profile_groups(const unit_t *unit) {
@@ -1352,7 +1352,7 @@ static bool unit_has_mixed_profiles(const unit_t *unit) {
     return unit != NULL && unit->profile_group_count > 1;
 }
 
-static int te_wounds_per_model(const unit_t *unit) {
+static int dzw_wounds_per_model(const unit_t *unit) {
     return unit != NULL && unit->wounds_per_model > 0 ? unit->wounds_per_model : 1;
 }
 
@@ -1492,7 +1492,7 @@ static void normalize_unit_wounds(unit_t *unit) {
         return;
     }
 
-    unit->wounds_per_model = te_wounds_per_model(unit);
+    unit->wounds_per_model = dzw_wounds_per_model(unit);
     if (unit->destroyed || unit->models <= 0) {
         unit->lead_model_wounds = 0;
         return;
@@ -1503,7 +1503,7 @@ static void normalize_unit_wounds(unit_t *unit) {
     }
 }
 
-static int te_total_wounds_remaining(const unit_t *unit) {
+static int dzw_total_wounds_remaining(const unit_t *unit) {
     if (unit == NULL || unit->destroyed || unit->models <= 0) {
         return 0;
     }
@@ -1516,7 +1516,7 @@ static int te_total_wounds_remaining(const unit_t *unit) {
         return total;
     }
 
-    int wounds_per_model = te_wounds_per_model(unit);
+    int wounds_per_model = dzw_wounds_per_model(unit);
     int lead_model_wounds = unit->lead_model_wounds;
     if (lead_model_wounds <= 0 || lead_model_wounds > wounds_per_model) {
         lead_model_wounds = wounds_per_model;
@@ -1526,7 +1526,7 @@ static int te_total_wounds_remaining(const unit_t *unit) {
 }
 
 static float edge_distance_between_units(const unit_t *left, const unit_t *right) {
-    return te_distance(left->x, left->y, right->x, right->y) - left->footprint_radius - right->footprint_radius;
+    return dzw_distance(left->x, left->y, right->x, right->y) - left->footprint_radius - right->footprint_radius;
 }
 
 static unit_t *embarked_unit(game_t *game, const unit_t *transport) {
@@ -1644,7 +1644,7 @@ static bool weapon_slot_can_bear_target(const unit_t *attacker, const unit_t *ta
 
     float angle_to_target = angle_to(attacker->x, attacker->y, target->x, target->y);
     if (slot->jammed_in_place) {
-        return shared_angle_within_arc(slot->jammed_fire_angle_degrees, angle_to_target, (float)TE_JAMMED_WEAPON_ARC_DEGREES);
+        return shared_angle_within_arc(slot->jammed_fire_angle_degrees, angle_to_target, (float)DZW_JAMMED_WEAPON_ARC_DEGREES);
     }
 
     if (slot->profile.fire_arc_degrees <= 0 || slot->profile.fire_arc_degrees >= 360) {
@@ -1664,7 +1664,7 @@ static bool transport_passenger_has_arc(const unit_t *transport, const unit_t *t
 }
 
 static bool unit_is_crew_stunned_assault_gun(const unit_t *unit) {
-    return unit != NULL && unit->kind == TE_UNIT_ASSAULT_GUN && unit->crew_stunned;
+    return unit != NULL && unit->kind == DZW_UNIT_ASSAULT_GUN && unit->crew_stunned;
 }
 
 static void log_stunned_assault_gun_close_combat_skip(game_t *game, const unit_t *assault_gun) {
@@ -1672,7 +1672,7 @@ static void log_stunned_assault_gun_close_combat_skip(game_t *game, const unit_t
         return;
     }
 
-    te_log(game, "%s is crew stunned and cannot fight in close combat this turn.", assault_gun->name);
+    dzw_log(game, "%s is crew stunned and cannot fight in close combat this turn.", assault_gun->name);
 }
 
 static bool enemy_within_distance(const game_t *game, const unit_t *unit, float range) {
@@ -1681,7 +1681,7 @@ static bool enemy_within_distance(const game_t *game, const unit_t *unit, float 
         if (enemy->owner == unit->owner || enemy->destroyed || unit_is_embarked(enemy)) {
             continue;
         }
-        float edge_distance = te_distance(unit->x, unit->y, enemy->x, enemy->y) - unit->footprint_radius - enemy->footprint_radius;
+        float edge_distance = dzw_distance(unit->x, unit->y, enemy->x, enemy->y) - unit->footprint_radius - enemy->footprint_radius;
         if (edge_distance < range) {
             return true;
         }
@@ -1838,9 +1838,9 @@ static void allocate_hits_to_profile_groups(const unit_t *unit, int hits, int *o
         return;
     }
 
-    memset(out_hits_by_group, 0, sizeof(int) * TE_MAX_PROFILE_GROUPS);
+    memset(out_hits_by_group, 0, sizeof(int) * DZW_MAX_PROFILE_GROUPS);
 
-    int indices[TE_MAX_PROFILE_GROUPS];
+    int indices[DZW_MAX_PROFILE_GROUPS];
     int index_count = 0;
     order_profile_group_indices_for_casualties(unit, indices, &index_count);
     if (index_count <= 0) {
@@ -1889,7 +1889,7 @@ static int total_allocated_mixed_hits(const int *allocated_hits) {
     }
 
     int total = 0;
-    for (int index = 0; index < TE_MAX_PROFILE_GROUPS; index += 1) {
+    for (int index = 0; index < DZW_MAX_PROFILE_GROUPS; index += 1) {
         total += allocated_hits[index];
     }
     return total;
@@ -1973,45 +1973,45 @@ static int apply_profile_group_damage(game_t *game, const unit_t *unit, profile_
     }
 
     if (instant_death) {
-        te_log(game, "%s in %s suffers %d instant-kill wound%s from %s, losing %d model%s.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
+        dzw_log(game, "%s in %s suffers %d instant-kill wound%s from %s, losing %d model%s.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
     } else if (profile_group_wounds_per_model(group) <= 1) {
-        te_log(game, "%s in %s loses %d model%s to %s.", group->name, unit->name, models_lost, models_lost == 1 ? "" : "s", source_name);
+        dzw_log(game, "%s in %s loses %d model%s to %s.", group->name, unit->name, models_lost, models_lost == 1 ? "" : "s", source_name);
     } else if (models_lost <= 0) {
-        te_log(game, "%s in %s suffers %d unsaved wound%s from %s; the lead model is reduced to %d/%d wounds.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, group->lead_model_wounds, group->wounds_per_model);
+        dzw_log(game, "%s in %s suffers %d unsaved wound%s from %s; the lead model is reduced to %d/%d wounds.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, group->lead_model_wounds, group->wounds_per_model);
     } else if (group->models > 0 && group->lead_model_wounds < group->wounds_per_model) {
-        te_log(game, "%s in %s suffers %d unsaved wound%s from %s, losing %d model%s and leaving the lead model on %d/%d wounds.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s", group->lead_model_wounds, group->wounds_per_model);
+        dzw_log(game, "%s in %s suffers %d unsaved wound%s from %s, losing %d model%s and leaving the lead model on %d/%d wounds.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s", group->lead_model_wounds, group->wounds_per_model);
     } else {
-        te_log(game, "%s in %s suffers %d unsaved wound%s from %s, losing %d model%s.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
+        dzw_log(game, "%s in %s suffers %d unsaved wound%s from %s, losing %d model%s.", group->name, unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
     }
 
     return applied;
 }
 
 static player_t other_player(player_t player) {
-    return player == TE_PLAYER_ONE ? TE_PLAYER_TWO : TE_PLAYER_ONE;
+    return player == DZW_PLAYER_ONE ? DZW_PLAYER_TWO : DZW_PLAYER_ONE;
 }
 
 static int next_turn_number_for_player(const game_t *game, player_t player) {
     if (game == NULL) {
         return 0;
     }
-    if (player == TE_PLAYER_NONE) {
+    if (player == DZW_PLAYER_NONE) {
         return game->turn_number + 1;
     }
     return game->active_player == player ? game->turn_number + 2 : game->turn_number + 1;
 }
 
 static const char *player_name(player_t player) {
-    return player == TE_PLAYER_ONE ? "Player 1" : "Player 2";
+    return player == DZW_PLAYER_ONE ? "Player 1" : "Player 2";
 }
 
 static const char *phase_name(phase_t phase) {
     switch (phase) {
-        case TE_PHASE_MOVEMENT:
+        case DZW_PHASE_MOVEMENT:
             return "Movement";
-        case TE_PHASE_SHOOTING:
+        case DZW_PHASE_SHOOTING:
             return "Shooting";
-        case TE_PHASE_ASSAULT:
+        case DZW_PHASE_ASSAULT:
             return "Assault";
         default:
             return "Unknown";
@@ -2020,26 +2020,26 @@ static const char *phase_name(phase_t phase) {
 
 static player_t mission_winner(const game_t *game) {
     if (game == NULL) {
-        return TE_PLAYER_NONE;
+        return DZW_PLAYER_NONE;
     }
     if (game->player_one_score >= game->mission_target_score && game->player_one_score > game->player_two_score) {
-        return TE_PLAYER_ONE;
+        return DZW_PLAYER_ONE;
     }
     if (game->player_two_score >= game->mission_target_score && game->player_two_score > game->player_one_score) {
-        return TE_PLAYER_TWO;
+        return DZW_PLAYER_TWO;
     }
-    return TE_PLAYER_NONE;
+    return DZW_PLAYER_NONE;
 }
 
 static void log_mission_briefing(game_t *game) {
     if (game == NULL || game->mission_name == NULL || game->mission_target_score <= 0) {
         return;
     }
-    te_log(game, "Mission: %s. Score 1 VP per controlled objective at the end of each player's turn. First to %d VP wins.", game->mission_name, game->mission_target_score);
+    dzw_log(game, "Mission: %s. Score 1 VP per controlled objective at the end of each player's turn. First to %d VP wins.", game->mission_name, game->mission_target_score);
 }
 
 static void score_objectives(game_t *game) {
-    if (game == NULL || mission_winner(game) != TE_PLAYER_NONE) {
+    if (game == NULL || mission_winner(game) != DZW_PLAYER_NONE) {
         return;
     }
 
@@ -2049,30 +2049,30 @@ static void score_objectives(game_t *game) {
 
     for (int index = 0; index < game->objective_count; index += 1) {
         player_t controller = evaluate_objective(game, &game->objectives[index], NULL, NULL);
-        if (controller == TE_PLAYER_ONE) {
+        if (controller == DZW_PLAYER_ONE) {
             player_one_gain += 1;
-        } else if (controller == TE_PLAYER_TWO) {
+        } else if (controller == DZW_PLAYER_TWO) {
             player_two_gain += 1;
         }
     }
 
     if (player_one_gain == 0 && player_two_gain == 0) {
-        te_log(game, "Mission: No objective points scored at end of turn %d.", game->turn_number);
+        dzw_log(game, "Mission: No objective points scored at end of turn %d.", game->turn_number);
         return;
     }
 
     if (player_one_gain > 0) {
         game->player_one_score += player_one_gain;
-        te_log(game, "Mission: Player 1 scores %d VP from objective control.", player_one_gain);
+        dzw_log(game, "Mission: Player 1 scores %d VP from objective control.", player_one_gain);
     }
     if (player_two_gain > 0) {
         game->player_two_score += player_two_gain;
-        te_log(game, "Mission: Player 2 scores %d VP from objective control.", player_two_gain);
+        dzw_log(game, "Mission: Player 2 scores %d VP from objective control.", player_two_gain);
     }
 
     player_t winner = mission_winner(game);
-    if (previous_winner == TE_PLAYER_NONE && winner != TE_PLAYER_NONE) {
-        te_log(game, "Mission: %s reaches %d VP and wins %s.", player_name(winner), game->mission_target_score, game->mission_name);
+    if (previous_winner == DZW_PLAYER_NONE && winner != DZW_PLAYER_NONE) {
+        dzw_log(game, "Mission: %s reaches %d VP and wins %s.", player_name(winner), game->mission_target_score, game->mission_name);
     }
 }
 
@@ -2178,7 +2178,7 @@ static void resolve_destroyed_transport_passengers(game_t *game, unit_t *transpo
     passenger->shot_this_turn = true;
     passenger->assaulted_this_turn = true;
     pin_unit_until_next_turn(game, passenger);
-    te_log(game, "%s makes an emergency disembarkation from the destroyed %s and is pinned by the wreck.", passenger->name, transport->name);
+    dzw_log(game, "%s makes an emergency disembarkation from the destroyed %s and is pinned by the wreck.", passenger->name, transport->name);
 }
 
 static void destroy_unit(game_t *game, unit_t *unit, const char *reason) {
@@ -2203,7 +2203,7 @@ static void destroy_unit_with_passenger_outcome(game_t *game, unit_t *unit, cons
     unit->embarked_in_transport_id = 0;
     unit->embarked_this_turn = false;
     clear_locked_state(unit);
-    te_log(game, "%s is removed from play (%s).", unit->name, reason);
+    dzw_log(game, "%s is removed from play (%s).", unit->name, reason);
 }
 
 static void move_toward_point(unit_t *unit, float target_x, float target_y, float distance) {
@@ -2223,27 +2223,27 @@ static void resolve_fall_back(game_t *game, unit_t *unit, int distance) {
     clear_locked_state(unit);
 
     float destination_x = unit->x;
-    if (unit->owner == TE_PLAYER_ONE) {
+    if (unit->owner == DZW_PLAYER_ONE) {
         destination_x -= (float)distance;
     } else {
         destination_x += (float)distance;
     }
 
-    if (destination_x < 0.0f || destination_x > TE_BOARD_WIDTH) {
+    if (destination_x < 0.0f || destination_x > DZW_BOARD_WIDTH) {
         destroy_unit(game, unit, "fell back off the table");
         return;
     }
 
-    unit->x = fminf(fmaxf(destination_x, unit->footprint_radius), TE_BOARD_WIDTH - unit->footprint_radius);
-    te_log(game, "%s falls back %d\" toward %s's board edge.", unit->name, distance, player_name(unit->owner));
+    unit->x = fminf(fmaxf(destination_x, unit->footprint_radius), DZW_BOARD_WIDTH - unit->footprint_radius);
+    dzw_log(game, "%s falls back %d\" toward %s's board edge.", unit->name, distance, player_name(unit->owner));
 }
 
 static int best_movement_allowance(game_t *game, const unit_t *unit, bool difficult_terrain) {
-    if (unit->kind == TE_UNIT_ASSAULT_GUN) {
+    if (unit->kind == DZW_UNIT_ASSAULT_GUN) {
         return difficult_terrain ? roll_highest_of_2d6(game) : 6;
     }
 
-    if (unit->kind == TE_UNIT_VEHICLE) {
+    if (unit->kind == DZW_UNIT_VEHICLE) {
         return unit->fast ? 24 : 12;
     }
 
@@ -2264,11 +2264,11 @@ static bool path_touches_terrain(const game_t *game, float x1, float y1, float x
 }
 
 static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, float y, int ignore_unit_id) {
-    if (x < unit->footprint_radius || y < unit->footprint_radius || x > TE_BOARD_WIDTH - unit->footprint_radius || y > TE_BOARD_HEIGHT - unit->footprint_radius) {
+    if (x < unit->footprint_radius || y < unit->footprint_radius || x > DZW_BOARD_WIDTH - unit->footprint_radius || y > DZW_BOARD_HEIGHT - unit->footprint_radius) {
         return false;
     }
 
-    if (path_touches_terrain(game, x, y, x, y, TE_TERRAIN_IMPASSABLE)) {
+    if (path_touches_terrain(game, x, y, x, y, DZW_TERRAIN_IMPASSABLE)) {
         return false;
     }
 
@@ -2278,7 +2278,7 @@ static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, f
             continue;
         }
 
-        float separation = te_distance(x, y, other->x, other->y) - unit->footprint_radius - other->footprint_radius;
+        float separation = dzw_distance(x, y, other->x, other->y) - unit->footprint_radius - other->footprint_radius;
         if (other->owner != unit->owner && separation < 1.0f) {
             return false;
         }
@@ -2380,7 +2380,7 @@ static bool find_leap_aside_position(const game_t *game, const unit_t *unit, con
             float angle = normalize_angle(preferred_angle_degrees + angle_offsets[index]) * ((float)M_PI / 180.0f);
             float candidate_x = blocker->x + cosf(angle) * radius;
             float candidate_y = blocker->y + sinf(angle) * radius;
-            if (te_distance(candidate_x, candidate_y, blocker->x, blocker->y) - unit->footprint_radius - blocker->footprint_radius < 0.0f) {
+            if (dzw_distance(candidate_x, candidate_y, blocker->x, blocker->y) - unit->footprint_radius - blocker->footprint_radius < 0.0f) {
                 continue;
             }
             if (!can_place_unit_at(game, unit, candidate_x, candidate_y, blocker->id)) {
@@ -2408,7 +2408,7 @@ static void resolve_wreck_overlap_displacement(game_t *game, unit_t *wreck, floa
             continue;
         }
 
-        float separation = te_distance(unit->x, unit->y, wreck->x, wreck->y) - unit->footprint_radius - wreck->footprint_radius;
+        float separation = dzw_distance(unit->x, unit->y, wreck->x, wreck->y) - unit->footprint_radius - wreck->footprint_radius;
         if (separation >= 0.0f) {
             continue;
         }
@@ -2421,18 +2421,18 @@ static void resolve_wreck_overlap_displacement(game_t *game, unit_t *wreck, floa
         float leap_x = unit->x;
         float leap_y = unit->y;
         if (!find_leap_aside_position(game, unit, wreck, preferred_angle, &leap_x, &leap_y)) {
-            te_log(game, "%s cannot find room to leap aside from %s's slewing wreck in the current token model.", unit->name, wreck->name);
+            dzw_log(game, "%s cannot find room to leap aside from %s's slewing wreck in the current token model.", unit->name, wreck->name);
             continue;
         }
 
         unit->x = leap_x;
         unit->y = leap_y;
-        te_log(game, "%s leaps aside from %s's slewing wreck.", unit->name, wreck->name);
+        dzw_log(game, "%s leaps aside from %s's slewing wreck.", unit->name, wreck->name);
     }
 }
 
 static bool unit_can_move_now(const game_t *game, const unit_t *unit) {
-    if (unit->destroyed || unit->owner != game->active_player || game->phase != TE_PHASE_MOVEMENT) {
+    if (unit->destroyed || unit->owner != game->active_player || game->phase != DZW_PHASE_MOVEMENT) {
         return false;
     }
     if (unit->falling_back || unit->locked_in_assault || unit->pinned_until_turn == game->turn_number || unit_is_embarked(unit)) {
@@ -2459,15 +2459,15 @@ static void resolve_stunned_recon_coast(game_t *game, unit_t *unit) {
     float actual_distance = 0.0f;
     find_legal_position_along_heading(game, unit, coast_angle, (float)requested_distance, &destination_x, &destination_y, &actual_distance);
 
-    bool touches_impassable = path_touches_terrain(game, unit->x, unit->y, destination_x, destination_y, TE_TERRAIN_IMPASSABLE);
-    bool touches_difficult = path_touches_terrain(game, unit->x, unit->y, destination_x, destination_y, TE_TERRAIN_DIFFICULT);
+    bool touches_impassable = path_touches_terrain(game, unit->x, unit->y, destination_x, destination_y, DZW_TERRAIN_IMPASSABLE);
+    bool touches_difficult = path_touches_terrain(game, unit->x, unit->y, destination_x, destination_y, DZW_TERRAIN_DIFFICULT);
     if (actual_distance > 0.01f && (touches_difficult || touches_impassable)) {
         int terrain_roll = roll_d6(game);
         if (terrain_roll == 1) {
             destroy_unit(game, unit, "its stunned crew sent it into an obstacle");
             return;
         }
-        te_log(game, "%s keeps control through rough ground on a %d while coasting with stunned crew.", unit->name, terrain_roll);
+        dzw_log(game, "%s keeps control through rough ground on a %d while coasting with stunned crew.", unit->name, terrain_roll);
     }
 
     if (actual_distance > 0.01f) {
@@ -2479,19 +2479,19 @@ static void resolve_stunned_recon_coast(game_t *game, unit_t *unit) {
         if (unit_is_transport(unit)) {
             sync_embarked_unit_position(game, unit);
         }
-        te_log(game, "%s coasts %.1f\" at %.0f° due to stunned crew and stays facing %.0f°.", unit->name, actual_distance, coast_angle, unit->facing_degrees);
+        dzw_log(game, "%s coasts %.1f\" at %.0f° due to stunned crew and stays facing %.0f°.", unit->name, actual_distance, coast_angle, unit->facing_degrees);
         if (actual_distance + 0.01f < (float)requested_distance) {
-            te_log(game, "%s could not complete the full %d\" coast because of nearby terrain or models.", unit->name, requested_distance);
+            dzw_log(game, "%s could not complete the full %d\" coast because of nearby terrain or models.", unit->name, requested_distance);
         }
         return;
     }
 
     unit->movement_action_used_this_turn = true;
-    te_log(game, "%s is crew stunned and has no room to coast this movement phase.", unit->name);
+    dzw_log(game, "%s is crew stunned and has no room to coast this movement phase.", unit->name);
 }
 
 static bool unit_can_shoot_now(const game_t *game, const unit_t *unit) {
-    if (unit->destroyed || unit->owner != game->active_player || game->phase != TE_PHASE_SHOOTING) {
+    if (unit->destroyed || unit->owner != game->active_player || game->phase != DZW_PHASE_SHOOTING) {
         return false;
     }
     if (unit->shot_this_turn || unit->falling_back || unit->locked_in_assault || unit->pinned_until_turn == game->turn_number || unit_is_embarked(unit)) {
@@ -2507,13 +2507,13 @@ static bool unit_can_shoot_now(const game_t *game, const unit_t *unit) {
 }
 
 static bool unit_can_assault_now(const game_t *game, const unit_t *unit) {
-    if (unit->destroyed || unit->owner != game->active_player || game->phase != TE_PHASE_ASSAULT) {
+    if (unit->destroyed || unit->owner != game->active_player || game->phase != DZW_PHASE_ASSAULT) {
         return false;
     }
     if (unit->assaulted_this_turn || unit->falling_back || unit->pinned_until_turn == game->turn_number || unit_is_embarked(unit)) {
         return false;
     }
-    if (unit->kind == TE_UNIT_VEHICLE) {
+    if (unit->kind == DZW_UNIT_VEHICLE) {
         return false;
     }
     if (unit_is_crew_stunned_assault_gun(unit) && !unit->locked_in_assault) {
@@ -2523,7 +2523,7 @@ static bool unit_can_assault_now(const game_t *game, const unit_t *unit) {
 }
 
 static int vehicle_max_weapons(const unit_t *unit) {
-    if (unit->kind == TE_UNIT_ASSAULT_GUN) {
+    if (unit->kind == DZW_UNIT_ASSAULT_GUN) {
         return unit->moved_distance > 0.0f ? 2 : unit->weapon_count;
     }
 
@@ -2571,7 +2571,7 @@ static void finish_turn(game_t *game, player_t player) {
         }
         if (unit->pinned_until_turn == game->turn_number) {
             unit->pinned_until_turn = 0;
-            te_log(game, "%s is no longer pinned.", unit->name);
+            dzw_log(game, "%s is no longer pinned.", unit->name);
         }
     }
 }
@@ -2593,7 +2593,7 @@ static void begin_turn(game_t *game) {
         unit->embarked_this_turn = false;
 
         if (unit->pinned_until_turn == game->turn_number) {
-            te_log(game, "%s is pinned and cannot move, shoot, or assault this turn.", unit->name);
+            dzw_log(game, "%s is pinned and cannot move, shoot, or assault this turn.", unit->name);
         }
 
         if (unit->smoke_active) {
@@ -2625,10 +2625,10 @@ static void begin_turn(game_t *game) {
         int regroup_roll = roll_2d6(game);
         if (regroup_roll <= unit->leadership) {
             unit->falling_back = false;
-            te_log(game, "%s regroups on a %d against Leadership %d.", unit->name, regroup_roll, unit->leadership);
+            dzw_log(game, "%s regroups on a %d against Leadership %d.", unit->name, regroup_roll, unit->leadership);
         } else {
             int fallback_distance = roll_2d6(game);
-            te_log(game, "%s fails to regroup on a %d against Leadership %d.", unit->name, regroup_roll, unit->leadership);
+            dzw_log(game, "%s fails to regroup on a %d against Leadership %d.", unit->name, regroup_roll, unit->leadership);
             resolve_fall_back(game, unit, fallback_distance);
             unit->moved_this_turn = true;
             unit->movement_action_used_this_turn = true;
@@ -2637,10 +2637,10 @@ static void begin_turn(game_t *game) {
         }
     }
 
-    te_log(game, "Turn %d begins for %s in the %s phase.", game->turn_number, player_name(game->active_player), phase_name(game->phase));
+    dzw_log(game, "Turn %d begins for %s in the %s phase.", game->turn_number, player_name(game->active_player), phase_name(game->phase));
 }
 
-static void te_apply_shooting_morale(game_t *game, unit_t *unit) {
+static void dzw_apply_shooting_morale(game_t *game, unit_t *unit) {
     if (unit->destroyed || unit->morale_checked_this_phase || unit->shooting_phase_strength <= 0) {
         return;
     }
@@ -2653,11 +2653,11 @@ static void te_apply_shooting_morale(game_t *game, unit_t *unit) {
     unit->morale_checked_this_phase = true;
     int morale_roll = roll_2d6(game);
     if (morale_roll <= unit->leadership) {
-        te_log(game, "%s holds after losing %d models; morale roll %d vs Leadership %d.", unit->name, unit->casualties_this_shooting_phase, morale_roll, unit->leadership);
+        dzw_log(game, "%s holds after losing %d models; morale roll %d vs Leadership %d.", unit->name, unit->casualties_this_shooting_phase, morale_roll, unit->leadership);
         return;
     }
 
-    te_log(game, "%s breaks after enemy fire; morale roll %d vs Leadership %d.", unit->name, morale_roll, unit->leadership);
+    dzw_log(game, "%s breaks after enemy fire; morale roll %d vs Leadership %d.", unit->name, morale_roll, unit->leadership);
     resolve_fall_back(game, unit, roll_2d6(game));
 }
 
@@ -2673,12 +2673,12 @@ static void apply_pinning(game_t *game, unit_t *unit, int modifier, const char *
 
     int morale_roll = roll_2d6(game);
     if (morale_roll <= target_number) {
-        te_log(game, "%s resists pinning from %s on %d against Leadership %d.", unit->name, source_name, morale_roll, target_number);
+        dzw_log(game, "%s resists pinning from %s on %d against Leadership %d.", unit->name, source_name, morale_roll, target_number);
         return;
     }
 
     pin_unit_until_next_turn(game, unit);
-    te_log(game, "%s is pinned by %s on %d against Leadership %d and will be unable to act on its next turn.", unit->name, source_name, morale_roll, target_number);
+    dzw_log(game, "%s is pinned by %s on %d against Leadership %d and will be unable to act on its next turn.", unit->name, source_name, morale_roll, target_number);
 }
 
 static int apply_infantry_damage(game_t *game, unit_t *unit, int wounds, int damage_strength, const char *source_name, bool count_for_shooting_phase, int *out_models_lost) {
@@ -2692,7 +2692,7 @@ static int apply_infantry_damage(game_t *game, unit_t *unit, int wounds, int dam
     normalize_unit_wounds(unit);
 
     if (unit_has_profile_groups(unit)) {
-        int indices[TE_MAX_PROFILE_GROUPS];
+        int indices[DZW_MAX_PROFILE_GROUPS];
         int index_count = 0;
         order_profile_group_indices_for_casualties(unit, indices, &index_count);
 
@@ -2724,7 +2724,7 @@ static int apply_infantry_damage(game_t *game, unit_t *unit, int wounds, int dam
 
     int instant_death = damage_strength > 0 && unit->wounds_per_model > 1 && damage_strength >= unit->toughness * 2;
     int applied = wounds;
-    int total_wounds = instant_death ? unit->models : te_total_wounds_remaining(unit);
+    int total_wounds = instant_death ? unit->models : dzw_total_wounds_remaining(unit);
     if (applied > total_wounds) {
         applied = total_wounds;
     }
@@ -2765,15 +2765,15 @@ static int apply_infantry_damage(game_t *game, unit_t *unit, int wounds, int dam
     }
 
     if (instant_death) {
-        te_log(game, "%s suffers %d instant-kill wound%s from %s, losing %d model%s.", unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
+        dzw_log(game, "%s suffers %d instant-kill wound%s from %s, losing %d model%s.", unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
     } else if (unit->wounds_per_model <= 1) {
-        te_log(game, "%s loses %d model%s to %s.", unit->name, models_lost, models_lost == 1 ? "" : "s", source_name);
+        dzw_log(game, "%s loses %d model%s to %s.", unit->name, models_lost, models_lost == 1 ? "" : "s", source_name);
     } else if (models_lost <= 0) {
-        te_log(game, "%s suffers %d unsaved wound%s from %s; the lead model is reduced to %d/%d wounds.", unit->name, applied, applied == 1 ? "" : "s", source_name, unit->lead_model_wounds, unit->wounds_per_model);
+        dzw_log(game, "%s suffers %d unsaved wound%s from %s; the lead model is reduced to %d/%d wounds.", unit->name, applied, applied == 1 ? "" : "s", source_name, unit->lead_model_wounds, unit->wounds_per_model);
     } else if (unit->models > 0 && unit->lead_model_wounds < unit->wounds_per_model) {
-        te_log(game, "%s suffers %d unsaved wound%s from %s, losing %d model%s and leaving the lead model on %d/%d wounds.", unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s", unit->lead_model_wounds, unit->wounds_per_model);
+        dzw_log(game, "%s suffers %d unsaved wound%s from %s, losing %d model%s and leaving the lead model on %d/%d wounds.", unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s", unit->lead_model_wounds, unit->wounds_per_model);
     } else {
-        te_log(game, "%s suffers %d unsaved wound%s from %s, losing %d model%s.", unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
+        dzw_log(game, "%s suffers %d unsaved wound%s from %s, losing %d model%s.", unit->name, applied, applied == 1 ? "" : "s", source_name, models_lost, models_lost == 1 ? "" : "s");
     }
 
     if (unit->models <= 0) {
@@ -2854,19 +2854,19 @@ static void slew_vehicle_wreck(game_t *game, unit_t *vehicle, const char *source
     int scatter_distance = 0;
     bool direct_hit = scatter_marker(game, vehicle->x, vehicle->y, &wreck_x, &wreck_y, &scatter_distance);
     if (direct_hit || scatter_distance <= 0) {
-        te_log(game, "%s flips in place from %s.", vehicle->name, source_name);
+        dzw_log(game, "%s flips in place from %s.", vehicle->name, source_name);
         return;
     }
 
-    vehicle->x = fminf(fmaxf(wreck_x, vehicle->footprint_radius), TE_BOARD_WIDTH - vehicle->footprint_radius);
-    vehicle->y = fminf(fmaxf(wreck_y, vehicle->footprint_radius), TE_BOARD_HEIGHT - vehicle->footprint_radius);
-    te_log(game, "%s's wreck slews %d\" from %s.", vehicle->name, scatter_distance, source_name);
+    vehicle->x = fminf(fmaxf(wreck_x, vehicle->footprint_radius), DZW_BOARD_WIDTH - vehicle->footprint_radius);
+    vehicle->y = fminf(fmaxf(wreck_y, vehicle->footprint_radius), DZW_BOARD_HEIGHT - vehicle->footprint_radius);
+    dzw_log(game, "%s's wreck slews %d\" from %s.", vehicle->name, scatter_distance, source_name);
     resolve_wreck_overlap_displacement(game, vehicle, previous_x, previous_y);
 }
 
 static int estimate_template_hits(game_t *game, const unit_t *target, float marker_x, float marker_y, int blast_diameter) {
     float blast_radius = (float)blast_diameter * 0.5f;
-    float center_distance = te_distance(marker_x, marker_y, target->x, target->y);
+    float center_distance = dzw_distance(marker_x, marker_y, target->x, target->y);
     float overlap_limit = blast_radius + target->footprint_radius;
     if (center_distance >= overlap_limit) {
         return 0;
@@ -2885,7 +2885,7 @@ static int estimate_template_hits(game_t *game, const unit_t *target, float mark
 }
 
 static int estimate_flame_hits(game_t *game, const unit_t *attacker, const unit_t *target, int template_length) {
-    float edge_distance = te_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+    float edge_distance = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
     if (edge_distance > (float)template_length) {
         return 0;
     }
@@ -2908,7 +2908,7 @@ static int estimate_flame_hits(game_t *game, const unit_t *attacker, const unit_
 
 static int template_hits_vehicle(const unit_t *target, float marker_x, float marker_y, int blast_diameter) {
     float blast_radius = (float)blast_diameter * 0.5f;
-    float center_distance = te_distance(marker_x, marker_y, target->x, target->y);
+    float center_distance = dzw_distance(marker_x, marker_y, target->x, target->y);
     if (center_distance > blast_radius + target->footprint_radius) {
         return 0;
     }
@@ -2916,7 +2916,7 @@ static int template_hits_vehicle(const unit_t *target, float marker_x, float mar
 }
 
 static int flame_hits_vehicle(const unit_t *attacker, const unit_t *target, int template_length) {
-    float edge_distance = te_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+    float edge_distance = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
     if (edge_distance > (float)template_length) {
         return 0;
     }
@@ -2930,7 +2930,7 @@ static void apply_vehicle_blast_radius(game_t *game, const unit_t *source, int r
             continue;
         }
 
-        float edge_distance = te_distance(source->x, source->y, unit->x, unit->y) - source->footprint_radius - unit->footprint_radius;
+        float edge_distance = dzw_distance(source->x, source->y, unit->x, unit->y) - source->footprint_radius - unit->footprint_radius;
         if (edge_distance > (float)radius) {
             continue;
         }
@@ -2948,7 +2948,7 @@ static void apply_vehicle_blast_radius(game_t *game, const unit_t *source, int r
         }
 
         if (casualties > 0) {
-            apply_infantry_damage(game, unit, casualties, 0, reason, game->phase == TE_PHASE_SHOOTING, NULL);
+            apply_infantry_damage(game, unit, casualties, 0, reason, game->phase == DZW_PHASE_SHOOTING, NULL);
         }
     }
 }
@@ -2980,7 +2980,7 @@ static bool weapon_mount_can_jam(const weapon_profile_t *weapon) {
         return false;
     }
 
-    return weapon->mount == TE_WEAPON_MOUNT_TURRET_INTERNAL || weapon->mount == TE_WEAPON_MOUNT_SPONSON_INTERNAL;
+    return weapon->mount == DZW_WEAPON_MOUNT_TURRET_INTERNAL || weapon->mount == DZW_WEAPON_MOUNT_SPONSON_INTERNAL;
 }
 
 static int jam_vehicle_traverse_weapons(game_t *game, unit_t *vehicle) {
@@ -2998,11 +2998,11 @@ static int jam_vehicle_traverse_weapons(game_t *game, unit_t *vehicle) {
         slot->jammed_in_place = true;
         slot->jammed_fire_angle_degrees = slot->has_last_fire_angle ? slot->last_fire_angle_degrees : vehicle->facing_degrees;
         jammed_weapons += 1;
-        te_log(game, "%s's %s jams in place at %.0f° after a second immobilized result.", vehicle->name, slot->profile.name, slot->jammed_fire_angle_degrees);
+        dzw_log(game, "%s's %s jams in place at %.0f° after a second immobilized result.", vehicle->name, slot->profile.name, slot->jammed_fire_angle_degrees);
     }
 
     if (jammed_weapons == 0) {
-        te_log(game, "%s suffers another immobilized result, but has no turret or sponson weapons left to jam.", vehicle->name);
+        dzw_log(game, "%s suffers another immobilized result, but has no turret or sponson weapons left to jam.", vehicle->name);
     }
 
     return jammed_weapons;
@@ -3019,7 +3019,7 @@ static void apply_immobilized_result(game_t *game, unit_t *vehicle, const char *
     }
 
     vehicle->immobilized = true;
-    te_log(game, "%s %s", vehicle->name, first_result_message);
+    dzw_log(game, "%s %s", vehicle->name, first_result_message);
 }
 
 static void apply_ordnance_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *vehicle) {
@@ -3034,7 +3034,7 @@ static void apply_ordnance_vehicle_damage(game_t *game, const unit_t *attacker, 
     switch (damage_roll) {
         case 1:
             set_unit_crew_stunned_until_next_turn(game, vehicle);
-            te_log(game, "%s suffers Crew Stunned from ordnance.", vehicle->name);
+            dzw_log(game, "%s suffers Crew Stunned from ordnance.", vehicle->name);
             break;
         case 2:
             apply_immobilized_result(game, vehicle, "is immobilized by the ordnance hit.");
@@ -3049,13 +3049,13 @@ static void apply_ordnance_vehicle_damage(game_t *game, const unit_t *attacker, 
             break;
         case 5: {
             int radius = roll_d6(game);
-            te_log(game, "%s detonates in a %d\" ordnance fireball.", vehicle->name, radius);
+            dzw_log(game, "%s detonates in a %d\" ordnance fireball.", vehicle->name, radius);
             apply_vehicle_blast_radius(game, vehicle, radius, "ordnance detonation");
             destroy_unit(game, vehicle, "its fuel and ammunition detonated");
             break;
         }
         case 6:
-            te_log(game, "%s is annihilated by the ordnance strike, spraying shrapnel 6\".", vehicle->name);
+            dzw_log(game, "%s is annihilated by the ordnance strike, spraying shrapnel 6\".", vehicle->name);
             apply_vehicle_blast_radius(game, vehicle, 6, "ordnance annihilation");
             destroy_unit_with_passenger_outcome(game, vehicle, "it was blown to pieces by ordnance", true);
             break;
@@ -3077,11 +3077,11 @@ static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *v
         switch (damage_roll) {
             case 1:
                 set_unit_crew_shaken_until_next_turn(game, vehicle);
-                te_log(game, "%s suffers Crew Shaken.", vehicle->name);
+                dzw_log(game, "%s suffers Crew Shaken.", vehicle->name);
                 break;
             case 2:
                 set_unit_crew_stunned_until_next_turn(game, vehicle);
-                te_log(game, "%s suffers Crew Stunned.", vehicle->name);
+                dzw_log(game, "%s suffers Crew Stunned.", vehicle->name);
                 break;
             case 3:
                 apply_immobilized_result(game, vehicle, "is immobilized.");
@@ -3103,7 +3103,7 @@ static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *v
     switch (damage_roll) {
         case 1:
             set_unit_crew_stunned_until_next_turn(game, vehicle);
-            te_log(game, "%s suffers Crew Stunned.", vehicle->name);
+            dzw_log(game, "%s suffers Crew Stunned.", vehicle->name);
             break;
         case 2:
             apply_immobilized_result(game, vehicle, "is immobilized.");
@@ -3121,7 +3121,7 @@ static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *v
             break;
         case 6: {
             int radius = roll_d6(game);
-            te_log(game, "%s detonates in a %d\" blast.", vehicle->name, radius);
+            dzw_log(game, "%s detonates in a %d\" blast.", vehicle->name, radius);
             apply_vehicle_blast_radius(game, vehicle, radius, "vehicle detonation");
             destroy_unit(game, vehicle, "its fuel and ammunition detonated");
             break;
@@ -3136,7 +3136,7 @@ static void log_profile_group_allocation(game_t *game, const unit_t *target, con
         return;
     }
 
-    char buffer[TE_LOG_LINE_LENGTH];
+    char buffer[DZW_LOG_LINE_LENGTH];
     int written = snprintf(buffer, sizeof(buffer), "%s allocates mixed-profile hits:", target->name);
     for (int index = 0; index < target->profile_group_count && written < (int)sizeof(buffer); index += 1) {
         if (allocated_hits[index] <= 0) {
@@ -3144,7 +3144,7 @@ static void log_profile_group_allocation(game_t *game, const unit_t *target, con
         }
         written += snprintf(buffer + written, sizeof(buffer) - (size_t)written, " %d to %s;", allocated_hits[index], target->profile_groups[index].name);
     }
-    te_log(game, "%s", buffer);
+    dzw_log(game, "%s", buffer);
 }
 
 static int resolve_allocated_mixed_infantry_hits(game_t *game, const char *attacker_name, unit_t *target, const weapon_profile_t *weapon, const int *allocated_hits) {
@@ -3191,7 +3191,7 @@ static int resolve_allocated_mixed_infantry_hits(game_t *game, const char *attac
 
     sync_unit_from_profile_groups(target);
     target->casualties_this_shooting_phase += models_lost;
-    te_log(game, "%s's %s converts %d allocated hit%s into %d wound%s and %d unsaved on %s.", attacker_name, weapon->name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds, target->name);
+    dzw_log(game, "%s's %s converts %d allocated hit%s into %d wound%s and %d unsaved on %s.", attacker_name, weapon->name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds, target->name);
     if (target->models <= 0) {
         destroy_unit(game, target, "the unit was wiped out");
     }
@@ -3238,7 +3238,7 @@ static int resolve_allocated_mixed_melee_hits(game_t *game, const char *source_n
     }
 
     sync_unit_from_profile_groups(defender);
-    te_log(game, "%s converts %d melee hit%s into %d wound%s and %d unsaved on %s.", source_name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds, defender->name);
+    dzw_log(game, "%s converts %d melee hit%s into %d wound%s and %d unsaved on %s.", source_name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds, defender->name);
     if (defender->models <= 0) {
         destroy_unit(game, defender, "the unit was wiped out");
     }
@@ -3276,7 +3276,7 @@ static void begin_pending_hit_allocation_choice(
     game->pending_hit_allocation_target_models_before = target->models;
     game->pending_hit_allocation_hits_remaining = hits;
     game->pending_hit_allocation_total_hits = hits;
-    te_log(game, "%s must allocate %d mixed-profile hit%s on %s from %s's %s.", player_name(chooser_owner), hits, hits == 1 ? "" : "s", target->name, attacker_name != NULL ? attacker_name : "the attacker", source_name);
+    dzw_log(game, "%s must allocate %d mixed-profile hit%s on %s from %s's %s.", player_name(chooser_owner), hits, hits == 1 ? "" : "s", target->name, attacker_name != NULL ? attacker_name : "the attacker", source_name);
 }
 
 static void begin_pending_shooting_hit_allocation_choice(game_t *game, const unit_t *attacker, unit_t *target, const weapon_profile_t *weapon, int hits) {
@@ -3286,7 +3286,7 @@ static void begin_pending_shooting_hit_allocation_choice(game_t *game, const uni
 
     begin_pending_hit_allocation_choice(
         game,
-        TE_PENDING_HIT_ALLOCATION_SHOOTING,
+        DZW_PENDING_HIT_ALLOCATION_SHOOTING,
         target->owner,
         attacker->name,
         weapon->name,
@@ -3302,8 +3302,8 @@ static void begin_pending_shooting_hit_allocation_choice(game_t *game, const uni
 static void begin_pending_melee_hit_allocation_choice(game_t *game, const char *attacker_name, const char *source_name, unit_t *target, int strength, int hits) {
     begin_pending_hit_allocation_choice(
         game,
-        TE_PENDING_HIT_ALLOCATION_MELEE,
-        target != NULL ? target->owner : TE_PLAYER_NONE,
+        DZW_PENDING_HIT_ALLOCATION_MELEE,
+        target != NULL ? target->owner : DZW_PLAYER_NONE,
         attacker_name,
         source_name,
         target,
@@ -3325,7 +3325,7 @@ static void resolve_mixed_infantry_hits(game_t *game, const unit_t *attacker, un
         return;
     }
 
-    int allocated_hits[TE_MAX_PROFILE_GROUPS];
+    int allocated_hits[DZW_MAX_PROFILE_GROUPS];
     memset(allocated_hits, 0, sizeof(allocated_hits));
     allocate_hits_to_profile_groups(target, hits, allocated_hits);
     (void)resolve_allocated_mixed_infantry_hits(game, attacker->name, target, weapon, allocated_hits);
@@ -3339,11 +3339,11 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
     if (weapon->flame) {
         hits = estimate_flame_hits(game, attacker, target, weapon->range);
         if (hits <= 0) {
-            te_log(game, "%s's %s does not quite reach %s.", attacker->name, weapon->name, target->name);
+            dzw_log(game, "%s's %s does not quite reach %s.", attacker->name, weapon->name, target->name);
             return;
         }
 
-        te_log(game, "%s sweeps %s over %s: %d template hit%s, cover ignored.", attacker->name, weapon->name, target->name, hits, hits == 1 ? "" : "s");
+        dzw_log(game, "%s sweeps %s over %s: %d template hit%s, cover ignored.", attacker->name, weapon->name, target->name, hits, hits == 1 ? "" : "s");
         if (unit_has_mixed_profiles(target)) {
             resolve_mixed_infantry_hits(game, attacker, target, weapon, hits);
             return;
@@ -3365,7 +3365,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
             unsaved_wounds += 1;
         }
 
-        te_log(game, "%s's %s converts %d hit%s into %d wound%s and %d unsaved.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds);
+        dzw_log(game, "%s's %s converts %d hit%s into %d wound%s and %d unsaved.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds);
         apply_infantry_damage(game, target, unsaved_wounds, weapon->strength, weapon->name, true, NULL);
         return;
     }
@@ -3381,21 +3381,21 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         } else {
             int needed_to_hit = required_to_hit_ballistic(attacker->ballistic_skill);
             if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
-                te_log(game, "%s's %s misses cleanly.", attacker->name, weapon->name);
+                dzw_log(game, "%s's %s misses cleanly.", attacker->name, weapon->name);
                 return;
             }
         }
 
         hits = estimate_template_hits(game, target, marker_x, marker_y, weapon->blast_diameter);
         if (hits <= 0) {
-            te_log(game, "%s's %s scatters clear of %s.", attacker->name, weapon->name, target->name);
+            dzw_log(game, "%s's %s scatters clear of %s.", attacker->name, weapon->name, target->name);
             return;
         }
 
         if (weapon->ordnance || weapon->barrage) {
-            te_log(game, "%s fires %s: %s, %d template hit%s on %s.", attacker->name, weapon->name, direct_hit ? "direct hit" : "scatter", hits, hits == 1 ? "" : "s", target->name);
+            dzw_log(game, "%s fires %s: %s, %d template hit%s on %s.", attacker->name, weapon->name, direct_hit ? "direct hit" : "scatter", hits, hits == 1 ? "" : "s", target->name);
         } else {
-            te_log(game, "%s fires %s: %d template hit%s on %s.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", target->name);
+            dzw_log(game, "%s fires %s: %d template hit%s on %s.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", target->name);
         }
 
         if (unit_has_mixed_profiles(target)) {
@@ -3419,7 +3419,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
             unsaved_wounds += 1;
         }
 
-        te_log(game, "%s's %s converts %d hit%s into %d wound%s and %d unsaved.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds);
+        dzw_log(game, "%s's %s converts %d hit%s into %d wound%s and %d unsaved.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds);
         apply_infantry_damage(game, target, unsaved_wounds, weapon->strength, weapon->name, true, NULL);
         return;
     }
@@ -3456,7 +3456,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         unsaved_wounds += 1;
     }
 
-    te_log(game, "%s fires %s: %d shot%s, %d hit%s, %d wound%s, %d unsaved.", attacker->name, weapon->name, shots, shots == 1 ? "" : "s", hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds);
+    dzw_log(game, "%s fires %s: %d shot%s, %d hit%s, %d wound%s, %d unsaved.", attacker->name, weapon->name, shots, shots == 1 ? "" : "s", hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds);
     apply_infantry_damage(game, target, unsaved_wounds, weapon->strength, weapon->name, true, NULL);
 }
 
@@ -3486,7 +3486,7 @@ static bool finalize_pending_hit_allocation_choice(game_t *game, bool apply_shoo
     int target_models_before = game->pending_hit_allocation_target_models_before;
     int unsaved_wounds = 0;
 
-    if (allocation_kind == TE_PENDING_HIT_ALLOCATION_MELEE) {
+    if (allocation_kind == DZW_PENDING_HIT_ALLOCATION_MELEE) {
         unsaved_wounds = resolve_allocated_mixed_melee_hits(
             game,
             source_name != NULL ? source_name : attacker_name,
@@ -3506,11 +3506,11 @@ static bool finalize_pending_hit_allocation_choice(game_t *game, bool apply_shoo
     }
 
     clear_pending_hit_allocation_choice(game);
-    if (allocation_kind == TE_PENDING_HIT_ALLOCATION_SHOOTING && !target->destroyed && target->models < target_models_before && barrage) {
+    if (allocation_kind == DZW_PENDING_HIT_ALLOCATION_SHOOTING && !target->destroyed && target->models < target_models_before && barrage) {
         apply_pinning(game, target, ordnance ? -1 : 0, source_name);
     }
-    if (apply_shooting_morale && !target->destroyed && allocation_kind == TE_PENDING_HIT_ALLOCATION_SHOOTING) {
-        te_apply_shooting_morale(game, target);
+    if (apply_shooting_morale && !target->destroyed && allocation_kind == DZW_PENDING_HIT_ALLOCATION_SHOOTING) {
+        dzw_apply_shooting_morale(game, target);
     }
     if (out_unsaved_wounds != NULL) {
         *out_unsaved_wounds = unsaved_wounds;
@@ -3525,15 +3525,15 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
     if (weapon->flame) {
         int hits = flame_hits_vehicle(attacker, target, weapon->range);
         if (hits <= 0) {
-            te_log(game, "%s's %s does not reach %s.", attacker->name, weapon->name, target->name);
+            dzw_log(game, "%s's %s does not reach %s.", attacker->name, weapon->name, target->name);
             return;
         }
 
-        te_log(game, "%s bathes %s in %s: %d template hit%s.", attacker->name, target->name, weapon->name, hits, hits == 1 ? "" : "s");
+        dzw_log(game, "%s bathes %s in %s: %d template hit%s.", attacker->name, target->name, weapon->name, hits, hits == 1 ? "" : "s");
         for (int hit = 0; hit < hits; hit += 1) {
             int penetration_roll = roll_d6(game) + weapon->strength;
             if (penetration_roll < armour_value) {
-                te_log(game, "%s's %s fails to penetrate %s (roll %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
+                dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
                 continue;
             }
 
@@ -3543,10 +3543,10 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
             }
 
             if (glancing_hit) {
-                te_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
+                dzw_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_vehicle_damage(game, attacker, target, true);
             } else {
-                te_log(game, "%s scores a penetrating hit on %s with %s.", attacker->name, target->name, weapon->name);
+                dzw_log(game, "%s scores a penetrating hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_vehicle_damage(game, attacker, target, false);
             }
             if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
@@ -3567,34 +3567,34 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
         } else {
             int needed_to_hit = required_to_hit_ballistic(attacker->ballistic_skill);
             if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
-                te_log(game, "%s's %s misses %s.", attacker->name, weapon->name, target->name);
+                dzw_log(game, "%s's %s misses %s.", attacker->name, weapon->name, target->name);
                 return;
             }
         }
 
         int hits = template_hits_vehicle(target, marker_x, marker_y, weapon->blast_diameter);
         if (hits <= 0) {
-            te_log(game, "%s's %s scatters away from %s.", attacker->name, weapon->name, target->name);
+            dzw_log(game, "%s's %s scatters away from %s.", attacker->name, weapon->name, target->name);
             return;
         }
 
-        te_log(game, "%s lands %d blast hit%s on %s with %s (%s).", attacker->name, hits, hits == 1 ? "" : "s", target->name, weapon->name, direct_hit ? "direct hit" : "scatter");
+        dzw_log(game, "%s lands %d blast hit%s on %s with %s (%s).", attacker->name, hits, hits == 1 ? "" : "s", target->name, weapon->name, direct_hit ? "direct hit" : "scatter");
         for (int hit = 0; hit < hits; hit += 1) {
             int penetration_roll = roll_d6(game) + weapon->strength;
             if (penetration_roll < armour_value) {
-                te_log(game, "%s's %s fails to penetrate %s (roll %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
+                dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
                 continue;
             }
 
             bool glancing_hit = penetration_roll == armour_value || protective_glancing_only;
             if (glancing_hit) {
-                te_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
+                dzw_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_vehicle_damage(game, attacker, target, true);
             } else if (weapon->ordnance) {
-                te_log(game, "%s scores an ordnance hit on %s with %s.", attacker->name, target->name, weapon->name);
+                dzw_log(game, "%s scores an ordnance hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_ordnance_vehicle_damage(game, attacker, target);
             } else {
-                te_log(game, "%s scores a penetrating hit on %s with %s.", attacker->name, target->name, weapon->name);
+                dzw_log(game, "%s scores a penetrating hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_vehicle_damage(game, attacker, target, false);
             }
 
@@ -3613,7 +3613,7 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
 
         int penetration_roll = roll_d6(game) + weapon->strength;
         if (penetration_roll < armour_value) {
-            te_log(game, "%s's %s bounces off %s (penetration %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
+            dzw_log(game, "%s's %s bounces off %s (penetration %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
             continue;
         }
 
@@ -3623,10 +3623,10 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
         }
 
         if (glancing_hit) {
-            te_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
+            dzw_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
             apply_vehicle_damage(game, attacker, target, true);
         } else {
-            te_log(game, "%s scores a penetrating hit on %s with %s.", attacker->name, target->name, weapon->name);
+            dzw_log(game, "%s scores a penetrating hit on %s with %s.", attacker->name, target->name, weapon->name);
             apply_vehicle_damage(game, attacker, target, false);
         }
         if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
@@ -3685,7 +3685,7 @@ static bool resolve_vehicle_follow_on_fire(game_t *game, unit_t *attacker, unit_
             return true;
         }
 
-        if (target->kind == TE_UNIT_INFANTRY && target->models < target_models_before && slot->profile.barrage) {
+        if (target->kind == DZW_UNIT_INFANTRY && target->models < target_models_before && slot->profile.barrage) {
             apply_pinning(game, target, slot->profile.ordnance ? -1 : 0, slot->profile.name);
         }
         if (target->destroyed) {
@@ -3714,18 +3714,18 @@ static bool continue_pending_vehicle_shot_sequence(game_t *game) {
         return true;
     }
 
-    float range = te_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+    float range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
     if (range < 0.0f) {
         range = 0.0f;
     }
 
-    te_log(game, "%s resumes its remaining fire into %s.", attacker->name, target->name);
+    dzw_log(game, "%s resumes its remaining fire into %s.", attacker->name, target->name);
     bool paused = resolve_vehicle_follow_on_fire(game, attacker, target, range, next_weapon_index, weapons_remaining, NULL, NULL, NULL, NULL);
     if (paused) {
         return true;
     }
-    if (target->kind == TE_UNIT_INFANTRY) {
-        te_apply_shooting_morale(game, target);
+    if (target->kind == DZW_UNIT_INFANTRY) {
+        dzw_apply_shooting_morale(game, target);
     }
     return true;
 }
@@ -3744,7 +3744,7 @@ static int infantry_total_shots(const unit_t *attacker, const weapon_profile_t *
     }
 
     switch (weapon->mode) {
-        case TE_WEAPON_RAPID_FIRE_INTERNAL:
+        case DZW_WEAPON_RAPID_FIRE_INTERNAL:
             if (counts_as_moved) {
                 return range <= 12.0f ? firing_models : 0;
             }
@@ -3758,11 +3758,11 @@ static int infantry_total_shots(const unit_t *attacker, const weapon_profile_t *
                 *used_stationary_volume_fire = true;
             }
             return firing_models;
-        case TE_WEAPON_ASSAULT_INTERNAL:
+        case DZW_WEAPON_ASSAULT_INTERNAL:
             return firing_models * weapon->shots;
-        case TE_WEAPON_PISTOL_INTERNAL:
+        case DZW_WEAPON_PISTOL_INTERNAL:
             return counts_as_moved ? firing_models : firing_models * 2;
-        case TE_WEAPON_HEAVY_INTERNAL:
+        case DZW_WEAPON_HEAVY_INTERNAL:
             if (counts_as_moved) {
                 return 0;
             }
@@ -3830,10 +3830,10 @@ static void add_objective(game_t *game, int id, const char *name, float x, float
 }
 
 static void setup_bocage_breakout_battlefield(game_t *game) {
-    add_zone(game, 1, "Ruined Farmhouse", TE_TERRAIN_DIFFICULT, 26.0f, 16.0f, 18.0f, 14.0f, 5, true, false);
-    add_zone(game, 2, "Bocage Ridge", TE_TERRAIN_OPEN, 8.0f, 9.0f, 10.0f, 26.0f, 5, false, true);
-    add_zone(game, 3, "Shell-Hole Field", TE_TERRAIN_DIFFICULT, 46.0f, 6.0f, 14.0f, 10.0f, 6, false, false);
-    add_zone(game, 4, "Marked Minefield", TE_TERRAIN_IMPASSABLE, 50.0f, 34.0f, 12.0f, 8.0f, 0, false, false);
+    add_zone(game, 1, "Ruined Farmhouse", DZW_TERRAIN_DIFFICULT, 26.0f, 16.0f, 18.0f, 14.0f, 5, true, false);
+    add_zone(game, 2, "Bocage Ridge", DZW_TERRAIN_OPEN, 8.0f, 9.0f, 10.0f, 26.0f, 5, false, true);
+    add_zone(game, 3, "Shell-Hole Field", DZW_TERRAIN_DIFFICULT, 46.0f, 6.0f, 14.0f, 10.0f, 6, false, false);
+    add_zone(game, 4, "Marked Minefield", DZW_TERRAIN_IMPASSABLE, 50.0f, 34.0f, 12.0f, 8.0f, 0, false, false);
     add_objective(game, 1, "Ammunition Cache", 35.0f, 23.0f, 5.5f);
     add_objective(game, 2, "Observation Post", 13.0f, 22.0f, 5.0f);
     add_objective(game, 3, "Road Junction", 53.0f, 11.0f, 5.0f);
@@ -3860,8 +3860,8 @@ static void setup_demo(game_t *game) {
     unit_t tactical = {
         .id = 1,
         .name = "British Rifle Section",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 11.0f,
         .y = 36.0f,
         .facing_degrees = 0.0f,
@@ -3883,8 +3883,8 @@ static void setup_demo(game_t *game) {
     unit_t assault = {
         .id = 2,
         .name = "British Commando Section",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 15.0f,
         .y = 24.0f,
         .facing_degrees = 0.0f,
@@ -3906,8 +3906,8 @@ static void setup_demo(game_t *game) {
     unit_t reconVehicle = {
         .id = 3,
         .name = "Universal Carrier",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_VEHICLE,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_VEHICLE,
         .x = 10.0f,
         .y = 12.0f,
         .facing_degrees = 0.0f,
@@ -3930,13 +3930,13 @@ static void setup_demo(game_t *game) {
         .smoke_available = true,
         .weapon_count = 1,
     };
-    reconVehicle.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    reconVehicle.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
 
     unit_t firefly = {
         .id = 7,
         .name = "Sherman Firefly",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_VEHICLE,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_VEHICLE,
         .x = 20.0f,
         .y = 10.0f,
         .facing_degrees = 0.0f,
@@ -3950,14 +3950,14 @@ static void setup_demo(game_t *game) {
         .smoke_available = true,
         .weapon_count = 2,
     };
-    firefly.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_17_POUNDER_AT_GUN), 360), TE_WEAPON_MOUNT_TURRET_INTERNAL);
-    firefly.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_HULL_BROWNING_M1919A4), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
+    firefly.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_17_POUNDER_AT_GUN), 360), DZW_WEAPON_MOUNT_TURRET_INTERNAL);
+    firefly.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_HULL_BROWNING_M1919A4), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
 
     unit_t mortar = {
         .id = 8,
         .name = "3-inch Mortar Battery",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_VEHICLE,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_VEHICLE,
         .x = 12.0f,
         .y = 42.0f,
         .facing_degrees = 0.0f,
@@ -3971,13 +3971,13 @@ static void setup_demo(game_t *game) {
         .smoke_available = true,
         .weapon_count = 1,
     };
-    mortar.weapons[0].profile = with_mount(wwii_weapon_profile(DZWK_WEAPON_81MM_MORTAR_BATTERY), TE_WEAPON_MOUNT_FIXED_INTERNAL);
+    mortar.weapons[0].profile = with_mount(wwii_weapon_profile(DZWK_WEAPON_81MM_MORTAR_BATTERY), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
 
     unit_t command = {
         .id = 9,
         .name = "British Platoon HQ",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 19.0f,
         .y = 33.0f,
         .facing_degrees = 0.0f,
@@ -3999,8 +3999,8 @@ static void setup_demo(game_t *game) {
     unit_t flamer = {
         .id = 12,
         .name = "Royal Engineers Flamethrower Team",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 25.0f,
         .y = 14.0f,
         .facing_degrees = 0.0f,
@@ -4022,8 +4022,8 @@ static void setup_demo(game_t *game) {
     unit_t transport = {
         .id = 10,
         .name = "Universal Carrier Transport",
-        .owner = TE_PLAYER_ONE,
-        .kind = TE_UNIT_VEHICLE,
+        .owner = DZW_PLAYER_ONE,
+        .kind = DZW_UNIT_VEHICLE,
         .x = 15.0f,
         .y = 33.0f,
         .facing_degrees = 0.0f,
@@ -4038,13 +4038,13 @@ static void setup_demo(game_t *game) {
         .weapon_count = 1,
         .transport_capacity = 10,
     };
-    transport.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    transport.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
 
     unit_t soviet_guards = {
         .id = 13,
         .name = "Soviet Guards SMG Squad",
-        .owner = TE_PLAYER_TWO,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_TWO,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 24.0f,
         .y = 22.0f,
         .facing_degrees = 180.0f,
@@ -4067,8 +4067,8 @@ static void setup_demo(game_t *game) {
     unit_t bersaglieri_squad = {
         .id = 14,
         .name = "Italian Bersaglieri Squad",
-        .owner = TE_PLAYER_TWO,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_TWO,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 32.0f,
         .y = 19.0f,
         .facing_degrees = 180.0f,
@@ -4119,8 +4119,8 @@ static void setup_demo(game_t *game) {
     unit_t warriors = {
         .id = 4,
         .name = "Italian Rifle Section",
-        .owner = TE_PLAYER_TWO,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_TWO,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 34.0f,
         .y = 12.0f,
         .facing_degrees = 180.0f,
@@ -4142,8 +4142,8 @@ static void setup_demo(game_t *game) {
     unit_t italian_rifle_squad = {
         .id = 5,
         .name = "Italian Rifle Squad",
-        .owner = TE_PLAYER_TWO,
-        .kind = TE_UNIT_INFANTRY,
+        .owner = DZW_PLAYER_TWO,
+        .kind = DZW_UNIT_INFANTRY,
         .x = 49.0f,
         .y = 24.0f,
         .facing_degrees = 180.0f,
@@ -4165,8 +4165,8 @@ static void setup_demo(game_t *game) {
     unit_t buggy = {
         .id = 6,
         .name = "AB41 Armored Car",
-        .owner = TE_PLAYER_TWO,
-        .kind = TE_UNIT_VEHICLE,
+        .owner = DZW_PLAYER_TWO,
+        .kind = DZW_UNIT_VEHICLE,
         .x = 63.0f,
         .y = 39.0f,
         .facing_degrees = 180.0f,
@@ -4182,13 +4182,13 @@ static void setup_demo(game_t *game) {
         .smoke_available = true,
         .weapon_count = 1,
     };
-    buggy.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_20MM_AUTOCANNON), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    buggy.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_20MM_AUTOCANNON), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
 
     unit_t assaultGun = {
         .id = 11,
         .name = "Semovente 75/18",
-        .owner = TE_PLAYER_TWO,
-        .kind = TE_UNIT_ASSAULT_GUN,
+        .owner = DZW_PLAYER_TWO,
+        .kind = DZW_UNIT_ASSAULT_GUN,
         .x = 25.0f,
         .y = 24.0f,
         .facing_degrees = 180.0f,
@@ -4208,8 +4208,8 @@ static void setup_demo(game_t *game) {
         .rear_armour = 10,
         .weapon_count = 2,
     };
-    assaultGun.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_75MM_TANK_GUN), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
-    assaultGun.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREDA_M1930), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    assaultGun.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_75MM_TANK_GUN), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
+    assaultGun.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREDA_M1930), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
 
     add_unit(game, tactical);
     add_unit(game, assault);
@@ -4226,46 +4226,46 @@ static void setup_demo(game_t *game) {
     add_unit(game, buggy);
     add_unit(game, assaultGun);
 
-    game->player_one_army = TE_ARMY_DEMO;
+    game->player_one_army = DZW_ARMY_DEMO;
     game->player_one_force = 0;
-    game->player_two_army = TE_ARMY_DEMO;
+    game->player_two_army = DZW_ARMY_DEMO;
     game->player_two_force = 0;
     setup_bocage_breakout_mission(game);
     game->turn_number = 1;
-    game->active_player = TE_PLAYER_ONE;
-    game->phase = TE_PHASE_MOVEMENT;
+    game->active_player = DZW_PLAYER_ONE;
+    game->phase = DZW_PHASE_MOVEMENT;
 }
 
 static army_list_t sanitize_army(army_list_t army) {
     switch (army) {
-        case TE_ARMY_DEMO:
-        case TE_ARMY_BRITISH:
-        case TE_ARMY_GERMAN:
-        case TE_ARMY_AUSTRALIAN:
-        case TE_ARMY_ITALIAN:
-        case TE_ARMY_AMERICAN:
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_DEMO:
+        case DZW_ARMY_BRITISH:
+        case DZW_ARMY_GERMAN:
+        case DZW_ARMY_AUSTRALIAN:
+        case DZW_ARMY_ITALIAN:
+        case DZW_ARMY_AMERICAN:
+        case DZW_ARMY_SOVIET:
             return army;
         default:
-            return TE_ARMY_DEMO;
+            return DZW_ARMY_DEMO;
     }
 }
 
 const char *army_name(army_list_t army) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             return "British";
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             return "German";
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             return "Australian";
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             return "Italian";
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             return "American";
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_SOVIET:
             return "Soviet";
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
         default:
             return "Training Demo";
     }
@@ -4273,14 +4273,14 @@ const char *army_name(army_list_t army) {
 
 int army_force_count(army_list_t army) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
             return 1;
-        case TE_ARMY_BRITISH:
-        case TE_ARMY_GERMAN:
-        case TE_ARMY_AUSTRALIAN:
-        case TE_ARMY_ITALIAN:
-        case TE_ARMY_AMERICAN:
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_BRITISH:
+        case DZW_ARMY_GERMAN:
+        case DZW_ARMY_AUSTRALIAN:
+        case DZW_ARMY_ITALIAN:
+        case DZW_ARMY_AMERICAN:
+        case DZW_ARMY_SOVIET:
             return 2;
         default:
             return 1;
@@ -4300,19 +4300,19 @@ static int sanitize_force_index(army_list_t army, int force_index) {
 
 static const char *army_force_name_internal(army_list_t army, int force_index) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             return force_index == 1 ? "British Armoured Troop" : "British Rifle Platoon";
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             return force_index == 1 ? "German Panzergrenadier Kampfgruppe" : "German Grenadier Platoon";
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             return force_index == 1 ? "Australian Matilda Column" : "Australian Jungle Patrol";
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             return force_index == 1 ? "Italian Alpini Detachment" : "Italian Bersaglieri Column";
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             return force_index == 1 ? "US Ranger Assault" : "US Armored Infantry";
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_SOVIET:
             return force_index == 1 ? "Soviet Guards Tank Riders" : "Soviet Rifle Company";
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
         default:
             return "Training Demo";
     }
@@ -4320,31 +4320,31 @@ static const char *army_force_name_internal(army_list_t army, int force_index) {
 
 static const char *army_force_summary_internal(army_list_t army, int force_index) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             return force_index == 1
                 ? "Armoured support with tanks, carriers, engineers, and field-gun coverage."
                 : "Rifle sections backed by Bren, PIAT, carrier, tank, and mortar support.";
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             return force_index == 1
                 ? "Mechanized infantry, pioneers, anti-tank weapons, assault guns, and rocket artillery."
                 : "Grenadiers with MG42, Panzerfaust, half-track, Panzer IV, and mortar support.";
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             return force_index == 1
                 ? "Matilda-led armor with rifle, Vickers, Grant, and mortar support."
                 : "Jungle patrol infantry with Owen guns, Bren, PIAT, carrier, and short 25-pounder support.";
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             return force_index == 1
                 ? "Mountain infantry with mortars, 47mm anti-tank guns, and Semovente support."
                 : "Bersaglieri infantry with Breda guns, Solothurn anti-tank rifles, medium tanks, and Semoventi.";
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             return force_index == 1
                 ? "Ranger-led assault troops with SMGs, bazookas, tank destroyers, and mortar support."
                 : "Armored infantry with BARs, bazookas, half-tracks, Shermans, and Priest artillery.";
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_SOVIET:
             return force_index == 1
                 ? "Guards SMG troops, sappers, T-34 riders, assault guns, and Katyusha rockets."
                 : "Rifle and SMG troops with DP guns, anti-tank rifles, T-34s, and mortar support.";
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
         default:
             return "Rules training encounter for engine smoke tests.";
     }
@@ -4430,8 +4430,8 @@ static deployment_slot_t deployment_slot_for(player_t owner, int slot_index) {
         {34.0f, 18.0f, 180.0f},
     };
 
-    const deployment_slot_t *slots = owner == TE_PLAYER_ONE ? player_one_slots : player_two_slots;
-    int slot_count = owner == TE_PLAYER_ONE
+    const deployment_slot_t *slots = owner == DZW_PLAYER_ONE ? player_one_slots : player_two_slots;
+    int slot_count = owner == DZW_PLAYER_ONE
         ? (int)(sizeof(player_one_slots) / sizeof(player_one_slots[0]))
         : (int)(sizeof(player_two_slots) / sizeof(player_two_slots[0]));
     if (slot_index < 0) {
@@ -4449,7 +4449,7 @@ static unit_t make_infantry_unit_at_slot(int id, const char *name, player_t owne
         .id = id,
         .name = name,
         .owner = owner,
-        .kind = TE_UNIT_INFANTRY,
+        .kind = DZW_UNIT_INFANTRY,
         .x = slot.x,
         .y = slot.y,
         .facing_degrees = slot.facing_degrees,
@@ -4476,7 +4476,7 @@ static unit_t make_vehicle_unit_at_slot(int id, const char *name, player_t owner
         .id = id,
         .name = name,
         .owner = owner,
-        .kind = TE_UNIT_VEHICLE,
+        .kind = DZW_UNIT_VEHICLE,
         .x = slot.x,
         .y = slot.y,
         .facing_degrees = slot.facing_degrees,
@@ -4502,7 +4502,7 @@ static unit_t make_assault_gun_unit_at_slot(int id, const char *name, player_t o
         .id = id,
         .name = name,
         .owner = owner,
-        .kind = TE_UNIT_ASSAULT_GUN,
+        .kind = DZW_UNIT_ASSAULT_GUN,
         .x = slot.x,
         .y = slot.y,
         .facing_degrees = slot.facing_degrees,
@@ -4545,22 +4545,22 @@ static unit_t make_commando_or_ranger_unit(int id, player_t owner, int slot_inde
 static unit_t make_universal_carrier_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "Universal Carrier", owner, slot_index, 1.1f, 4, 10, 10, 10, true, true, false, 0);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
 static unit_t make_sherman_firefly_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "Sherman Firefly", owner, slot_index, 1.8f, 3, 14, 12, 10, false, false, false, 0);
     unit.weapon_count = 2;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_17_POUNDER_AT_GUN), 360), TE_WEAPON_MOUNT_TURRET_INTERNAL);
-    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_HULL_BROWNING_M1919A4), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_17_POUNDER_AT_GUN), 360), DZW_WEAPON_MOUNT_TURRET_INTERNAL);
+    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_HULL_BROWNING_M1919A4), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
     return unit;
 }
 
 static unit_t make_mortar_battery_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "3-inch Mortar Battery", owner, slot_index, 1.6f, 4, 11, 11, 10, false, false, false, 0);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(wwii_weapon_profile(DZWK_WEAPON_81MM_MORTAR_BATTERY), TE_WEAPON_MOUNT_FIXED_INTERNAL);
+    unit.weapons[0].profile = with_mount(wwii_weapon_profile(DZWK_WEAPON_81MM_MORTAR_BATTERY), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
     return unit;
 }
 
@@ -4589,7 +4589,7 @@ static unit_t make_flamethrower_team_unit(int id, player_t owner, int slot_index
 static unit_t make_transport_unit_with_weapon(int id, player_t owner, int slot_index, const char *name, wwii_weapon_id_t weapon_id) {
     unit_t unit = make_vehicle_unit_at_slot(id, name, owner, slot_index, 1.5f, 4, 11, 11, 10, false, false, false, 10);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(weapon_id), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(weapon_id), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
@@ -4612,15 +4612,15 @@ static unit_t make_british_15cwt_truck_unit(int id, player_t owner, int slot_ind
 static unit_t make_australian_carrier_transport_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "Australian Carrier", owner, slot_index, 1.6f, 3, 12, 10, 10, false, false, false, 10);
     unit.weapon_count = 2;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_VICKERS_HMG), 360), TE_WEAPON_MOUNT_TURRET_INTERNAL);
-    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_VICKERS_HMG), 360), DZW_WEAPON_MOUNT_TURRET_INTERNAL);
+    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
     return unit;
 }
 
 static unit_t make_jeep_recon_patrol_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "Jeep Recon Patrol", owner, slot_index, 1.1f, 3, 10, 10, 10, true, true, false, 0);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BROWNING_M1919A4), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BROWNING_M1919A4), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
@@ -4677,15 +4677,15 @@ static unit_t make_italian_infantry_unit(int id, player_t owner, int slot_index,
 static unit_t make_ab41_armored_car_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "AB41 Armored Car", owner, slot_index, 1.0f, 2, 10, 10, 10, true, false, true, 0);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_20MM_AUTOCANNON), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_20MM_AUTOCANNON), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
 static unit_t make_semovente_assault_gun_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_assault_gun_unit_at_slot(id, "Semovente 75/18", owner, slot_index, 1.5f, 4, 2, 10, 2, 2, 12, 12, 10);
     unit.weapon_count = 2;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_75MM_TANK_GUN), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
-    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREDA_M1930), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_75MM_TANK_GUN), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
+    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREDA_M1930), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
@@ -4742,7 +4742,7 @@ static unit_t make_australian_piat_team_unit(int id, player_t owner, int slot_in
 static unit_t make_dingo_scout_car_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "Dingo Scout Car", owner, slot_index, 1.2f, 3, 10, 10, 10, true, true, false, 0);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREN_LMG), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
@@ -4777,8 +4777,8 @@ static unit_t make_german_mg42_team_unit(int id, player_t owner, int slot_index)
 static unit_t make_stug_assault_gun_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_assault_gun_unit_at_slot(id, "StuG III Assault Gun", owner, slot_index, 1.5f, 4, 4, 10, 4, 2, 12, 12, 10);
     unit.weapon_count = 2;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_75MM_TANK_GUN), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
-    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_MG42), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_75MM_TANK_GUN), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
+    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_MG42), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
@@ -4813,15 +4813,15 @@ static unit_t make_soviet_sapper_squad_unit(int id, player_t owner, int slot_ind
 static unit_t make_italian_truck_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_vehicle_unit_at_slot(id, "Italian Truck", owner, slot_index, 1.3f, 2, 10, 10, 10, true, false, true, 12);
     unit.weapon_count = 1;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREDA_M1930), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_BREDA_M1930), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
 static unit_t make_m10_tank_destroyer_unit(int id, player_t owner, int slot_index) {
     unit_t unit = make_assault_gun_unit_at_slot(id, "M10 Tank Destroyer", owner, slot_index, 1.5f, 4, 4, 10, 4, 2, 12, 12, 10);
     unit.weapon_count = 2;
-    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_17_POUNDER_AT_GUN), 90), TE_WEAPON_MOUNT_FIXED_INTERNAL);
-    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_M2_BROWNING_HMG), 180), TE_WEAPON_MOUNT_PINTLE_INTERNAL);
+    unit.weapons[0].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_17_POUNDER_AT_GUN), 90), DZW_WEAPON_MOUNT_FIXED_INTERNAL);
+    unit.weapons[1].profile = with_mount(with_fire_arc(wwii_weapon_profile(DZWK_WEAPON_M2_BROWNING_HMG), 180), DZW_WEAPON_MOUNT_PINTLE_INTERNAL);
     return unit;
 }
 
@@ -5057,31 +5057,31 @@ static const army_catalog_entry_t *army_catalog_entries_for(army_list_t army, in
     int count = 0;
 
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             entries = british_catalog;
             count = (int)(sizeof(british_catalog) / sizeof(british_catalog[0]));
             break;
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             entries = german_catalog;
             count = (int)(sizeof(german_catalog) / sizeof(german_catalog[0]));
             break;
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             entries = australian_catalog;
             count = (int)(sizeof(australian_catalog) / sizeof(australian_catalog[0]));
             break;
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             entries = italian_catalog;
             count = (int)(sizeof(italian_catalog) / sizeof(italian_catalog[0]));
             break;
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             entries = american_catalog;
             count = (int)(sizeof(american_catalog) / sizeof(american_catalog[0]));
             break;
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_SOVIET:
             entries = soviet_catalog;
             count = (int)(sizeof(soviet_catalog) / sizeof(soviet_catalog[0]));
             break;
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
         default:
             break;
     }
@@ -5099,7 +5099,7 @@ static int normalize_army_list_counts(army_list_t army, const army_list_entry_t 
         return catalog_count;
     }
 
-    for (int index = 0; index < TE_MAX_ARMY_CATALOG_UNITS; index += 1) {
+    for (int index = 0; index < DZW_MAX_ARMY_CATALOG_UNITS; index += 1) {
         out_counts[index] = 0;
     }
 
@@ -5125,7 +5125,7 @@ static int normalize_army_list_counts(army_list_t army, const army_list_entry_t 
 static void add_army_list_roster(game_t *game, player_t owner, army_list_t army, const army_list_entry_t *entries, int entry_count) {
     int catalog_count = 0;
     const army_catalog_entry_t *catalog = army_catalog_entries_for(army, &catalog_count);
-    int counts[TE_MAX_ARMY_CATALOG_UNITS];
+    int counts[DZW_MAX_ARMY_CATALOG_UNITS];
     normalize_army_list_counts(army, entries, entry_count, counts);
     if (catalog == NULL || catalog_count <= 0) {
         return;
@@ -5145,7 +5145,7 @@ static void add_army_list_roster(game_t *game, player_t owner, army_list_t army,
     int slot_index = 0;
     for (int catalog_index = 0; catalog_index < catalog_count; catalog_index += 1) {
         for (int copy_index = 0; copy_index < counts[catalog_index]; copy_index += 1) {
-            if (game->unit_count >= TE_MAX_UNITS || slot_index >= TE_MAX_DEPLOYMENT_SLOTS_PER_SIDE) {
+            if (game->unit_count >= DZW_MAX_UNITS || slot_index >= DZW_MAX_DEPLOYMENT_SLOTS_PER_SIDE) {
                 return;
             }
             unit_t unit = catalog[catalog_index].factory(next_unit_id(game), owner, slot_index);
@@ -5157,24 +5157,24 @@ static void add_army_list_roster(game_t *game, player_t owner, army_list_t army,
 
 static void apply_army_list_posture(game_t *game, player_t owner, army_list_t army) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             set_starting_embarkation(game, owner, "British Platoon HQ", "Universal Carrier Transport");
             set_starting_embarkation(game, owner, "British Rifle Section", "British 15-cwt Truck");
             break;
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             set_starting_embarkation(game, owner, "German Pioneer Squad", "Sd.Kfz. 251 Half-track");
             break;
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             set_starting_embarkation(game, owner, "Australian Rifle Section", "Australian Carrier");
             break;
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             set_starting_embarkation(game, owner, "Bersaglieri Assault Squad", "Italian Truck");
             break;
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             set_starting_embarkation(game, owner, "US Platoon HQ", "M3 Half-track");
             break;
-        case TE_ARMY_SOVIET:
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_SOVIET:
+        case DZW_ARMY_DEMO:
         default:
             break;
     }
@@ -5196,7 +5196,7 @@ army_catalog_unit_view_t army_catalog_unit_view(army_list_t army, int index) {
         return view;
     }
 
-    unit_t unit = catalog[index].factory(1, TE_PLAYER_ONE, 0);
+    unit_t unit = catalog[index].factory(1, DZW_PLAYER_ONE, 0);
     unit = with_unit_name(unit, catalog[index].unit_name);
     normalize_unit_wounds(&unit);
 
@@ -5208,8 +5208,8 @@ army_catalog_unit_view_t army_catalog_unit_view(army_list_t army, int index) {
     view.unit.name = unit.name;
     view.unit.kind = unit.kind;
     view.unit.models = unit.starting_models;
-    view.unit.wounds_per_model = te_wounds_per_model(&unit);
-    view.unit.total_wounds = te_total_wounds_remaining(&unit);
+    view.unit.wounds_per_model = dzw_wounds_per_model(&unit);
+    view.unit.total_wounds = dzw_total_wounds_remaining(&unit);
     view.unit.mixed_profiles = unit_has_mixed_profiles(&unit);
     view.unit.transport_capacity = unit.transport_capacity;
     view.unit.front_armour = unit.front_armour;
@@ -5227,7 +5227,7 @@ army_catalog_unit_view_t army_catalog_unit_view(army_list_t army, int index) {
 int army_list_total_points(army_list_t army, const army_list_entry_t *entries, int entry_count) {
     int catalog_count = 0;
     const army_catalog_entry_t *catalog = army_catalog_entries_for(army, &catalog_count);
-    int counts[TE_MAX_ARMY_CATALOG_UNITS];
+    int counts[DZW_MAX_ARMY_CATALOG_UNITS];
     normalize_army_list_counts(army, entries, entry_count, counts);
     if (catalog == NULL || catalog_count <= 0) {
         return 0;
@@ -5242,7 +5242,7 @@ int army_list_total_points(army_list_t army, const army_list_entry_t *entries, i
 
 static void add_army_force_roster(game_t *game, player_t owner, army_list_t army, int force_index) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             if (force_index == 1) {
                 add_unit(game, make_australian_rifle_section_unit(next_unit_id(game), owner, 0, "British Rifle Section"));
                 add_unit(game, with_unit_name(make_australian_platoon_hq_unit(next_unit_id(game), owner, 5), "British Forward Observer Team"));
@@ -5262,7 +5262,7 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
                 add_unit(game, make_transport_unit(next_unit_id(game), owner, 7, "Universal Carrier Transport"));
             }
             break;
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             add_unit(game, make_german_infantry_unit(next_unit_id(game), owner, 0, "German Grenadier Squad"));
             if (force_index == 1) {
                 add_unit(game, make_german_infantry_unit(next_unit_id(game), owner, 1, "German Volksgrenadier Squad"));
@@ -5274,7 +5274,7 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
             add_unit(game, make_sd_kfz_251_transport_unit(next_unit_id(game), owner, 7));
             add_unit(game, make_stug_assault_gun_unit(next_unit_id(game), owner, 3));
             break;
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             add_unit(game, make_australian_rifle_section_unit(next_unit_id(game), owner, 0, "Australian Rifle Section"));
             add_unit(game, make_australian_platoon_hq_unit(next_unit_id(game), owner, 5));
             if (force_index == 1) {
@@ -5288,7 +5288,7 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
                 add_unit(game, make_dingo_scout_car_unit(next_unit_id(game), owner, 2));
             }
             break;
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             add_unit(game, make_italian_infantry_unit(next_unit_id(game), owner, 0, "Italian Rifle Squad"));
             add_unit(game, make_italian_infantry_unit(next_unit_id(game), owner, 1, "Bersaglieri Assault Squad"));
             if (force_index == 1) {
@@ -5301,7 +5301,7 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
                 add_unit(game, make_semovente_assault_gun_unit(next_unit_id(game), owner, 3));
             }
             break;
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             add_unit(game, make_american_rifle_squad_unit(next_unit_id(game), owner, 0));
             if (force_index == 1) {
                 add_unit(game, make_m10_tank_destroyer_unit(next_unit_id(game), owner, 3));
@@ -5314,7 +5314,7 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
             add_unit(game, with_unit_name(make_flamethrower_team_unit(next_unit_id(game), owner, 6), "US Engineer Flamethrower Team"));
             add_unit(game, make_m3_half_track_transport_unit(next_unit_id(game), owner, 7));
             break;
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_SOVIET:
             if (force_index == 1) {
                 add_unit(game, make_soviet_smg_squad_unit(next_unit_id(game), owner, 1));
                 add_unit(game, make_soviet_guards_smg_unit(next_unit_id(game), owner, 5));
@@ -5329,7 +5329,7 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
                 add_unit(game, make_soviet_sapper_squad_unit(next_unit_id(game), owner, 2));
             }
             break;
-        case TE_ARMY_DEMO:
+        case DZW_ARMY_DEMO:
         default:
             break;
     }
@@ -5337,31 +5337,31 @@ static void add_army_force_roster(game_t *game, player_t owner, army_list_t army
 
 static void apply_army_force_posture(game_t *game, player_t owner, army_list_t army, int force_index) {
     switch (sanitize_army(army)) {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             if (force_index == 1) {
                 set_starting_embarkation(game, owner, "British Rifle Section", "British 15-cwt Truck");
             } else {
                 set_starting_embarkation(game, owner, "British Platoon HQ", "Universal Carrier Transport");
             }
             break;
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             set_starting_embarkation(game, owner, "German Pioneer Squad", "Sd.Kfz. 251 Half-track");
             break;
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             if (force_index == 0) {
                 set_starting_embarkation(game, owner, "Australian Rifle Section", "Australian Carrier");
             }
             break;
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             if (force_index == 1) {
                 set_starting_embarkation(game, owner, "Bersaglieri Assault Squad", "Italian Truck");
             }
             break;
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             set_starting_embarkation(game, owner, "US Platoon HQ", "M3 Half-track");
             break;
-        case TE_ARMY_DEMO:
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_DEMO:
+        case DZW_ARMY_SOVIET:
         default:
             break;
     }
@@ -5376,20 +5376,20 @@ static void setup_selected_army_demo(game_t *game, army_list_t player_one_army, 
     game->player_one_force = sanitize_force_index(game->player_one_army, player_one_force);
     game->player_two_army = sanitize_army(player_two_army);
     game->player_two_force = sanitize_force_index(game->player_two_army, player_two_force);
-    if (game->player_one_army == TE_ARMY_DEMO || game->player_two_army == TE_ARMY_DEMO) {
+    if (game->player_one_army == DZW_ARMY_DEMO || game->player_two_army == DZW_ARMY_DEMO) {
         setup_demo(game);
         return;
     }
 
-    add_army_force_roster(game, TE_PLAYER_ONE, game->player_one_army, game->player_one_force);
-    add_army_force_roster(game, TE_PLAYER_TWO, game->player_two_army, game->player_two_force);
-    apply_army_force_posture(game, TE_PLAYER_ONE, game->player_one_army, game->player_one_force);
-    apply_army_force_posture(game, TE_PLAYER_TWO, game->player_two_army, game->player_two_force);
+    add_army_force_roster(game, DZW_PLAYER_ONE, game->player_one_army, game->player_one_force);
+    add_army_force_roster(game, DZW_PLAYER_TWO, game->player_two_army, game->player_two_force);
+    apply_army_force_posture(game, DZW_PLAYER_ONE, game->player_one_army, game->player_one_force);
+    apply_army_force_posture(game, DZW_PLAYER_TWO, game->player_two_army, game->player_two_force);
 
     setup_bocage_breakout_mission(game);
     game->turn_number = 1;
-    game->active_player = TE_PLAYER_ONE;
-    game->phase = TE_PHASE_MOVEMENT;
+    game->active_player = DZW_PLAYER_ONE;
+    game->phase = DZW_PHASE_MOVEMENT;
 }
 
 static void setup_skirmish(game_t *game, army_list_t player_one_army, const army_list_entry_t *player_one_entries, int player_one_entry_count, army_list_t player_two_army, const army_list_entry_t *player_two_entries, int player_two_entry_count) {
@@ -5401,20 +5401,20 @@ static void setup_skirmish(game_t *game, army_list_t player_one_army, const army
     game->player_two_army = sanitize_army(player_two_army);
     game->player_one_force = 0;
     game->player_two_force = 0;
-    if (game->player_one_army == TE_ARMY_DEMO || game->player_two_army == TE_ARMY_DEMO) {
+    if (game->player_one_army == DZW_ARMY_DEMO || game->player_two_army == DZW_ARMY_DEMO) {
         setup_demo(game);
         return;
     }
 
-    add_army_list_roster(game, TE_PLAYER_ONE, game->player_one_army, player_one_entries, player_one_entry_count);
-    add_army_list_roster(game, TE_PLAYER_TWO, game->player_two_army, player_two_entries, player_two_entry_count);
-    apply_army_list_posture(game, TE_PLAYER_ONE, game->player_one_army);
-    apply_army_list_posture(game, TE_PLAYER_TWO, game->player_two_army);
+    add_army_list_roster(game, DZW_PLAYER_ONE, game->player_one_army, player_one_entries, player_one_entry_count);
+    add_army_list_roster(game, DZW_PLAYER_TWO, game->player_two_army, player_two_entries, player_two_entry_count);
+    apply_army_list_posture(game, DZW_PLAYER_ONE, game->player_one_army);
+    apply_army_list_posture(game, DZW_PLAYER_TWO, game->player_two_army);
 
     setup_bocage_breakout_mission(game);
     game->turn_number = 1;
-    game->active_player = TE_PLAYER_ONE;
-    game->phase = TE_PHASE_MOVEMENT;
+    game->active_player = DZW_PLAYER_ONE;
+    game->phase = DZW_PHASE_MOVEMENT;
 }
 
 game_t *game_create_demo(uint32_t seed) {
@@ -5425,7 +5425,7 @@ game_t *game_create_demo(uint32_t seed) {
 
     setup_demo(game);
     game_seed(game, seed);
-    te_log(game, "Loaded Bocage Breakout demo encounter for World War II platoon action.");
+    dzw_log(game, "Loaded Bocage Breakout demo encounter for World War II platoon action.");
     log_mission_briefing(game);
     begin_turn(game);
     return game;
@@ -5443,7 +5443,7 @@ game_t *game_create_demo_with_forces(uint32_t seed, army_list_t player_one_army,
 
     setup_selected_army_demo(game, player_one_army, player_one_force, player_two_army, player_two_force);
     game_seed(game, seed);
-    te_log(game, "Loaded demo encounter for %s (%s) versus %s (%s).",
+    dzw_log(game, "Loaded demo encounter for %s (%s) versus %s (%s).",
         army_name(game->player_one_army),
         army_force_name_internal(game->player_one_army, game->player_one_force),
         army_name(game->player_two_army),
@@ -5461,7 +5461,7 @@ game_t *game_create_skirmish(uint32_t seed, army_list_t player_one_army, const a
 
     setup_skirmish(game, player_one_army, player_one_entries, player_one_entry_count, player_two_army, player_two_entries, player_two_entry_count);
     game_seed(game, seed);
-    te_log(game, "Loaded operation for %s (%d pts) versus %s (%d pts).",
+    dzw_log(game, "Loaded operation for %s (%d pts) versus %s (%d pts).",
         army_name(game->player_one_army),
         army_list_total_points(game->player_one_army, player_one_entries, player_one_entry_count),
         army_name(game->player_two_army),
@@ -5472,9 +5472,9 @@ game_t *game_create_skirmish(uint32_t seed, army_list_t player_one_army, const a
 }
 
 #ifdef HEINZ_GUDERIAN_GAME
-static const char *copy_guderian_label(char destination[TE_GUDERIAN_LABEL_LENGTH], const char *source, const char *fallback) {
+static const char *copy_guderian_label(char destination[DZW_GUDERIAN_LABEL_LENGTH], const char *source, const char *fallback) {
     const char *label = source != NULL && source[0] != '\0' ? source : fallback;
-    snprintf(destination, TE_GUDERIAN_LABEL_LENGTH, "%s", label);
+    snprintf(destination, DZW_GUDERIAN_LABEL_LENGTH, "%s", label);
     return destination;
 }
 
@@ -5485,11 +5485,11 @@ bool game_apply_guderian_scenario_board(game_t *game, const char *mission_name, 
     if (target_score <= 0) {
         return fail(game, "Guderian scenario mission target score must be positive.");
     }
-    if (zone_count < 0 || zone_count > TE_MAX_ZONES) {
-        return fail(game, "Guderian scenario zone count %d exceeds engine capacity %d.", zone_count, TE_MAX_ZONES);
+    if (zone_count < 0 || zone_count > DZW_MAX_ZONES) {
+        return fail(game, "Guderian scenario zone count %d exceeds engine capacity %d.", zone_count, DZW_MAX_ZONES);
     }
-    if (objective_count < 0 || objective_count > TE_MAX_OBJECTIVES) {
-        return fail(game, "Guderian scenario objective count %d exceeds engine capacity %d.", objective_count, TE_MAX_OBJECTIVES);
+    if (objective_count < 0 || objective_count > DZW_MAX_OBJECTIVES) {
+        return fail(game, "Guderian scenario objective count %d exceeds engine capacity %d.", objective_count, DZW_MAX_OBJECTIVES);
     }
     if (zone_count > 0 && zones == NULL) {
         return fail(game, "Guderian scenario zones were not provided.");
@@ -5538,7 +5538,7 @@ bool game_apply_guderian_scenario_board(game_t *game, const char *mission_name, 
     }
 
     clear_error(game);
-    te_log(game, "Loaded Guderian scenario board with %d terrain zones and %d objectives.", game->zone_count, game->objective_count);
+    dzw_log(game, "Loaded Guderian scenario board with %d terrain zones and %d objectives.", game->zone_count, game->objective_count);
     log_mission_briefing(game);
     return true;
 }
@@ -5561,7 +5561,7 @@ void game_reset_demo(game_t *game, uint32_t seed) {
     }
     setup_demo(game);
     game_seed(game, seed);
-    te_log(game, "Reset demo encounter.");
+    dzw_log(game, "Reset demo encounter.");
     log_mission_briefing(game);
     begin_turn(game);
 }
@@ -5576,7 +5576,7 @@ void game_reset_demo_with_forces(game_t *game, uint32_t seed, army_list_t player
     }
     setup_selected_army_demo(game, player_one_army, player_one_force, player_two_army, player_two_force);
     game_seed(game, seed);
-    te_log(game, "Reset demo encounter for %s (%s) versus %s (%s).",
+    dzw_log(game, "Reset demo encounter for %s (%s) versus %s (%s).",
         army_name(game->player_one_army),
         army_force_name_internal(game->player_one_army, game->player_one_force),
         army_name(game->player_two_army),
@@ -5592,7 +5592,7 @@ void game_reset_skirmish(game_t *game, uint32_t seed, army_list_t player_one_arm
 
     setup_skirmish(game, player_one_army, player_one_entries, player_one_entry_count, player_two_army, player_two_entries, player_two_entry_count);
     game_seed(game, seed);
-    te_log(game, "Reset operation for %s (%d pts) versus %s (%d pts).",
+    dzw_log(game, "Reset operation for %s (%d pts) versus %s (%d pts).",
         army_name(game->player_one_army),
         army_list_total_points(game->player_one_army, player_one_entries, player_one_entry_count),
         army_name(game->player_two_army),
@@ -5603,25 +5603,25 @@ void game_reset_skirmish(game_t *game, uint32_t seed, army_list_t player_one_arm
 
 army_list_t game_player_army(const game_t *game, player_t player) {
     if (game == NULL) {
-        return TE_ARMY_DEMO;
+        return DZW_ARMY_DEMO;
     }
-    if (player == TE_PLAYER_ONE) {
+    if (player == DZW_PLAYER_ONE) {
         return game->player_one_army;
     }
-    if (player == TE_PLAYER_TWO) {
+    if (player == DZW_PLAYER_TWO) {
         return game->player_two_army;
     }
-    return TE_ARMY_DEMO;
+    return DZW_ARMY_DEMO;
 }
 
 int game_player_force(const game_t *game, player_t player) {
     if (game == NULL) {
         return 0;
     }
-    if (player == TE_PLAYER_ONE) {
+    if (player == DZW_PLAYER_ONE) {
         return game->player_one_force;
     }
-    if (player == TE_PLAYER_TWO) {
+    if (player == DZW_PLAYER_TWO) {
         return game->player_two_force;
     }
     return 0;
@@ -5639,8 +5639,8 @@ int army_force_roster_unit_count(army_list_t army, int force_index) {
     game_t preview_game;
     memset(&preview_game, 0, sizeof(preview_game));
     int sanitized_force = sanitize_force_index(army, force_index);
-    add_army_force_roster(&preview_game, TE_PLAYER_ONE, army, sanitized_force);
-    apply_army_force_posture(&preview_game, TE_PLAYER_ONE, army, sanitized_force);
+    add_army_force_roster(&preview_game, DZW_PLAYER_ONE, army, sanitized_force);
+    apply_army_force_posture(&preview_game, DZW_PLAYER_ONE, army, sanitized_force);
     return preview_game.unit_count;
 }
 
@@ -5651,8 +5651,8 @@ army_roster_unit_view_t army_force_roster_unit_view(army_list_t army, int force_
     game_t preview_game;
     memset(&preview_game, 0, sizeof(preview_game));
     int sanitized_force = sanitize_force_index(army, force_index);
-    add_army_force_roster(&preview_game, TE_PLAYER_ONE, army, sanitized_force);
-    apply_army_force_posture(&preview_game, TE_PLAYER_ONE, army, sanitized_force);
+    add_army_force_roster(&preview_game, DZW_PLAYER_ONE, army, sanitized_force);
+    apply_army_force_posture(&preview_game, DZW_PLAYER_ONE, army, sanitized_force);
     if (index < 0 || index >= preview_game.unit_count) {
         return view;
     }
@@ -5661,8 +5661,8 @@ army_roster_unit_view_t army_force_roster_unit_view(army_list_t army, int force_
     view.name = unit->name;
     view.kind = unit->kind;
     view.models = unit->starting_models;
-    view.wounds_per_model = te_wounds_per_model(unit);
-    view.total_wounds = te_total_wounds_remaining(unit);
+    view.wounds_per_model = dzw_wounds_per_model(unit);
+    view.total_wounds = dzw_total_wounds_remaining(unit);
     view.mixed_profiles = unit_has_mixed_profiles(unit);
     view.transport_capacity = unit->transport_capacity;
     view.front_armour = unit->front_armour;
@@ -5732,9 +5732,9 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.facing_degrees = unit->facing_degrees;
     view.footprint_radius = unit->footprint_radius;
     view.models = unit->models;
-    view.wounds_per_model = te_wounds_per_model(unit);
+    view.wounds_per_model = dzw_wounds_per_model(unit);
     view.lead_model_wounds = unit->models > 0 ? unit->lead_model_wounds : 0;
-    view.total_wounds_remaining = te_total_wounds_remaining(unit);
+    view.total_wounds_remaining = dzw_total_wounds_remaining(unit);
     view.mixed_profiles = unit_has_mixed_profiles(unit);
     view.starting_models = unit->starting_models;
     view.weapon_skill = unit->weapon_skill;
@@ -5844,7 +5844,7 @@ pending_weapon_destroy_view_t game_pending_weapon_destroy_view(const game_t *gam
     const unit_t *target = find_unit_const(game, game->pending_weapon_destroy_target_id);
     view.active = true;
     view.chooser_id = game->pending_weapon_destroy_chooser_id;
-    view.chooser_owner = chooser != NULL ? chooser->owner : TE_PLAYER_NONE;
+    view.chooser_owner = chooser != NULL ? chooser->owner : DZW_PLAYER_NONE;
     view.chooser_name = chooser != NULL ? chooser->name : "Attacker";
     view.target_id = game->pending_weapon_destroy_target_id;
     view.target_name = target != NULL ? target->name : "Vehicle";
@@ -5954,7 +5954,7 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         return false;
     }
     if (!unit_can_move_now(game, unit)) {
-        if (game->phase != TE_PHASE_MOVEMENT) {
+        if (game->phase != DZW_PHASE_MOVEMENT) {
             return fail(game, "Units can only move in the movement phase.");
         }
         if (unit->falling_back) {
@@ -5978,39 +5978,39 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         return fail(game, "%s cannot move right now.", unit->name);
     }
 
-    if (x < unit->footprint_radius || y < unit->footprint_radius || x > TE_BOARD_WIDTH - unit->footprint_radius || y > TE_BOARD_HEIGHT - unit->footprint_radius) {
+    if (x < unit->footprint_radius || y < unit->footprint_radius || x > DZW_BOARD_WIDTH - unit->footprint_radius || y > DZW_BOARD_HEIGHT - unit->footprint_radius) {
         return fail(game, "Destination is outside the battlefield.");
     }
 
-    bool touches_impassable = path_touches_terrain(game, unit->x, unit->y, x, y, TE_TERRAIN_IMPASSABLE);
-    bool touches_difficult = path_touches_terrain(game, unit->x, unit->y, x, y, TE_TERRAIN_DIFFICULT);
+    bool touches_impassable = path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_IMPASSABLE);
+    bool touches_difficult = path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_DIFFICULT);
 
     if (touches_impassable) {
         return fail(game, "%s cannot cross impassable terrain.", unit->name);
     }
 
-    if (unit->kind == TE_UNIT_VEHICLE && !unit->recon && touches_difficult) {
+    if (unit->kind == DZW_UNIT_VEHICLE && !unit->recon && touches_difficult) {
         int terrain_roll = roll_d6(game);
         if (terrain_roll == 1) {
             unit->immobilized = true;
-            te_log(game, "%s becomes immobilized entering difficult terrain.", unit->name);
+            dzw_log(game, "%s becomes immobilized entering difficult terrain.", unit->name);
             return true;
         }
-        te_log(game, "%s passes a difficult terrain test on a %d.", unit->name, terrain_roll);
+        dzw_log(game, "%s passes a difficult terrain test on a %d.", unit->name, terrain_roll);
     }
 
     if (unit->recon && touches_difficult) {
         int terrain_roll = roll_d6(game);
         if (terrain_roll == 1) {
             unit->immobilized = true;
-            te_log(game, "%s bogs down crossing rough ground.", unit->name);
+            dzw_log(game, "%s bogs down crossing rough ground.", unit->name);
             return true;
         }
-        te_log(game, "%s clears the rough ground on a %d.", unit->name, terrain_roll);
+        dzw_log(game, "%s clears the rough ground on a %d.", unit->name, terrain_roll);
     }
 
-    float distance = te_distance(unit->x, unit->y, x, y);
-    int allowance = best_movement_allowance(game, unit, touches_difficult && (unit->kind != TE_UNIT_VEHICLE || unit->kind == TE_UNIT_ASSAULT_GUN));
+    float distance = dzw_distance(unit->x, unit->y, x, y);
+    int allowance = best_movement_allowance(game, unit, touches_difficult && (unit->kind != DZW_UNIT_VEHICLE || unit->kind == DZW_UNIT_ASSAULT_GUN));
     if (distance > (float)allowance + 0.01f) {
         return fail(game, "%s can move up to %d\" this phase, not %.1f\".", unit->name, allowance, distance);
     }
@@ -6020,7 +6020,7 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         if (enemy->owner == unit->owner || enemy->destroyed || unit_is_embarked(enemy)) {
             continue;
         }
-        float separation = te_distance(x, y, enemy->x, enemy->y) - unit->footprint_radius - enemy->footprint_radius;
+        float separation = dzw_distance(x, y, enemy->x, enemy->y) - unit->footprint_radius - enemy->footprint_radius;
         if (separation < 1.0f) {
             return fail(game, "%s must end at least 1\" away from enemy models.", unit->name);
         }
@@ -6034,7 +6034,7 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
     if (unit_is_transport(unit)) {
         sync_embarked_unit_position(game, unit);
     }
-    te_log(game, "%s moves %.1f\".", unit->name, distance);
+    dzw_log(game, "%s moves %.1f\".", unit->name, distance);
     return true;
 }
 
@@ -6048,10 +6048,10 @@ bool game_deploy_unit(game_t *game, int unit_id, float x, float y) {
         return false;
     }
 
-    if (x < unit->footprint_radius || y < unit->footprint_radius || x > TE_BOARD_WIDTH - unit->footprint_radius || y > TE_BOARD_HEIGHT - unit->footprint_radius) {
+    if (x < unit->footprint_radius || y < unit->footprint_radius || x > DZW_BOARD_WIDTH - unit->footprint_radius || y > DZW_BOARD_HEIGHT - unit->footprint_radius) {
         return fail(game, "Deployment position is outside the battlefield.");
     }
-    if (path_touches_terrain(game, x, y, x, y, TE_TERRAIN_IMPASSABLE)) {
+    if (path_touches_terrain(game, x, y, x, y, DZW_TERRAIN_IMPASSABLE)) {
         return fail(game, "%s cannot be deployed in impassable terrain.", unit->name);
     }
 
@@ -6061,7 +6061,7 @@ bool game_deploy_unit(game_t *game, int unit_id, float x, float y) {
             continue;
         }
 
-        float separation = te_distance(x, y, other->x, other->y) - unit->footprint_radius - other->footprint_radius;
+        float separation = dzw_distance(x, y, other->x, other->y) - unit->footprint_radius - other->footprint_radius;
         if (other->owner != unit->owner && separation < 1.0f) {
             return fail(game, "%s must deploy at least 1\" away from enemy units.", unit->name);
         }
@@ -6075,7 +6075,7 @@ bool game_deploy_unit(game_t *game, int unit_id, float x, float y) {
     if (unit_is_transport(unit)) {
         sync_embarked_unit_position(game, unit);
     }
-    te_log(game, "%s is deployed to (%.1f\", %.1f\").", unit->name, x, y);
+    dzw_log(game, "%s is deployed to (%.1f\", %.1f\").", unit->name, x, y);
     return true;
 }
 
@@ -6098,10 +6098,10 @@ bool game_tank_shock_unit(game_t *game, int attacker_id, int target_id) {
     if (unit_is_embarked(target)) {
         return fail(game, "Embarked units cannot be tank shocked.");
     }
-    if (game->phase != TE_PHASE_MOVEMENT) {
+    if (game->phase != DZW_PHASE_MOVEMENT) {
         return fail(game, "Tank shock can only be used in the movement phase.");
     }
-    if (attacker->kind != TE_UNIT_VEHICLE) {
+    if (attacker->kind != DZW_UNIT_VEHICLE) {
         return fail(game, "Only vehicles can perform tank shock.");
     }
     if (unit_uses_vehicle_rules(target)) {
@@ -6117,7 +6117,7 @@ bool game_tank_shock_unit(game_t *game, int attacker_id, int target_id) {
         return fail(game, "%s cannot tank shock because it cannot move.", attacker->name);
     }
 
-    float center_distance = te_distance(attacker->x, attacker->y, target->x, target->y);
+    float center_distance = dzw_distance(attacker->x, attacker->y, target->x, target->y);
     float edge_distance = center_distance - attacker->footprint_radius - target->footprint_radius;
     int allowance = attacker->fast ? 24 : 12;
     if (edge_distance > (float)allowance + 0.01f) {
@@ -6133,7 +6133,7 @@ bool game_tank_shock_unit(game_t *game, int attacker_id, int target_id) {
     }
 
     int morale_roll = roll_2d6(game);
-    te_log(game, "%s tank shocks %s. Morale roll %d vs modified Leadership %d.", attacker->name, target->name, morale_roll, morale_target);
+    dzw_log(game, "%s tank shocks %s. Morale roll %d vs modified Leadership %d.", attacker->name, target->name, morale_roll, morale_target);
 
     bool halted = false;
     float move_distance = fminf((float)allowance, center_distance + attacker->footprint_radius + target->footprint_radius + 1.0f);
@@ -6143,27 +6143,27 @@ bool game_tank_shock_unit(game_t *game, int attacker_id, int target_id) {
     } else {
         int weapon_strength = target->weapon_count > 0 ? target->weapons[0].profile.strength : target->strength;
         if (weapon_strength + 6 >= attacker->front_armour) {
-            te_log(game, "%s attempts Death or Glory with %s.", target->name, target->weapon_count > 0 ? target->weapons[0].profile.name : "improvised attacks");
+            dzw_log(game, "%s attempts Death or Glory with %s.", target->name, target->weapon_count > 0 ? target->weapons[0].profile.name : "improvised attacks");
             int penetration_roll = roll_d6(game) + weapon_strength;
             if (penetration_roll >= attacker->front_armour) {
                 bool glancing_hit = penetration_roll == attacker->front_armour;
-                te_log(game, "%s hits automatically for %s on the front armour.", target->name, glancing_hit ? "a glancing hit" : "a penetrating hit");
+                dzw_log(game, "%s hits automatically for %s on the front armour.", target->name, glancing_hit ? "a glancing hit" : "a penetrating hit");
                 apply_vehicle_damage(game, target, attacker, glancing_hit);
                 halted = attacker->destroyed || attacker->crew_stunned || attacker->immobilized;
             } else {
-                te_log(game, "%s's Death or Glory attack fails to penetrate.", target->name);
+                dzw_log(game, "%s's Death or Glory attack fails to penetrate.", target->name);
             }
 
             if (!halted && !attacker->destroyed && target->models > 0) {
                 target->models -= 1;
                 normalize_unit_wounds(target);
-                te_log(game, "%s is crushed beneath %s during the failed Death or Glory attack.", target->name, attacker->name);
+                dzw_log(game, "%s is crushed beneath %s during the failed Death or Glory attack.", target->name, attacker->name);
                 if (target->models <= 0) {
                     destroy_unit(game, target, "its last model was crushed under a tank shock");
                 }
             }
         } else {
-            te_log(game, "%s dives aside and holds position as %s grinds through.", target->name, attacker->name);
+            dzw_log(game, "%s dives aside and holds position as %s grinds through.", target->name, attacker->name);
         }
     }
 
@@ -6172,11 +6172,11 @@ bool game_tank_shock_unit(game_t *game, int attacker_id, int target_id) {
             float stop_distance = fmaxf(edge_distance - 1.0f, 0.0f);
             move_toward_point(attacker, target->x, target->y, stop_distance);
             attacker->moved_distance = stop_distance;
-            te_log(game, "%s is halted 1\" in front of the unit.", attacker->name);
+            dzw_log(game, "%s is halted 1\" in front of the unit.", attacker->name);
         } else {
             move_toward_point(attacker, target->x, target->y, move_distance);
             attacker->moved_distance = move_distance;
-            te_log(game, "%s rumbles %.1f\" through the position.", attacker->name, move_distance);
+            dzw_log(game, "%s rumbles %.1f\" through the position.", attacker->name, move_distance);
         }
         attacker->moved_this_turn = true;
         attacker->movement_action_used_this_turn = true;
@@ -6211,7 +6211,7 @@ bool game_embark_unit(game_t *game, int unit_id, int transport_id) {
     if (transport->owner != game->active_player) {
         return fail(game, "%s does not belong to the active player.", transport->name);
     }
-    if (unit->kind != TE_UNIT_INFANTRY) {
+    if (unit->kind != DZW_UNIT_INFANTRY) {
         return fail(game, "Only infantry units can embark in this ruleset.");
     }
     if (unit->locked_in_assault || unit->falling_back) {
@@ -6226,7 +6226,7 @@ bool game_embark_unit(game_t *game, int unit_id, int transport_id) {
     if (transport->transport_capacity < unit->models) {
         return fail(game, "%s cannot carry %s.", transport->name, unit->name);
     }
-    if (game->phase != TE_PHASE_MOVEMENT) {
+    if (game->phase != DZW_PHASE_MOVEMENT) {
         return fail(game, "Embarking is currently implemented in the movement phase only.");
     }
 
@@ -6243,7 +6243,7 @@ bool game_embark_unit(game_t *game, int unit_id, int transport_id) {
     unit->x = transport->x;
     unit->y = transport->y;
     unit->facing_degrees = transport->facing_degrees;
-    te_log(game, "%s embarks into %s.", unit->name, transport->name);
+    dzw_log(game, "%s embarks into %s.", unit->name, transport->name);
     return true;
 }
 
@@ -6259,7 +6259,7 @@ bool game_disembark_unit(game_t *game, int transport_id) {
     if (!unit_is_transport(transport)) {
         return fail(game, "%s is not configured as a transport.", transport->name);
     }
-    if (game->phase != TE_PHASE_MOVEMENT) {
+    if (game->phase != DZW_PHASE_MOVEMENT) {
         return fail(game, "Disembarking is handled in the movement phase.");
     }
     if (transport->crew_stunned) {
@@ -6291,12 +6291,12 @@ bool game_disembark_unit(game_t *game, int transport_id) {
     passenger->facing_degrees = transport->facing_degrees;
     passenger->moved_this_turn = true;
     passenger->movement_action_used_this_turn = transport->moved_this_turn;
-    te_log(game, "%s disembarks from %s.", passenger->name, transport->name);
+    dzw_log(game, "%s disembarks from %s.", passenger->name, transport->name);
 
     if (transport->moved_this_turn) {
-        te_log(game, "%s moved first, so %s may deploy but cannot make an additional move.", transport->name, passenger->name);
+        dzw_log(game, "%s moved first, so %s may deploy but cannot make an additional move.", transport->name, passenger->name);
     } else {
-        te_log(game, "%s deployed before %s moved and may still make its normal move.", passenger->name, transport->name);
+        dzw_log(game, "%s deployed before %s moved and may still make its normal move.", passenger->name, transport->name);
     }
 
     return true;
@@ -6316,7 +6316,7 @@ bool game_fire_passenger(game_t *game, int transport_id, int target_id) {
     if (!unit_is_transport(transport)) {
         return fail(game, "%s is not configured as a transport.", transport->name);
     }
-    if (game->phase != TE_PHASE_SHOOTING) {
+    if (game->phase != DZW_PHASE_SHOOTING) {
         return fail(game, "Passengers can only fire in the shooting phase.");
     }
     if (target == NULL || target->destroyed) {
@@ -6354,7 +6354,7 @@ bool game_fire_passenger(game_t *game, int transport_id, int target_id) {
         return fail(game, "%s has no operational ranged weapon.", passenger->name);
     }
 
-    float range = te_distance(transport->x, transport->y, target->x, target->y) - transport->footprint_radius - target->footprint_radius;
+    float range = dzw_distance(transport->x, transport->y, target->x, target->y) - transport->footprint_radius - target->footprint_radius;
     if (range < 0.0f) {
         range = 0.0f;
     }
@@ -6383,7 +6383,7 @@ bool game_fire_passenger(game_t *game, int transport_id, int target_id) {
     firing_platform.models = firing_models;
     firing_platform.moved_this_turn = transport->moved_this_turn;
 
-    te_log(game, "%s fires from %s with %d model%s.", passenger->name, transport->name, firing_models, firing_models == 1 ? "" : "s");
+    dzw_log(game, "%s fires from %s with %d model%s.", passenger->name, transport->name, firing_models, firing_models == 1 ? "" : "s");
     int target_models_before = target->models;
     if (unit_uses_vehicle_rules(target)) {
         resolve_weapon_against_vehicle(game, &firing_platform, target, &slot->profile, total_shots);
@@ -6398,11 +6398,11 @@ bool game_fire_passenger(game_t *game, int transport_id, int target_id) {
     if (game_has_pending_hit_allocation_choice(game)) {
         return true;
     }
-    if (target->kind == TE_UNIT_INFANTRY) {
+    if (target->kind == DZW_UNIT_INFANTRY) {
         if (target->models < target_models_before && slot->profile.barrage) {
             apply_pinning(game, target, slot->profile.ordnance ? -1 : 0, slot->profile.name);
         }
-        te_apply_shooting_morale(game, target);
+        dzw_apply_shooting_morale(game, target);
     }
     return true;
 }
@@ -6416,7 +6416,7 @@ bool game_rotate_unit(game_t *game, int unit_id, float facing_degrees) {
     if (!assert_valid_unit_action(game, unit)) {
         return false;
     }
-    if (game->phase != TE_PHASE_MOVEMENT) {
+    if (game->phase != DZW_PHASE_MOVEMENT) {
         return fail(game, "Facing changes are only handled in the movement phase.");
     }
     if (unit_uses_vehicle_rules(unit) && unit->immobilized) {
@@ -6426,7 +6426,7 @@ bool game_rotate_unit(game_t *game, int unit_id, float facing_degrees) {
     if (unit_is_transport(unit)) {
         sync_embarked_unit_position(game, unit);
     }
-    te_log(game, "%s pivots to %.0f°.", unit->name, unit->facing_degrees);
+    dzw_log(game, "%s pivots to %.0f°.", unit->name, unit->facing_degrees);
     return true;
 }
 
@@ -6444,7 +6444,7 @@ bool game_deploy_rotate_unit(game_t *game, int unit_id, float facing_degrees) {
     if (unit_is_transport(unit)) {
         sync_embarked_unit_position(game, unit);
     }
-    te_log(game, "%s is set to face %.0f° for deployment.", unit->name, unit->facing_degrees);
+    dzw_log(game, "%s is set to face %.0f° for deployment.", unit->name, unit->facing_degrees);
     return true;
 }
 
@@ -6465,7 +6465,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     if (unit_is_embarked(target)) {
         return fail(game, "Embarked units cannot be targeted directly.");
     }
-    if (game->phase != TE_PHASE_SHOOTING) {
+    if (game->phase != DZW_PHASE_SHOOTING) {
         return fail(game, "Units can only shoot in the shooting phase.");
     }
     if (target->owner == attacker->owner) {
@@ -6481,7 +6481,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
         return fail(game, "You cannot fire into close combat.");
     }
 
-    float range = te_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+    float range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
     if (range < 0.0f) {
         range = 0.0f;
     }
@@ -6535,8 +6535,8 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
             record_weapon_fire_angle(attacker, target, ordnance_slot);
             if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
                 attacker->shot_this_turn = true;
-                if (target->kind == TE_UNIT_INFANTRY) {
-                    te_apply_shooting_morale(game, target);
+                if (target->kind == DZW_UNIT_INFANTRY) {
+                    dzw_apply_shooting_morale(game, target);
                 }
                 return true;
             }
@@ -6597,8 +6597,8 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     }
 
     attacker->shot_this_turn = true;
-    if (target->kind == TE_UNIT_INFANTRY) {
-        te_apply_shooting_morale(game, target);
+    if (target->kind == DZW_UNIT_INFANTRY) {
+        dzw_apply_shooting_morale(game, target);
     }
     return true;
 }
@@ -6679,7 +6679,7 @@ static void log_melee_engagement_cap(game_t *game, const unit_t *attacker, const
         return;
     }
 
-    te_log(
+    dzw_log(
         game,
         "%s can only bring %d of %d models to bear on %s at Initiative %d.",
         attacker->name,
@@ -6746,7 +6746,7 @@ static int highest_melee_initiative_band(const unit_t *left, const unit_t *right
 
 static int resolve_uniform_melee_wounds(game_t *game, const char *source_name, int strength, unit_t *defender, int hits) {
     if (hits <= 0) {
-        te_log(game, "%s fails to land a telling blow on %s in melee.", source_name, defender->name);
+        dzw_log(game, "%s fails to land a telling blow on %s in melee.", source_name, defender->name);
         return 0;
     }
 
@@ -6767,13 +6767,13 @@ static int resolve_uniform_melee_wounds(game_t *game, const char *source_name, i
         unsaved_wounds += 1;
     }
 
-    te_log(game, "%s converts %d melee hit%s into %d wound%s and %d unsaved on %s.", source_name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds, defender->name);
+    dzw_log(game, "%s converts %d melee hit%s into %d wound%s and %d unsaved on %s.", source_name, hits, hits == 1 ? "" : "s", wounds, wounds == 1 ? "" : "s", unsaved_wounds, defender->name);
     return apply_infantry_damage(game, defender, unsaved_wounds, strength, source_name, false, NULL);
 }
 
 static int resolve_mixed_melee_wounds(game_t *game, const char *attacker_name, const char *source_name, int strength, unit_t *defender, int hits, bool allow_pending_choice) {
     if (hits <= 0) {
-        te_log(game, "%s fails to land a telling blow on %s in melee.", source_name, defender->name);
+        dzw_log(game, "%s fails to land a telling blow on %s in melee.", source_name, defender->name);
         return 0;
     }
 
@@ -6782,7 +6782,7 @@ static int resolve_mixed_melee_wounds(game_t *game, const char *attacker_name, c
         return 0;
     }
 
-    int allocated_hits[TE_MAX_PROFILE_GROUPS];
+    int allocated_hits[DZW_MAX_PROFILE_GROUPS];
     memset(allocated_hits, 0, sizeof(allocated_hits));
     allocate_hits_to_profile_groups(defender, hits, allocated_hits);
     return resolve_allocated_mixed_melee_hits(game, source_name, strength, defender, allocated_hits);
@@ -6813,7 +6813,7 @@ static int resolve_melee_infantry_damage_at_initiative(game_t *game, const unit_
                 continue;
             }
 
-            char source_name[TE_LOG_LINE_LENGTH];
+            char source_name[DZW_LOG_LINE_LENGTH];
             snprintf(source_name, sizeof(source_name), "%s in %s", group->name, attacker->name);
             int engaged_group_models = group->models;
             if (engaged_group_models > engaged_models_remaining) {
@@ -6939,7 +6939,7 @@ static bool resolve_banded_infantry_close_combat(
                     0,
                     0,
                     true,
-                    TE_PENDING_SIMULTANEOUS_MELEE_RESOLVE_COUNTER,
+                    DZW_PENDING_SIMULTANEOUS_MELEE_RESOLVE_COUNTER,
                     &target_source
                 );
                 return true;
@@ -6963,7 +6963,7 @@ static bool resolve_banded_infantry_close_combat(
                     simultaneous_attacker_wounds,
                     0,
                     false,
-                    TE_PENDING_SIMULTANEOUS_MELEE_CONTINUE_BANDS,
+                    DZW_PENDING_SIMULTANEOUS_MELEE_CONTINUE_BANDS,
                     NULL
                 );
                 return true;
@@ -6976,7 +6976,7 @@ static bool resolve_banded_infantry_close_combat(
                 *out_defender_wounds += simultaneous_defender_wounds;
             }
 
-            te_log(game, "Initiative %d is simultaneous: %s deals %d wound%s and %s deals %d wound%s.", initiative, attacker->name, simultaneous_attacker_wounds, simultaneous_attacker_wounds == 1 ? "" : "s", target->name, simultaneous_defender_wounds, simultaneous_defender_wounds == 1 ? "" : "s");
+            dzw_log(game, "Initiative %d is simultaneous: %s deals %d wound%s and %s deals %d wound%s.", initiative, attacker->name, simultaneous_attacker_wounds, simultaneous_attacker_wounds == 1 ? "" : "s", target->name, simultaneous_defender_wounds, simultaneous_defender_wounds == 1 ? "" : "s");
             continue;
         }
 
@@ -7000,7 +7000,7 @@ static bool resolve_banded_infantry_close_combat(
             if (out_attacker_wounds != NULL) {
                 *out_attacker_wounds += wounds;
             }
-            te_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", attacker->name, wounds, wounds == 1 ? "" : "s", initiative);
+            dzw_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", attacker->name, wounds, wounds == 1 ? "" : "s", initiative);
             continue;
         }
 
@@ -7023,7 +7023,7 @@ static bool resolve_banded_infantry_close_combat(
         if (out_defender_wounds != NULL) {
             *out_defender_wounds += counter_wounds;
         }
-        te_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", target->name, counter_wounds, counter_wounds == 1 ? "" : "s", initiative);
+        dzw_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", target->name, counter_wounds, counter_wounds == 1 ? "" : "s", initiative);
     }
 
     return false;
@@ -7066,7 +7066,7 @@ static int melee_vehicle_damage_results(game_t *game, const unit_t *attacker, un
     int hits = 0;
     int damaging_hits = 0;
     int armour_value = vehicle_armour_for_arc(defender, attack_origin_x, attack_origin_y);
-    bool hit_by_weapon_skill = defender->kind == TE_UNIT_ASSAULT_GUN;
+    bool hit_by_weapon_skill = defender->kind == DZW_UNIT_ASSAULT_GUN;
     int needed_to_hit = hit_by_weapon_skill ? required_to_hit_melee(attacker->weapon_skill, defender->weapon_skill) : required_to_hit_vehicle_in_assault(defender);
 
     for (int roll = 0; roll < attacks; roll += 1) {
@@ -7083,7 +7083,7 @@ static int melee_vehicle_damage_results(game_t *game, const unit_t *attacker, un
 
         bool glancing_hit = penetration_roll == armour_value;
         damaging_hits += 1;
-        te_log(game, "%s scores %s on %s in close combat.", attacker->name, glancing_hit ? "a glancing hit" : "a penetrating hit", defender->name);
+        dzw_log(game, "%s scores %s on %s in close combat.", attacker->name, glancing_hit ? "a glancing hit" : "a penetrating hit", defender->name);
         apply_vehicle_damage(game, attacker, defender, glancing_hit);
         if (defender->destroyed || game_has_pending_weapon_destroy_choice(game)) {
             break;
@@ -7092,9 +7092,9 @@ static int melee_vehicle_damage_results(game_t *game, const unit_t *attacker, un
 
     if (!defender->destroyed) {
         if (needed_to_hit <= 1) {
-            te_log(game, "%s hits %s automatically in close combat: %d hit%s and %d damaging result%s.", attacker->name, defender->name, hits, hits == 1 ? "" : "s", damaging_hits, damaging_hits == 1 ? "" : "s");
+            dzw_log(game, "%s hits %s automatically in close combat: %d hit%s and %d damaging result%s.", attacker->name, defender->name, hits, hits == 1 ? "" : "s", damaging_hits, damaging_hits == 1 ? "" : "s");
         } else {
-            te_log(game, "%s attacks %s in close combat on %d+: %d hit%s and %d damaging result%s.", attacker->name, defender->name, needed_to_hit, hits, hits == 1 ? "" : "s", damaging_hits, damaging_hits == 1 ? "" : "s");
+            dzw_log(game, "%s attacks %s in close combat on %d+: %d hit%s and %d damaging result%s.", attacker->name, defender->name, needed_to_hit, hits, hits == 1 ? "" : "s", damaging_hits, damaging_hits == 1 ? "" : "s");
         }
     }
 
@@ -7108,14 +7108,14 @@ static void consolidate_after_wiping_out_enemy(game_t *game, unit_t *winner, con
 
     float moved = move_toward_point_legally(game, winner, loser->x, loser->y, 3.0f, -1);
     if (moved < 0.01f) {
-        te_log(game, "%s cannot consolidate after destroying %s without entering a new combat in the current token model.", winner->name, loser->name);
+        dzw_log(game, "%s cannot consolidate after destroying %s without entering a new combat in the current token model.", winner->name, loser->name);
         return;
     }
     if (moved + 0.01f < 3.0f) {
-        te_log(game, "%s consolidates %.1f\" after destroying %s in close combat, stopping short of a new combat.", winner->name, moved, loser->name);
+        dzw_log(game, "%s consolidates %.1f\" after destroying %s in close combat, stopping short of a new combat.", winner->name, moved, loser->name);
         return;
     }
-    te_log(game, "%s consolidates 3\" after destroying %s in close combat.", winner->name, loser->name);
+    dzw_log(game, "%s consolidates 3\" after destroying %s in close combat.", winner->name, loser->name);
 }
 
 static void resolve_close_combat_outcome(game_t *game, unit_t *attacker, unit_t *target, int attacker_score, int defender_score, follow_up_t follow_up) {
@@ -7141,13 +7141,13 @@ static void resolve_close_combat_outcome(game_t *game, unit_t *attacker, unit_t 
     if (attacker_score == defender_score) {
         int attacker_roll = roll_d6(game);
         int defender_roll = roll_d6(game);
-        te_log(game, "Combat tie-break: %s rolls %d, %s rolls %d.", attacker->name, attacker_roll, target->name, defender_roll);
+        dzw_log(game, "Combat tie-break: %s rolls %d, %s rolls %d.", attacker->name, attacker_roll, target->name, defender_roll);
         if (attacker_roll == defender_roll) {
             attacker->locked_in_assault = true;
             attacker->locked_with = target->id;
             target->locked_in_assault = true;
             target->locked_with = attacker->id;
-            te_log(game, "The combat remains locked.");
+            dzw_log(game, "The combat remains locked.");
             return;
         }
 
@@ -7166,7 +7166,7 @@ static void resolve_close_combat_outcome(game_t *game, unit_t *attacker, unit_t 
         winner->locked_with = loser->id;
         loser->locked_in_assault = true;
         loser->locked_with = winner->id;
-        te_log(game, "%s cannot fall back like infantry, so the combat remains locked.", loser->name);
+        dzw_log(game, "%s cannot fall back like infantry, so the combat remains locked.", loser->name);
         return;
     }
 
@@ -7178,7 +7178,7 @@ static void resolve_close_combat_outcome(game_t *game, unit_t *attacker, unit_t 
     int morale_roll = roll_2d6(game);
 
     if (morale_roll <= morale_target) {
-        te_log(game, "%s holds in close combat on %d against modified Leadership %d.", loser->name, morale_roll, morale_target);
+        dzw_log(game, "%s holds in close combat on %d against modified Leadership %d.", loser->name, morale_roll, morale_target);
         winner->locked_in_assault = true;
         winner->locked_with = loser->id;
         loser->locked_in_assault = true;
@@ -7186,33 +7186,33 @@ static void resolve_close_combat_outcome(game_t *game, unit_t *attacker, unit_t 
         return;
     }
 
-    te_log(game, "%s loses combat and fails morale on %d against modified Leadership %d.", loser->name, morale_roll, morale_target);
+    dzw_log(game, "%s loses combat and fails morale on %d against modified Leadership %d.", loser->name, morale_roll, morale_target);
     int fallback_distance = roll_2d6(game);
     resolve_fall_back(game, loser, fallback_distance);
 
     if (won_on_tiebreak) {
-        follow_up = TE_FOLLOW_UP_CONSOLIDATE;
+        follow_up = DZW_FOLLOW_UP_CONSOLIDATE;
     }
 
-    if (follow_up == TE_FOLLOW_UP_ADVANCE) {
+    if (follow_up == DZW_FOLLOW_UP_ADVANCE) {
         int advance_distance = roll_2d6(game);
-        te_log(game, "%s attempts a sweeping advance of %d\" against %s's %d\" retreat.", winner->name, advance_distance, loser->name, fallback_distance);
+        dzw_log(game, "%s attempts a sweeping advance of %d\" against %s's %d\" retreat.", winner->name, advance_distance, loser->name, fallback_distance);
         if (advance_distance > fallback_distance && !loser->destroyed) {
             destroy_unit(game, loser, "it was caught in a sweeping advance");
         } else if (!loser->destroyed) {
             float moved = move_toward_point_legally(game, winner, loser->x, loser->y, (float)advance_distance, -1);
             if (moved + 0.01f < (float)advance_distance) {
-                te_log(game, "%s advances %.1f\" but stops short of another enemy unit.", winner->name, moved);
+                dzw_log(game, "%s advances %.1f\" but stops short of another enemy unit.", winner->name, moved);
             }
         }
     } else {
         float moved = move_toward_point_legally(game, winner, loser->x, loser->y, 3.0f, -1);
         if (moved < 0.01f) {
-            te_log(game, "%s cannot consolidate without entering a new combat in the current token model.", winner->name);
+            dzw_log(game, "%s cannot consolidate without entering a new combat in the current token model.", winner->name);
         } else if (moved + 0.01f < 3.0f) {
-            te_log(game, "%s consolidates %.1f\" after the combat, stopping short of a new combat.", winner->name, moved);
+            dzw_log(game, "%s consolidates %.1f\" after the combat, stopping short of a new combat.", winner->name, moved);
         } else {
-            te_log(game, "%s consolidates 3\" after the combat.", winner->name);
+            dzw_log(game, "%s consolidates 3\" after the combat.", winner->name);
         }
     }
 
@@ -7268,10 +7268,10 @@ static bool continue_pending_banded_melee_resolution(game_t *game, int resolved_
 
     if (pending_attacker_side) {
         attacker_wounds += resolved_unsaved_wounds;
-        te_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", attacker->name, resolved_unsaved_wounds, resolved_unsaved_wounds == 1 ? "" : "s", resolved_initiative);
+        dzw_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", attacker->name, resolved_unsaved_wounds, resolved_unsaved_wounds == 1 ? "" : "s", resolved_initiative);
     } else {
         defender_wounds += resolved_unsaved_wounds;
-        te_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", target->name, resolved_unsaved_wounds, resolved_unsaved_wounds == 1 ? "" : "s", resolved_initiative);
+        dzw_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", target->name, resolved_unsaved_wounds, resolved_unsaved_wounds == 1 ? "" : "s", resolved_initiative);
     }
 
     bool paused = resolve_banded_infantry_close_combat(
@@ -7318,7 +7318,7 @@ static bool continue_pending_one_sided_melee_resolution(game_t *game, int resolv
         return true;
     }
 
-    te_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", acting->name, resolved_unsaved_wounds, resolved_unsaved_wounds == 1 ? "" : "s", resolved_initiative);
+    dzw_log(game, "%s inflicts %d unsaved wound%s in melee at Initiative %d.", acting->name, resolved_unsaved_wounds, resolved_unsaved_wounds == 1 ? "" : "s", resolved_initiative);
 
     int pending_initiative = 0;
     bool paused = resolve_melee_infantry_damage_sequence(
@@ -7357,7 +7357,7 @@ static bool continue_pending_one_sided_melee_resolution(game_t *game, int resolv
         defender_wounds += accumulated_wounds;
     }
 
-    if (next_step == TE_PENDING_ONE_SIDED_MELEE_COVER_ATTACKER_STRIKE) {
+    if (next_step == DZW_PENDING_ONE_SIDED_MELEE_COVER_ATTACKER_STRIKE) {
         if (!assault_attacker->destroyed && assault_attacker->models <= 0) {
             destroy_unit(game, assault_attacker, "it was cut down during the charge");
         }
@@ -7384,7 +7384,7 @@ static bool continue_pending_one_sided_melee_resolution(game_t *game, int resolv
                     attacker_response_wounds,
                     true,
                     pending_initiative,
-                    TE_PENDING_ONE_SIDED_MELEE_FINALIZE_ASSAULT,
+                    DZW_PENDING_ONE_SIDED_MELEE_FINALIZE_ASSAULT,
                     assault_attacker,
                     assault_target,
                     follow_up,
@@ -7395,7 +7395,7 @@ static bool continue_pending_one_sided_melee_resolution(game_t *game, int resolv
             }
 
             attacker_wounds += attacker_response_wounds;
-            te_log(game, "%s inflicts %d unsaved wound%s in melee.", assault_attacker->name, attacker_response_wounds, attacker_response_wounds == 1 ? "" : "s");
+            dzw_log(game, "%s inflicts %d unsaved wound%s in melee.", assault_attacker->name, attacker_response_wounds, attacker_response_wounds == 1 ? "" : "s");
         }
     }
 
@@ -7437,7 +7437,7 @@ static bool continue_pending_simultaneous_melee_resolution(game_t *game, int res
         band_defender_wounds += resolved_unsaved_wounds;
     }
 
-    if (step == TE_PENDING_SIMULTANEOUS_MELEE_RESOLVE_COUNTER) {
+    if (step == DZW_PENDING_SIMULTANEOUS_MELEE_RESOLVE_COUNTER) {
         if (!counter_source_valid) {
             return finalize_banded_infantry_close_combat_resolution(game, attacker, target, attacker_wounds, defender_wounds, follow_up);
         }
@@ -7457,7 +7457,7 @@ static bool continue_pending_simultaneous_melee_resolution(game_t *game, int res
                 band_attacker_wounds,
                 band_defender_wounds,
                 false,
-                TE_PENDING_SIMULTANEOUS_MELEE_CONTINUE_BANDS,
+                DZW_PENDING_SIMULTANEOUS_MELEE_CONTINUE_BANDS,
                 NULL
             );
             return true;
@@ -7467,7 +7467,7 @@ static bool continue_pending_simultaneous_melee_resolution(game_t *game, int res
         band_defender_wounds += counter_wounds;
     }
 
-    te_log(game, "Initiative %d is simultaneous: %s deals %d wound%s and %s deals %d wound%s.", resolved_initiative, attacker->name, band_attacker_wounds, band_attacker_wounds == 1 ? "" : "s", target->name, band_defender_wounds, band_defender_wounds == 1 ? "" : "s");
+    dzw_log(game, "Initiative %d is simultaneous: %s deals %d wound%s and %s deals %d wound%s.", resolved_initiative, attacker->name, band_attacker_wounds, band_attacker_wounds == 1 ? "" : "s", target->name, band_defender_wounds, band_defender_wounds == 1 ? "" : "s");
 
     if (next_initiative > 0) {
         bool paused = resolve_banded_infantry_close_combat(
@@ -7502,10 +7502,10 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
     if (target == NULL || target->destroyed) {
         return fail(game, "Target is not available.");
     }
-    if (game->phase != TE_PHASE_ASSAULT) {
+    if (game->phase != DZW_PHASE_ASSAULT) {
         return fail(game, "Assaults can only be resolved in the assault phase.");
     }
-    if (attacker->kind == TE_UNIT_VEHICLE) {
+    if (attacker->kind == DZW_UNIT_VEHICLE) {
         return fail(game, "Only assault guns and tank destroyers can launch vehicle assaults.");
     }
     if (attacker->assaulted_this_turn) {
@@ -7518,12 +7518,12 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         return fail(game, "Units cannot assault their own side.");
     }
 
-    bool assault_gun_combat = attacker->kind == TE_UNIT_ASSAULT_GUN || target->kind == TE_UNIT_ASSAULT_GUN;
-    bool vehicle_target = unit_uses_vehicle_rules(target) && target->kind != TE_UNIT_ASSAULT_GUN;
+    bool assault_gun_combat = attacker->kind == DZW_UNIT_ASSAULT_GUN || target->kind == DZW_UNIT_ASSAULT_GUN;
+    bool vehicle_target = unit_uses_vehicle_rules(target) && target->kind != DZW_UNIT_ASSAULT_GUN;
     bool continuing_combat = assault_gun_combat && attacker->locked_in_assault && attacker->locked_with == target->id && target->locked_with == attacker->id;
     bool attacker_stunned_assault_gun = unit_is_crew_stunned_assault_gun(attacker);
     bool target_stunned_assault_gun = unit_is_crew_stunned_assault_gun(target);
-    if (attacker->kind == TE_UNIT_ASSAULT_GUN && attacker->immobilized && !continuing_combat) {
+    if (attacker->kind == DZW_UNIT_ASSAULT_GUN && attacker->immobilized && !continuing_combat) {
         return fail(game, "%s is immobilized and cannot charge into combat.", attacker->name);
     }
     if (attacker_stunned_assault_gun) {
@@ -7536,8 +7536,8 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
     float assault_origin_x = attacker->x;
     float assault_origin_y = attacker->y;
     if (!continuing_combat) {
-        float range = te_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
-        bool difficult = path_touches_terrain(game, attacker->x, attacker->y, target->x, target->y, TE_TERRAIN_DIFFICULT);
+        float range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+        bool difficult = path_touches_terrain(game, attacker->x, attacker->y, target->x, target->y, DZW_TERRAIN_DIFFICULT);
         int assault_distance = difficult ? roll_highest_of_2d6(game) : 6;
         if (range > (float)assault_distance + 0.01f) {
             return fail(game, "%s needs %.1f\" to make contact but only has %d\".", attacker->name, range, assault_distance);
@@ -7552,9 +7552,9 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
             attacker->y = origin_y;
             return fail(game, "%s cannot find a legal way to contact %s without entering another combat.", attacker->name, target->name);
         }
-        te_log(game, "%s charges into combat with %s.", attacker->name, target->name);
+        dzw_log(game, "%s charges into combat with %s.", attacker->name, target->name);
     } else {
-        te_log(game, "%s and %s continue their close combat.", attacker->name, target->name);
+        dzw_log(game, "%s and %s continue their close combat.", attacker->name, target->name);
     }
 
     if (vehicle_target) {
@@ -7564,10 +7564,10 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         clear_locked_state(target);
 
         if (!target->destroyed) {
-            te_log(game, "%s remains functional after the assault; vehicle combats do not stay locked in this ruleset.", target->name);
+            dzw_log(game, "%s remains functional after the assault; vehicle combats do not stay locked in this ruleset.", target->name);
         }
         if (attacker_score <= 0 && !target->destroyed) {
-            te_log(game, "%s fails to find a weak point on %s.", attacker->name, target->name);
+            dzw_log(game, "%s fails to find a weak point on %s.", attacker->name, target->name);
         }
         return true;
     }
@@ -7579,7 +7579,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
 
     if (defender_in_cover) {
         defender_struck_from_cover = true;
-        if (attacker->kind == TE_UNIT_ASSAULT_GUN) {
+        if (attacker->kind == DZW_UNIT_ASSAULT_GUN) {
             defender_wounds = melee_vehicle_damage_results(game, target, attacker, false, target->x, target->y);
         } else if (target_stunned_assault_gun) {
             log_stunned_assault_gun_close_combat_skip(game, target);
@@ -7605,7 +7605,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
                     defender_wounds,
                     false,
                     pending_initiative,
-                    TE_PENDING_ONE_SIDED_MELEE_COVER_ATTACKER_STRIKE,
+                    DZW_PENDING_ONE_SIDED_MELEE_COVER_ATTACKER_STRIKE,
                     attacker,
                     target,
                     follow_up,
@@ -7614,7 +7614,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
                 );
                 return true;
             }
-            te_log(game, "%s strikes first from cover and inflicts %d unsaved wound%s.", target->name, defender_wounds, defender_wounds == 1 ? "" : "s");
+            dzw_log(game, "%s strikes first from cover and inflicts %d unsaved wound%s.", target->name, defender_wounds, defender_wounds == 1 ? "" : "s");
             if (attacker->models <= 0) {
                 destroy_unit(game, attacker, "it was cut down during the charge");
             }
@@ -7625,7 +7625,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         if (defender_struck_from_cover) {
             if (attacker_stunned_assault_gun) {
                 attacker_wounds = 0;
-            } else if (target->kind == TE_UNIT_ASSAULT_GUN) {
+            } else if (target->kind == DZW_UNIT_ASSAULT_GUN) {
                 attacker_wounds = melee_vehicle_damage_results(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y);
             } else {
                 int pending_initiative = 0;
@@ -7649,7 +7649,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
                         attacker_wounds,
                         true,
                         pending_initiative,
-                    TE_PENDING_ONE_SIDED_MELEE_FINALIZE_ASSAULT,
+                    DZW_PENDING_ONE_SIDED_MELEE_FINALIZE_ASSAULT,
                     attacker,
                     target,
                     follow_up,
@@ -7658,9 +7658,9 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
                 );
                 return true;
             }
-                te_log(game, "%s inflicts %d unsaved wound%s in melee.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s");
+                dzw_log(game, "%s inflicts %d unsaved wound%s in melee.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s");
             }
-        } else if (attacker->kind != TE_UNIT_ASSAULT_GUN && target->kind != TE_UNIT_ASSAULT_GUN) {
+        } else if (attacker->kind != DZW_UNIT_ASSAULT_GUN && target->kind != DZW_UNIT_ASSAULT_GUN) {
             bool paused = resolve_banded_infantry_close_combat(game, attacker, target, !continuing_combat, follow_up, &attacker_wounds, &defender_wounds, 0);
             if (paused) {
                 return true;
@@ -7668,43 +7668,43 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         } else if (attacker->initiative > target->initiative) {
             if (attacker_stunned_assault_gun) {
                 attacker_wounds = 0;
-            } else if (target->kind == TE_UNIT_ASSAULT_GUN) {
+            } else if (target->kind == DZW_UNIT_ASSAULT_GUN) {
                 attacker_wounds = melee_vehicle_damage_results(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y);
             } else {
                 attacker_wounds = resolve_melee_infantry_damage(game, attacker, target, !continuing_combat);
-                te_log(game, "%s inflicts %d unsaved wound%s in melee.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s");
+                dzw_log(game, "%s inflicts %d unsaved wound%s in melee.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s");
             }
 
             if (!target->destroyed) {
                 if (target_stunned_assault_gun) {
                     log_stunned_assault_gun_close_combat_skip(game, target);
-                } else if (attacker->kind == TE_UNIT_ASSAULT_GUN) {
+                } else if (attacker->kind == DZW_UNIT_ASSAULT_GUN) {
                     defender_wounds += melee_vehicle_damage_results(game, target, attacker, false, target->x, target->y);
                 } else {
                     int counter_wounds = resolve_melee_infantry_damage(game, target, attacker, false);
                     defender_wounds += counter_wounds;
-                    te_log(game, "%s inflicts %d unsaved wound%s in melee.", target->name, counter_wounds, counter_wounds == 1 ? "" : "s");
+                    dzw_log(game, "%s inflicts %d unsaved wound%s in melee.", target->name, counter_wounds, counter_wounds == 1 ? "" : "s");
                 }
             }
         } else if (target->initiative > attacker->initiative) {
             if (target_stunned_assault_gun) {
                 log_stunned_assault_gun_close_combat_skip(game, target);
-            } else if (attacker->kind == TE_UNIT_ASSAULT_GUN) {
+            } else if (attacker->kind == DZW_UNIT_ASSAULT_GUN) {
                 defender_wounds += melee_vehicle_damage_results(game, target, attacker, false, target->x, target->y);
             } else {
                 int counter_wounds = resolve_melee_infantry_damage(game, target, attacker, false);
                 defender_wounds += counter_wounds;
-                te_log(game, "%s inflicts %d unsaved wound%s in melee.", target->name, counter_wounds, counter_wounds == 1 ? "" : "s");
+                dzw_log(game, "%s inflicts %d unsaved wound%s in melee.", target->name, counter_wounds, counter_wounds == 1 ? "" : "s");
             }
 
             if (!attacker->destroyed) {
                 if (attacker_stunned_assault_gun) {
                     attacker_wounds = 0;
-                } else if (target->kind == TE_UNIT_ASSAULT_GUN) {
+                } else if (target->kind == DZW_UNIT_ASSAULT_GUN) {
                     attacker_wounds = melee_vehicle_damage_results(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y);
                 } else {
                     attacker_wounds = resolve_melee_infantry_damage(game, attacker, target, !continuing_combat);
-                    te_log(game, "%s inflicts %d unsaved wound%s in melee.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s");
+                    dzw_log(game, "%s inflicts %d unsaved wound%s in melee.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s");
                 }
             }
         } else {
@@ -7712,7 +7712,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
             int simultaneous_defender_wounds = defender_wounds;
             if (attacker_stunned_assault_gun) {
                 attacker_wounds = 0;
-            } else if (target->kind == TE_UNIT_ASSAULT_GUN) {
+            } else if (target->kind == DZW_UNIT_ASSAULT_GUN) {
                 attacker_wounds = melee_vehicle_damage_results(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y);
             } else {
                 attacker_wounds = resolve_melee_infantry_damage(game, attacker, target, !continuing_combat);
@@ -7721,14 +7721,14 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
 
             if (target_stunned_assault_gun) {
                 log_stunned_assault_gun_close_combat_skip(game, target);
-            } else if (attacker->kind == TE_UNIT_ASSAULT_GUN) {
+            } else if (attacker->kind == DZW_UNIT_ASSAULT_GUN) {
                 defender_wounds += melee_vehicle_damage_results(game, target, attacker, false, target->x, target->y);
             } else {
                 simultaneous_defender_wounds = resolve_melee_infantry_damage(game, target, attacker, false);
                 defender_wounds += simultaneous_defender_wounds;
             }
 
-            te_log(game, "The combat is simultaneous: %s deals %d wound%s and %s deals %d wound%s.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s", target->name, defender_wounds, defender_wounds == 1 ? "" : "s");
+            dzw_log(game, "The combat is simultaneous: %s deals %d wound%s and %s deals %d wound%s.", attacker->name, attacker_wounds, attacker_wounds == 1 ? "" : "s", target->name, defender_wounds, defender_wounds == 1 ? "" : "s");
         }
     }
 
@@ -7806,7 +7806,7 @@ bool game_choose_pending_hit_allocation(game_t *game, int group_index) {
     game->pending_hit_allocation_hits_remaining -= 1;
 
     int assigned = game->pending_hit_allocation_total_hits - game->pending_hit_allocation_hits_remaining;
-    te_log(game, "%s assigns hit %d of %d from %s's %s to %s in %s.", player_name(target->owner), assigned, game->pending_hit_allocation_total_hits, game->pending_hit_allocation_attacker_name, game->pending_hit_allocation_source_name, group->name, target->name);
+    dzw_log(game, "%s assigns hit %d of %d from %s's %s to %s in %s.", player_name(target->owner), assigned, game->pending_hit_allocation_total_hits, game->pending_hit_allocation_attacker_name, game->pending_hit_allocation_source_name, group->name, target->name);
 
     if (game->pending_hit_allocation_hits_remaining > 0) {
         return true;
@@ -7850,7 +7850,7 @@ bool game_set_preferred_casualty_group(game_t *game, int unit_id, int group_inde
 
     if (group_index < 0) {
         unit->preferred_casualty_group_index = -1;
-        te_log(game, "%s returns to automatic mixed-profile casualty allocation.", unit->name);
+        dzw_log(game, "%s returns to automatic mixed-profile casualty allocation.", unit->name);
         return true;
     }
 
@@ -7859,7 +7859,7 @@ bool game_set_preferred_casualty_group(game_t *game, int unit_id, int group_inde
     }
 
     unit->preferred_casualty_group_index = group_index;
-    te_log(game, "%s will assign mixed-profile casualties to %s first when possible.", unit->name, unit->profile_groups[group_index].name);
+    dzw_log(game, "%s will assign mixed-profile casualties to %s first when possible.", unit->name, unit->profile_groups[group_index].name);
     return true;
 }
 
@@ -7873,7 +7873,7 @@ bool game_toggle_cover(game_t *game, int unit_id, bool in_cover) {
         return fail(game, "Unit not found.");
     }
     unit->manual_in_cover = in_cover;
-    te_log(game, "%s %s manual cover.", unit->name, in_cover ? "gains" : "loses");
+    dzw_log(game, "%s %s manual cover.", unit->name, in_cover ? "gains" : "loses");
     return true;
 }
 
@@ -7887,7 +7887,7 @@ bool game_toggle_hull_down(game_t *game, int unit_id, bool hull_down) {
         return fail(game, "Unit not found.");
     }
     unit->manual_hull_down = hull_down;
-    te_log(game, "%s %s hull-down status.", unit->name, hull_down ? "gains" : "loses");
+    dzw_log(game, "%s %s hull-down status.", unit->name, hull_down ? "gains" : "loses");
     return true;
 }
 
@@ -7900,10 +7900,10 @@ bool game_use_smoke(game_t *game, int unit_id) {
     if (!assert_valid_unit_action(game, unit)) {
         return false;
     }
-    if (game->phase != TE_PHASE_MOVEMENT) {
+    if (game->phase != DZW_PHASE_MOVEMENT) {
         return fail(game, "Smoke launchers can only be used in the movement phase.");
     }
-    if (unit->kind != TE_UNIT_VEHICLE) {
+    if (unit->kind != DZW_UNIT_VEHICLE) {
         return fail(game, "Only vehicles use smoke launchers.");
     }
     if (!unit->smoke_available) {
@@ -7913,7 +7913,7 @@ bool game_use_smoke(game_t *game, int unit_id) {
     unit->smoke_available = false;
     unit->smoke_active = true;
     unit->smoke_used_this_turn = true;
-    te_log(game, "%s pops smoke and cannot fire this turn.", unit->name);
+    dzw_log(game, "%s pops smoke and cannot fire this turn.", unit->name);
     return true;
 }
 
@@ -7927,23 +7927,23 @@ void game_advance_phase(game_t *game) {
         return;
     }
 
-    if (game->phase == TE_PHASE_MOVEMENT) {
-        game->phase = TE_PHASE_SHOOTING;
+    if (game->phase == DZW_PHASE_MOVEMENT) {
+        game->phase = DZW_PHASE_SHOOTING;
         init_shooting_phase(game);
-        te_log(game, "%s advances to the %s phase.", player_name(game->active_player), phase_name(game->phase));
+        dzw_log(game, "%s advances to the %s phase.", player_name(game->active_player), phase_name(game->phase));
         return;
     }
 
-    if (game->phase == TE_PHASE_SHOOTING) {
-        game->phase = TE_PHASE_ASSAULT;
-        te_log(game, "%s advances to the %s phase.", player_name(game->active_player), phase_name(game->phase));
+    if (game->phase == DZW_PHASE_SHOOTING) {
+        game->phase = DZW_PHASE_ASSAULT;
+        dzw_log(game, "%s advances to the %s phase.", player_name(game->active_player), phase_name(game->phase));
         return;
     }
 
     finish_turn(game, game->active_player);
     score_objectives(game);
     game->active_player = other_player(game->active_player);
-    game->phase = TE_PHASE_MOVEMENT;
+    game->phase = DZW_PHASE_MOVEMENT;
     game->turn_number += 1;
     begin_turn(game);
 }

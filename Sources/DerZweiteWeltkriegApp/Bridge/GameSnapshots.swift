@@ -13,9 +13,9 @@ enum FollowUpChoice: String, CaseIterable, Identifiable {
     var cValue: follow_up_t {
         switch self {
         case .advance:
-            return TE_FOLLOW_UP_ADVANCE
+            return DZW_FOLLOW_UP_ADVANCE
         case .consolidate:
-            return TE_FOLLOW_UP_CONSOLIDATE
+            return DZW_FOLLOW_UP_CONSOLIDATE
         }
     }
 }
@@ -27,11 +27,11 @@ struct GameSnapshot {
 
     var phaseName: String {
         switch phase {
-        case TE_PHASE_MOVEMENT:
+        case DZW_PHASE_MOVEMENT:
             return "Movement"
-        case TE_PHASE_SHOOTING:
+        case DZW_PHASE_SHOOTING:
             return "Shooting"
-        case TE_PHASE_ASSAULT:
+        case DZW_PHASE_ASSAULT:
             return "Assault"
         default:
             return "Unknown"
@@ -39,7 +39,7 @@ struct GameSnapshot {
     }
 
     var activePlayerName: String {
-        activePlayer == TE_PLAYER_ONE ? "Player 1" : "Player 2"
+        activePlayer == DZW_PLAYER_ONE ? "Player 1" : "Player 2"
     }
 }
 
@@ -59,7 +59,7 @@ struct ObjectiveSnapshot: Identifiable {
         x = CGFloat(raw.x)
         y = CGFloat(raw.y)
         radius = CGFloat(raw.radius)
-        controller = raw.controller == TE_PLAYER_NONE ? nil : raw.controller
+        controller = raw.controller == DZW_PLAYER_NONE ? nil : raw.controller
         playerOnePresence = Int(raw.player_one_presence)
         playerTwoPresence = Int(raw.player_two_presence)
     }
@@ -73,7 +73,7 @@ struct ObjectiveSnapshot: Identifiable {
             return "Contested \(playerOnePresence)-\(playerTwoPresence)"
         }
         if let controller {
-            return controller == TE_PLAYER_ONE
+            return controller == DZW_PLAYER_ONE
                 ? "Player 1 controls (\(playerOnePresence)-\(playerTwoPresence))"
                 : "Player 2 controls (\(playerTwoPresence)-\(playerOnePresence))"
         }
@@ -107,7 +107,7 @@ struct MissionSnapshot {
         targetScore = Int(raw.target_score)
         playerOneScore = Int(raw.player_one_score)
         playerTwoScore = Int(raw.player_two_score)
-        winner = raw.winner == TE_PLAYER_NONE ? nil : raw.winner
+        winner = raw.winner == DZW_PLAYER_NONE ? nil : raw.winner
     }
 
     var scoreLine: String {
@@ -128,10 +128,10 @@ struct MissionSnapshot {
     }
 
     var winnerName: String? {
-        if winner == TE_PLAYER_ONE {
+        if winner == DZW_PLAYER_ONE {
             return "Player 1"
         }
-        if winner == TE_PLAYER_TWO {
+        if winner == DZW_PLAYER_TWO {
             return "Player 2"
         }
         return nil
@@ -178,10 +178,10 @@ struct ArmyRosterUnitSnapshot: Identifiable {
     }
 
     var summaryLine: String {
-        if kind == TE_UNIT_ASSAULT_GUN {
+        if kind == DZW_UNIT_ASSAULT_GUN {
             return "Assault gun AV \(frontArmour)/\(sideArmour)/\(rearArmour) • \(primaryWeaponName)"
         }
-        if kind == TE_UNIT_VEHICLE {
+        if kind == DZW_UNIT_VEHICLE {
             var tags: [String] = ["AV \(frontArmour)/\(sideArmour)/\(rearArmour)"]
             if transportCapacity > 0 {
                 tags.append("Transport \(transportCapacity)")
@@ -312,7 +312,7 @@ struct PendingHitAllocationChoiceSnapshot {
             return nil
         }
 
-        chooserOwner = raw.chooser_owner == TE_PLAYER_NONE ? nil : raw.chooser_owner
+        chooserOwner = raw.chooser_owner == DZW_PLAYER_NONE ? nil : raw.chooser_owner
         attackerName = raw.attacker_name.map { String(cString: $0) } ?? "Attacker"
         sourceName = raw.source_name.map { String(cString: $0) } ?? "Weapon"
         targetID = Int(raw.target_id)
@@ -323,10 +323,10 @@ struct PendingHitAllocationChoiceSnapshot {
     }
 
     var chooserOwnerName: String {
-        if chooserOwner == TE_PLAYER_ONE {
+        if chooserOwner == DZW_PLAYER_ONE {
             return "Player 1"
         }
-        if chooserOwner == TE_PLAYER_TWO {
+        if chooserOwner == DZW_PLAYER_TWO {
             return "Player 2"
         }
         return "Defender"
@@ -348,7 +348,7 @@ struct PendingWeaponDestroyChoiceSnapshot {
         }
 
         chooserID = Int(raw.chooser_id)
-        chooserOwner = raw.chooser_owner == TE_PLAYER_NONE ? nil : raw.chooser_owner
+        chooserOwner = raw.chooser_owner == DZW_PLAYER_NONE ? nil : raw.chooser_owner
         chooserName = raw.chooser_name.map { String(cString: $0) } ?? "Attacker"
         targetID = Int(raw.target_id)
         targetName = raw.target_name.map { String(cString: $0) } ?? "Vehicle"
@@ -358,10 +358,10 @@ struct PendingWeaponDestroyChoiceSnapshot {
     }
 
     var chooserOwnerName: String {
-        if chooserOwner == TE_PLAYER_ONE {
+        if chooserOwner == DZW_PLAYER_ONE {
             return "Player 1"
         }
-        if chooserOwner == TE_PLAYER_TWO {
+        if chooserOwner == DZW_PLAYER_TWO {
             return "Player 2"
         }
         return "Attacker"
@@ -384,15 +384,15 @@ struct ArmyRosterPreviewSnapshot {
     }
 
     var infantryCount: Int {
-        units.filter { $0.kind == TE_UNIT_INFANTRY }.count
+        units.filter { $0.kind == DZW_UNIT_INFANTRY }.count
     }
 
     var vehicleCount: Int {
-        units.filter { $0.kind == TE_UNIT_VEHICLE }.count
+        units.filter { $0.kind == DZW_UNIT_VEHICLE }.count
     }
 
     var assaultGunCount: Int {
-        units.filter { $0.kind == TE_UNIT_ASSAULT_GUN }.count
+        units.filter { $0.kind == DZW_UNIT_ASSAULT_GUN }.count
     }
 
     var summaryLine: String {
@@ -533,11 +533,11 @@ struct UnitSnapshot: Identifiable {
     }
 
     var ownerName: String {
-        owner == TE_PLAYER_ONE ? "Player 1" : "Player 2"
+        owner == DZW_PLAYER_ONE ? "Player 1" : "Player 2"
     }
 
     var usesVehicleRules: Bool {
-        kind == TE_UNIT_VEHICLE || kind == TE_UNIT_ASSAULT_GUN
+        kind == DZW_UNIT_VEHICLE || kind == DZW_UNIT_ASSAULT_GUN
     }
 
     var isMultiWound: Bool {
@@ -558,10 +558,10 @@ struct UnitSnapshot: Identifiable {
     }
 
     var detailSummary: String {
-        if kind == TE_UNIT_ASSAULT_GUN {
+        if kind == DZW_UNIT_ASSAULT_GUN {
             return "Assault gun WS \(weaponSkill) S \(strength) I \(initiative) A \(attacks) • AV \(frontArmour)/\(sideArmour)/\(rearArmour)"
         }
-        if kind == TE_UNIT_VEHICLE {
+        if kind == DZW_UNIT_VEHICLE {
             let transportText = transportCapacity > 0 ? " • Transport \(transportCapacity)" : ""
             return "AV \(frontArmour)/\(sideArmour)/\(rearArmour)\(transportText)"
         }

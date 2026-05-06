@@ -11,9 +11,9 @@ struct GameControllerLoadedForceState: Equatable, Sendable {
     var playerTwoForceIndex: Int
 
     init(
-        playerOneArmy: army_list_t = TE_ARMY_BRITISH,
+        playerOneArmy: army_list_t = DZW_ARMY_BRITISH,
         playerOneForceIndex: Int = 0,
-        playerTwoArmy: army_list_t = TE_ARMY_GERMAN,
+        playerTwoArmy: army_list_t = DZW_ARMY_GERMAN,
         playerTwoForceIndex: Int = 0
     ) {
         self.playerOneArmy = playerOneArmy
@@ -59,7 +59,7 @@ final class GameController: ObservableObject, @unchecked Sendable {
 
     @Published var appMode: AppMode = .setup
     @Published private(set) var armyReferences: [ArmyReference] = ArmyReferenceCatalog.load()
-    @Published private(set) var game = GameSnapshot(turnNumber: 0, activePlayer: TE_PLAYER_ONE, phase: TE_PHASE_MOVEMENT)
+    @Published private(set) var game = GameSnapshot(turnNumber: 0, activePlayer: DZW_PLAYER_ONE, phase: DZW_PHASE_MOVEMENT)
     @Published private(set) var mission = MissionSnapshot()
     @Published private(set) var units: [UnitSnapshot] = []
     @Published private(set) var zones: [ZoneSnapshot] = []
@@ -121,7 +121,7 @@ final class GameController: ObservableObject, @unchecked Sendable {
     }
 
     init(seed: UInt32 = 1_944) {
-        guard let handle = game_create_demo_with_forces(seed, TE_ARMY_BRITISH, 0, TE_ARMY_GERMAN, 0) else {
+        guard let handle = game_create_demo_with_forces(seed, DZW_ARMY_BRITISH, 0, DZW_ARMY_GERMAN, 0) else {
             fatalError("Failed to allocate derZweiteWeltkrieg demo game.")
         }
         self.handle = handle
@@ -143,10 +143,10 @@ final class GameController: ObservableObject, @unchecked Sendable {
         )
         mission = MissionSnapshot(raw: game_mission_view(handle))
         loadedForces = GameControllerLoadedForceState(
-            playerOneArmy: game_player_army(handle, TE_PLAYER_ONE),
-            playerOneForceIndex: Int(game_player_force(handle, TE_PLAYER_ONE)),
-            playerTwoArmy: game_player_army(handle, TE_PLAYER_TWO),
-            playerTwoForceIndex: Int(game_player_force(handle, TE_PLAYER_TWO))
+            playerOneArmy: game_player_army(handle, DZW_PLAYER_ONE),
+            playerOneForceIndex: Int(game_player_force(handle, DZW_PLAYER_ONE)),
+            playerTwoArmy: game_player_army(handle, DZW_PLAYER_TWO),
+            playerTwoForceIndex: Int(game_player_force(handle, DZW_PLAYER_TWO))
         )
 
         units = (0..<Int(game_unit_count(handle))).map { index in
@@ -176,8 +176,8 @@ final class GameController: ObservableObject, @unchecked Sendable {
     }
 
     func reconcileForceSelections() {
-        playerOneForceIndex = sanitizedForceIndex(playerOneForceIndex, for: playerOneArmy?.preset ?? TE_ARMY_DEMO)
-        playerTwoForceIndex = sanitizedForceIndex(playerTwoForceIndex, for: playerTwoArmy?.preset ?? TE_ARMY_DEMO)
+        playerOneForceIndex = sanitizedForceIndex(playerOneForceIndex, for: playerOneArmy?.preset ?? DZW_ARMY_DEMO)
+        playerTwoForceIndex = sanitizedForceIndex(playerTwoForceIndex, for: playerTwoArmy?.preset ?? DZW_ARMY_DEMO)
     }
 
     private func initializeSetupSelections() {
@@ -188,7 +188,7 @@ final class GameController: ObservableObject, @unchecked Sendable {
             playerTwoArmyID: preferredArmyID(named: "German") ?? armyReferences.first(where: { $0.allegiance == .axis })?.id ?? "",
             playerTwoForceIndex: 0
         )
-        playerUnitCounts = defaultUnitCounts(for: playerOneArmy?.preset ?? TE_ARMY_BRITISH)
+        playerUnitCounts = defaultUnitCounts(for: playerOneArmy?.preset ?? DZW_ARMY_BRITISH)
         reconcileForceSelections()
         refreshOpponentPlan()
     }
@@ -204,7 +204,7 @@ final class GameController: ObservableObject, @unchecked Sendable {
     func updatePlayerArmy(id: String) {
         guard playerOneArmyID != id else { return }
         playerOneArmyID = id
-        playerUnitCounts = defaultUnitCounts(for: playerOneArmy?.preset ?? TE_ARMY_BRITISH)
+        playerUnitCounts = defaultUnitCounts(for: playerOneArmy?.preset ?? DZW_ARMY_BRITISH)
         setupMessage = ""
         refreshOpponentPlan()
     }
@@ -254,11 +254,11 @@ final class GameController: ObservableObject, @unchecked Sendable {
     }
 
     func selectedPlayerOneArmyPreset() -> army_list_t {
-        playerOneArmy?.preset ?? TE_ARMY_DEMO
+        playerOneArmy?.preset ?? DZW_ARMY_DEMO
     }
 
     func selectedPlayerTwoArmyPreset() -> army_list_t {
-        playerTwoArmy?.preset ?? TE_ARMY_DEMO
+        playerTwoArmy?.preset ?? DZW_ARMY_DEMO
     }
 
     func selectedPlayerOneForceIndex() -> Int {
@@ -318,17 +318,17 @@ final class GameController: ObservableObject, @unchecked Sendable {
 
     private func defaultUnitCounts(for army: army_list_t) -> [Int: Int] {
         switch army {
-        case TE_ARMY_BRITISH:
+        case DZW_ARMY_BRITISH:
             return [0: 2, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1]
-        case TE_ARMY_AMERICAN:
+        case DZW_ARMY_AMERICAN:
             return [0: 2, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1]
-        case TE_ARMY_AUSTRALIAN:
+        case DZW_ARMY_AUSTRALIAN:
             return [0: 2, 1: 1, 2: 1, 3: 1, 4: 1, 6: 1]
-        case TE_ARMY_SOVIET:
+        case DZW_ARMY_SOVIET:
             return [0: 2, 1: 1, 2: 1, 3: 1, 4: 1]
-        case TE_ARMY_GERMAN:
+        case DZW_ARMY_GERMAN:
             return [0: 2, 3: 1, 4: 1, 5: 1, 6: 1]
-        case TE_ARMY_ITALIAN:
+        case DZW_ARMY_ITALIAN:
             return [0: 2, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1]
         default:
             return [:]

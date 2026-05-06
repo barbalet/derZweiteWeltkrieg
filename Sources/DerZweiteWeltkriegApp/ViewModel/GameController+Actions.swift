@@ -37,7 +37,7 @@ extension GameController {
         guard appMode != .setup, !isAITurnInProgress else { return }
 
         if appMode == .deployment {
-            guard unit.owner == TE_PLAYER_ONE, !unit.destroyed, !unit.embarked else { return }
+            guard unit.owner == DZW_PLAYER_ONE, !unit.destroyed, !unit.embarked else { return }
             selectedUnitID = unit.id
             selectedTargetID = nil
             return

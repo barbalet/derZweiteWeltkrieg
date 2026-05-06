@@ -74,7 +74,7 @@ Deliverables:
 
 - Model the two sides as `Allies` and `Axis`.
 - Support British, American, Australian, Soviet, German, and Italian armies.
-- Keep active C army values available to Swift as `TE_ARMY_BRITISH`, `TE_ARMY_AMERICAN`, `TE_ARMY_AUSTRALIAN`, `TE_ARMY_SOVIET`, `TE_ARMY_GERMAN`, and `TE_ARMY_ITALIAN`.
+- Keep active C army values available to Swift as `DZW_ARMY_BRITISH`, `DZW_ARMY_AMERICAN`, `DZW_ARMY_AUSTRALIAN`, `DZW_ARMY_SOVIET`, `DZW_ARMY_GERMAN`, and `DZW_ARMY_ITALIAN`.
 - Let the setup flow draft an opposing-side computer opponent by default.
 - Add force presets such as `British Rifle Platoon`, `US Armored Infantry`, `Soviet Guards Tank Riders`, `German Panzergrenadier Kampfgruppe`, and `Italian Bersaglieri Column`.
 

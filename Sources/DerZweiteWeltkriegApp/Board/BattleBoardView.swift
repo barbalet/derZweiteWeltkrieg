@@ -73,9 +73,9 @@ struct BattleBoardView: View {
         let rect = boardRect(zone.rect, in: size)
         let fill: Color = {
             switch zone.kind {
-            case TE_TERRAIN_DIFFICULT:
+            case DZW_TERRAIN_DIFFICULT:
                 return Color(red: 0.36, green: 0.27, blue: 0.18).opacity(0.65)
-            case TE_TERRAIN_IMPASSABLE:
+            case DZW_TERRAIN_IMPASSABLE:
                 return Color(red: 0.28, green: 0.15, blue: 0.16).opacity(0.8)
             default:
                 return Color(red: 0.55, green: 0.56, blue: 0.46).opacity(0.45)
@@ -112,9 +112,9 @@ struct BattleBoardView: View {
                 return Color.orange
             }
             switch objective.controller {
-            case TE_PLAYER_ONE?:
+            case DZW_PLAYER_ONE?:
                 return BattlePalette.playerOneAccent
-            case TE_PLAYER_TWO?:
+            case DZW_PLAYER_TWO?:
                 return Color(red: 0.63, green: 0.23, blue: 0.16)
             default:
                 return Color(red: 0.93, green: 0.89, blue: 0.72)
@@ -155,7 +155,7 @@ struct BattleBoardView: View {
         let position = boardPoint(gamePoint, in: size)
         let radius = max(18, unit.footprintRadius * (size.width / GameController.boardWidth) * 0.9)
         let isSelected = controller.selectedUnitID == unit.id || controller.selectedTargetID == unit.id
-        let ownerColor = unit.owner == TE_PLAYER_ONE ? BattlePalette.playerOneAccent : Color(red: 0.63, green: 0.23, blue: 0.16)
+        let ownerColor = unit.owner == DZW_PLAYER_ONE ? BattlePalette.playerOneAccent : Color(red: 0.63, green: 0.23, blue: 0.16)
         let selectionStroke = isSelected ? Color.white.opacity(0.98) : Color.white.opacity(0.35)
 
         ZStack {
@@ -197,7 +197,7 @@ struct BattleBoardView: View {
                     .rotationEffect(.degrees(unit.facingDegrees))
             }
 
-            if unit.kind == TE_UNIT_ASSAULT_GUN {
+            if unit.kind == DZW_UNIT_ASSAULT_GUN {
                 Text("AG")
                     .font(.system(size: 8, weight: .black, design: .monospaced))
                     .foregroundStyle(Color.black)

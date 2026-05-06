@@ -729,7 +729,7 @@ public enum CampaignAutomationRunner {
         accumulator.step(.battleStart, .passed, "Automated battle started", "Target turn window \(balance.targetTurns.lowerBound)-\(balance.targetTurns.upperBound).")
 
         while Int(game_view(game).turn_number) <= targetTurn &&
-            game_mission_view(game).winner == TE_PLAYER_NONE &&
+            game_mission_view(game).winner == DZW_PLAYER_NONE &&
             guardCounter < options.maxPhaseAdvances {
             guardCounter += 1
             if !resolvePendingChoices(game, accumulator: &accumulator) {
@@ -738,11 +738,11 @@ public enum CampaignAutomationRunner {
 
             let view = game_view(game)
             switch view.phase {
-            case TE_PHASE_MOVEMENT:
+            case DZW_PHASE_MOVEMENT:
                 runMovementPhase(game, scenario: scenario, accumulator: &accumulator)
-            case TE_PHASE_SHOOTING:
+            case DZW_PHASE_SHOOTING:
                 runShootingPhase(game, accumulator: &accumulator)
-            case TE_PHASE_ASSAULT:
+            case DZW_PHASE_ASSAULT:
                 runAssaultPhase(game, accumulator: &accumulator)
             default:
                 accumulator.issue(.blocker, .turnPlayback, "Unknown phase", "The engine returned an unknown phase value on turn \(Int(view.turn_number)).")
@@ -758,7 +758,7 @@ public enum CampaignAutomationRunner {
         }
 
         let winner = game_mission_view(game).winner
-        if winner == TE_PLAYER_NONE {
+        if winner == DZW_PLAYER_NONE {
             accumulator.issue(.warning, .debrief, "No engine winner by target turn", "\(scenario.title) reached turn \(Int(game_view(game).turn_number)) without the dzw proxy mission declaring a winner.")
             accumulator.step(.debrief, .warning, "Target turn reached", "Use this as a pacing signal rather than a hard gameplay failure.")
         } else {
@@ -837,7 +837,7 @@ public enum CampaignAutomationRunner {
 
             for enemy in enemies {
                 accumulator.actionsAttempted += 1
-                if game_assault_unit(game, Int32(unit.id), Int32(enemy.id), TE_FOLLOW_UP_ADVANCE) {
+                if game_assault_unit(game, Int32(unit.id), Int32(enemy.id), DZW_FOLLOW_UP_ADVANCE) {
                     accumulator.actionsSucceeded += 1
                     assaults += 1
                     _ = resolvePendingChoices(game, accumulator: &accumulator)
@@ -869,7 +869,7 @@ public enum CampaignAutomationRunner {
         }
 
         let maxDistance: Double
-        if unit.kind == TE_UNIT_VEHICLE {
+        if unit.kind == DZW_UNIT_VEHICLE {
             maxDistance = unit.fast ? 18 : 12
         } else {
             maxDistance = 6
@@ -973,7 +973,7 @@ public enum CampaignAutomationRunner {
         units: [AutomationUnit],
         objectives: [AutomationObjective]
     ) -> AutomationPoint? {
-        if unit.owner == TE_PLAYER_TWO,
+        if unit.owner == DZW_PLAYER_TWO,
            let preferredName = NativeAIEventExecutionCatalog.preferredObjectiveName(
             for: scenario,
             objectiveNames: objectives.map(\.name)
@@ -1070,9 +1070,9 @@ public enum CampaignAutomationRunner {
 
     private static func playerName(_ player: player_t) -> String {
         switch player {
-        case TE_PLAYER_ONE:
+        case DZW_PLAYER_ONE:
             return "Player"
-        case TE_PLAYER_TWO:
+        case DZW_PLAYER_TWO:
             return "Guderian AI"
         default:
             return "None"
@@ -1081,11 +1081,11 @@ public enum CampaignAutomationRunner {
 
     private static func phaseName(_ phase: phase_t) -> String {
         switch phase {
-        case TE_PHASE_MOVEMENT:
+        case DZW_PHASE_MOVEMENT:
             return "Movement"
-        case TE_PHASE_SHOOTING:
+        case DZW_PHASE_SHOOTING:
             return "Shooting"
-        case TE_PHASE_ASSAULT:
+        case DZW_PHASE_ASSAULT:
             return "Assault"
         default:
             return "Unknown"
@@ -1436,11 +1436,11 @@ private struct AutomationAccumulator {
 
     private func phaseName(_ phase: phase_t) -> String {
         switch phase {
-        case TE_PHASE_MOVEMENT:
+        case DZW_PHASE_MOVEMENT:
             return "Movement"
-        case TE_PHASE_SHOOTING:
+        case DZW_PHASE_SHOOTING:
             return "Shooting"
-        case TE_PHASE_ASSAULT:
+        case DZW_PHASE_ASSAULT:
             return "Assault"
         default:
             return "Unknown"
@@ -1449,9 +1449,9 @@ private struct AutomationAccumulator {
 
     private func playerName(_ player: player_t) -> String {
         switch player {
-        case TE_PLAYER_ONE:
+        case DZW_PLAYER_ONE:
             return "Player"
-        case TE_PLAYER_TWO:
+        case DZW_PLAYER_TWO:
             return "Guderian AI"
         default:
             return "None"

@@ -10,7 +10,7 @@ extension GameController {
     }
 
     var isHumanTurn: Bool {
-        game.activePlayer == TE_PLAYER_ONE && mission.winner == nil
+        game.activePlayer == DZW_PLAYER_ONE && mission.winner == nil
     }
 
     var resumeBattleButtonTitle: String {
@@ -68,11 +68,11 @@ extension GameController {
     }
 
     var playerCatalogUnits: [ArmyCatalogUnitSnapshot] {
-        catalogUnits(for: playerOneArmy?.preset ?? TE_ARMY_DEMO)
+        catalogUnits(for: playerOneArmy?.preset ?? DZW_ARMY_DEMO)
     }
 
     var playerSelectedPoints: Int {
-        points(for: playerOneArmy?.preset ?? TE_ARMY_DEMO, selections: currentPlayerSelections())
+        points(for: playerOneArmy?.preset ?? DZW_ARMY_DEMO, selections: currentPlayerSelections())
     }
 
     var playerSelectedUnitCount: Int {
@@ -108,19 +108,19 @@ extension GameController {
     }
 
     var playerOneRosterPreview: ArmyRosterPreviewSnapshot {
-        rosterPreview(for: playerOneArmy?.preset ?? TE_ARMY_DEMO, forceIndex: playerOneForceIndex)
+        rosterPreview(for: playerOneArmy?.preset ?? DZW_ARMY_DEMO, forceIndex: playerOneForceIndex)
     }
 
     var playerTwoRosterPreview: ArmyRosterPreviewSnapshot {
-        rosterPreview(for: playerTwoArmy?.preset ?? TE_ARMY_DEMO, forceIndex: playerTwoForceIndex)
+        rosterPreview(for: playerTwoArmy?.preset ?? DZW_ARMY_DEMO, forceIndex: playerTwoForceIndex)
     }
 
     var playerOneForceOptions: [ArmyForceOptionSnapshot] {
-        forceOptions(for: playerOneArmy?.preset ?? TE_ARMY_DEMO)
+        forceOptions(for: playerOneArmy?.preset ?? DZW_ARMY_DEMO)
     }
 
     var playerTwoForceOptions: [ArmyForceOptionSnapshot] {
-        forceOptions(for: playerTwoArmy?.preset ?? TE_ARMY_DEMO)
+        forceOptions(for: playerTwoArmy?.preset ?? DZW_ARMY_DEMO)
     }
 
     var loadedMatchupText: String {
@@ -132,8 +132,8 @@ extension GameController {
     }
 
     var hasPendingArmySelectionChanges: Bool {
-        let selectedPlayerOne = playerOneArmy?.preset ?? TE_ARMY_DEMO
-        let selectedPlayerTwo = playerTwoArmy?.preset ?? TE_ARMY_DEMO
+        let selectedPlayerOne = playerOneArmy?.preset ?? DZW_ARMY_DEMO
+        let selectedPlayerTwo = playerTwoArmy?.preset ?? DZW_ARMY_DEMO
         let selectedPlayerOneForce = sanitizedForceIndex(playerOneForceIndex, for: selectedPlayerOne)
         let selectedPlayerTwoForce = sanitizedForceIndex(playerTwoForceIndex, for: selectedPlayerTwo)
         return selectedPlayerOne != loadedPlayerOneArmy ||
@@ -146,7 +146,7 @@ extension GameController {
         units
             .filter {
                 if isDeploymentMode {
-                    return $0.owner == TE_PLAYER_ONE && !$0.destroyed && !$0.embarked
+                    return $0.owner == DZW_PLAYER_ONE && !$0.destroyed && !$0.embarked
                 }
                 return $0.owner == game.activePlayer && !$0.destroyed && !$0.embarked
             }
@@ -175,7 +175,7 @@ extension GameController {
     }
 
     func canFirePassenger(from transport: UnitSnapshot) -> Bool {
-        guard game.phase == TE_PHASE_SHOOTING,
+        guard game.phase == DZW_PHASE_SHOOTING,
               selectedTarget != nil,
               transport.transportCapacity > 0,
               transport.embarkedUnitID > 0,
@@ -188,7 +188,7 @@ extension GameController {
 
     func canManipulate(_ unit: UnitSnapshot) -> Bool {
         if isDeploymentMode {
-            return unit.owner == TE_PLAYER_ONE && !unit.destroyed && !unit.embarked
+            return unit.owner == DZW_PLAYER_ONE && !unit.destroyed && !unit.embarked
         }
         return isHumanTurn && !isAITurnInProgress && unit.canMoveNow && !unit.destroyed && !unit.embarked
     }
