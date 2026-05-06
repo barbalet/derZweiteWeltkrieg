@@ -208,7 +208,7 @@ public enum DZWPlayableScreenHarness {
 
         let aiTurn = session.snapshot()
         var movedAI = session.moveSelectedUnitTowardPriorityObjective(
-            named: ScenarioContentCatalog.bundle(for: scenario).aiPlan.targetPriorities,
+            named: ScenarioContentCatalog.bundle(for: scenario).aiPlan.targetPriorities(for: aiTurn.phase),
             maxDistance: 6
         )
         if !movedAI {

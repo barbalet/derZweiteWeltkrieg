@@ -66,13 +66,12 @@ public enum ScenarioContentCatalog {
     }
 
     public static func bundle(for id: GuderianBattleID) -> ScenarioContentBundle? {
-        guard let scenario = GuderianCampaignCatalog.scenario(id: id) else {
-            return nil
-        }
-        return bundle(for: scenario)
+        bundlesByID[id]
     }
 
-    public static var allBundles: [ScenarioContentBundle] {
+    public static let allBundles: [ScenarioContentBundle] =
         GuderianCampaignCatalog.all.map(bundle)
-    }
+
+    private static let bundlesByID: [GuderianBattleID: ScenarioContentBundle] =
+        Dictionary(uniqueKeysWithValues: allBundles.map { ($0.id, $0) })
 }

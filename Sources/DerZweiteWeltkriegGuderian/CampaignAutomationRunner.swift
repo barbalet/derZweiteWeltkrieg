@@ -20,35 +20,194 @@ public enum CampaignAutomationIssueKind: String, Codable, Hashable, Sendable {
     case blocker = "Blocker"
 }
 
+public enum CampaignAutomationStage: Codable, Hashable, Sendable, CustomStringConvertible {
+    case campaignGate
+    case nativeLoader
+    case nativeBoard
+    case nativeBoardDiagnostics
+    case nativePlayability
+    case nativeDemo
+    case nativePolandPack
+    case nativeFrancePack
+    case nativeEasternFrontFoundation
+    case nativeEasternFrontPack
+    case nativeAIEventPass
+    case nativeAIEventExecution
+    case nativeBalanceUX
+    case nativePostShipAnalysis
+    case nativeCampaignSoak
+    case playableScreenParity
+    case playableTestGame
+    case scenarioData
+    case engineState
+    case battleStart
+    case turnPlayback
+    case pendingChoice
+    case debrief
+    case turnPhase(turn: Int, player: String, phase: String)
+    case custom(String)
+
+    public static let knownCases: [CampaignAutomationStage] = [
+        .campaignGate,
+        .nativeLoader,
+        .nativeBoard,
+        .nativeBoardDiagnostics,
+        .nativePlayability,
+        .nativeDemo,
+        .nativePolandPack,
+        .nativeFrancePack,
+        .nativeEasternFrontFoundation,
+        .nativeEasternFrontPack,
+        .nativeAIEventPass,
+        .nativeAIEventExecution,
+        .nativeBalanceUX,
+        .nativePostShipAnalysis,
+        .nativeCampaignSoak,
+        .playableScreenParity,
+        .playableTestGame,
+        .scenarioData,
+        .engineState,
+        .battleStart,
+        .turnPlayback,
+        .pendingChoice,
+        .debrief,
+    ]
+
+    public init(rawValue: String) {
+        switch rawValue {
+        case Self.campaignGate.rawValue: self = .campaignGate
+        case Self.nativeLoader.rawValue: self = .nativeLoader
+        case Self.nativeBoard.rawValue: self = .nativeBoard
+        case Self.nativeBoardDiagnostics.rawValue: self = .nativeBoardDiagnostics
+        case Self.nativePlayability.rawValue: self = .nativePlayability
+        case Self.nativeDemo.rawValue: self = .nativeDemo
+        case Self.nativePolandPack.rawValue: self = .nativePolandPack
+        case Self.nativeFrancePack.rawValue: self = .nativeFrancePack
+        case Self.nativeEasternFrontFoundation.rawValue: self = .nativeEasternFrontFoundation
+        case Self.nativeEasternFrontPack.rawValue: self = .nativeEasternFrontPack
+        case Self.nativeAIEventPass.rawValue: self = .nativeAIEventPass
+        case Self.nativeAIEventExecution.rawValue: self = .nativeAIEventExecution
+        case Self.nativeBalanceUX.rawValue: self = .nativeBalanceUX
+        case Self.nativePostShipAnalysis.rawValue: self = .nativePostShipAnalysis
+        case Self.nativeCampaignSoak.rawValue: self = .nativeCampaignSoak
+        case Self.playableScreenParity.rawValue: self = .playableScreenParity
+        case Self.playableTestGame.rawValue: self = .playableTestGame
+        case Self.scenarioData.rawValue: self = .scenarioData
+        case Self.engineState.rawValue: self = .engineState
+        case Self.battleStart.rawValue: self = .battleStart
+        case Self.turnPlayback.rawValue: self = .turnPlayback
+        case Self.pendingChoice.rawValue: self = .pendingChoice
+        case Self.debrief.rawValue: self = .debrief
+        default: self = Self.parseTurnPhase(rawValue) ?? .custom(rawValue)
+        }
+    }
+
+    public var rawValue: String {
+        switch self {
+        case .campaignGate: return "Campaign Gate"
+        case .nativeLoader: return "Native Loader"
+        case .nativeBoard: return "Native Board"
+        case .nativeBoardDiagnostics: return "Native Board Diagnostics"
+        case .nativePlayability: return "Native Playability"
+        case .nativeDemo: return "Native Demo"
+        case .nativePolandPack: return "Native Poland Pack"
+        case .nativeFrancePack: return "Native France Pack"
+        case .nativeEasternFrontFoundation: return "Native Eastern Front Foundation"
+        case .nativeEasternFrontPack: return "Native Eastern Front Pack"
+        case .nativeAIEventPass: return "Native AI/Event Pass"
+        case .nativeAIEventExecution: return "Native AI/Event Execution"
+        case .nativeBalanceUX: return "Native Balance/UX"
+        case .nativePostShipAnalysis: return "Native Post-Ship Analysis"
+        case .nativeCampaignSoak: return "Native Campaign Soak"
+        case .playableScreenParity: return "Playable Screen Parity"
+        case .playableTestGame: return "Playable Test Game"
+        case .scenarioData: return "Scenario Data"
+        case .engineState: return "Engine State"
+        case .battleStart: return "Battle Start"
+        case .turnPlayback: return "Turn Playback"
+        case .pendingChoice: return "Pending Choice"
+        case .debrief: return "Debrief"
+        case let .turnPhase(turn, player, phase): return "Turn \(turn) \(player) \(phase)"
+        case let .custom(value): return value
+        }
+    }
+
+    public var description: String {
+        rawValue
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self = CampaignAutomationStage(rawValue: try container.decode(String.self))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    private static func parseTurnPhase(_ rawValue: String) -> CampaignAutomationStage? {
+        let components = rawValue.split(separator: " ", omittingEmptySubsequences: true)
+        guard components.count >= 4,
+              components[0] == "Turn",
+              let turn = Int(components[1])
+        else {
+            return nil
+        }
+
+        return .turnPhase(
+            turn: turn,
+            player: components.dropFirst(2).dropLast().joined(separator: " "),
+            phase: String(components.last ?? "")
+        )
+    }
+}
+
+public func == (lhs: CampaignAutomationStage, rhs: String) -> Bool {
+    lhs.rawValue == rhs
+}
+
+public func == (lhs: String, rhs: CampaignAutomationStage) -> Bool {
+    lhs == rhs.rawValue
+}
+
 public struct CampaignAutomationIssue: Identifiable, Codable, Hashable, Sendable {
     public let id: String
     public let kind: CampaignAutomationIssueKind
-    public let stage: String
+    public let stage: CampaignAutomationStage
     public let title: String
     public let detail: String
 
-    public init(id: String, kind: CampaignAutomationIssueKind, stage: String, title: String, detail: String) {
+    public init(id: String, kind: CampaignAutomationIssueKind, stage: CampaignAutomationStage, title: String, detail: String) {
         self.id = id
         self.kind = kind
         self.stage = stage
         self.title = title
         self.detail = detail
     }
+
+    public init(id: String, kind: CampaignAutomationIssueKind, stage: String, title: String, detail: String) {
+        self.init(id: id, kind: kind, stage: CampaignAutomationStage(rawValue: stage), title: title, detail: detail)
+    }
 }
 
 public struct CampaignAutomationStep: Identifiable, Codable, Hashable, Sendable {
     public let id: String
-    public let stage: String
+    public let stage: CampaignAutomationStage
     public let status: CampaignAutomationStatus
     public let title: String
     public let detail: String
 
-    public init(id: String, stage: String, status: CampaignAutomationStatus, title: String, detail: String) {
+    public init(id: String, stage: CampaignAutomationStage, status: CampaignAutomationStatus, title: String, detail: String) {
         self.id = id
         self.stage = stage
         self.status = status
         self.title = title
         self.detail = detail
+    }
+
+    public init(id: String, stage: String, status: CampaignAutomationStatus, title: String, detail: String) {
+        self.init(id: id, stage: CampaignAutomationStage(rawValue: stage), status: status, title: title, detail: detail)
     }
 }
 
@@ -193,10 +352,10 @@ public enum CampaignAutomationRunner {
         var accumulator = AutomationAccumulator(scenario: scenario)
         let gateIsOpen = progress.isAvailable(scenario, in: .chronological)
         if gateIsOpen {
-            accumulator.step("Campaign Gate", .passed, "Chronological gate opened", "\(scenario.title) is available after \(progress.completedCount) completions.")
+            accumulator.step(.campaignGate, .passed, "Chronological gate opened", "\(scenario.title) is available after \(progress.completedCount) completions.")
         } else {
-            accumulator.issue(.blocker, "Campaign Gate", "Scenario is locked", "\(scenario.title) was not available in chronological play. Earlier automation did not produce the completion state needed to proceed.")
-            accumulator.step("Campaign Gate", .blocked, "Chronological gate blocked", "The app will continue a forced diagnostic probe so the underlying scenario can still be inspected.")
+            accumulator.issue(.blocker, .campaignGate, "Scenario is locked", "\(scenario.title) was not available in chronological play. Earlier automation did not produce the completion state needed to proceed.")
+            accumulator.step(.campaignGate, .blocked, "Chronological gate blocked", "The app will continue a forced diagnostic probe so the underlying scenario can still be inspected.")
             guard options.continueDiagnosticsAfterGateBlock else {
                 return accumulator.finalize(loadout: nil, game: nil)
             }
@@ -204,39 +363,39 @@ public enum CampaignAutomationRunner {
 
         let loadout = NativeScenarioLoader.load(scenario, seed: seed(for: scenario))
         accumulator.step(
-            "Native Loader",
+            .nativeLoader,
             .passed,
             "Built scenario skirmish bridge",
             "\(loadout.playerArmyName) \(loadout.playerEntries.map { "\($0.catalogName) x\($0.count)" }.joined(separator: ", ")) vs \(loadout.opponentArmyName) \(loadout.opponentEntries.map { "\($0.catalogName) x\($0.count)" }.joined(separator: ", "))."
         )
         for warning in loadout.warnings {
-            accumulator.issue(.warning, "Native Loader", warning.title, warning.detail)
-            accumulator.step("Native Loader", .warning, warning.title, warning.detail)
+            accumulator.issue(.warning, .nativeLoader, warning.title, warning.detail)
+            accumulator.step(.nativeLoader, .warning, warning.title, warning.detail)
         }
 
         guard let loadedGame = loadout.makeGame() else {
-            accumulator.issue(.blocker, "Native Loader", "dzw skirmish allocation failed", "game_create_skirmish returned nil for \(scenario.title).")
-            accumulator.step("Native Loader", .blocked, "Game creation failed", "No engine instance was returned.")
+            accumulator.issue(.blocker, .nativeLoader, "dzw skirmish allocation failed", "game_create_skirmish returned nil for \(scenario.title).")
+            accumulator.step(.nativeLoader, .blocked, "Game creation failed", "No engine instance was returned.")
             return accumulator.finalize(loadout: loadout.summary, game: nil)
         }
         let game = loadedGame.handle
         accumulator.step(
-            "Native Board",
+            .nativeBoard,
             loadedGame.boardReport.isScenarioSpecific ? .passed : .warning,
             "Applied scenario board",
             "\(loadedGame.boardReport.appliedTerrainZoneCount)/\(loadedGame.boardReport.requestedTerrainZoneCount) terrain zones and \(loadedGame.boardReport.appliedObjectiveCount)/\(loadedGame.boardReport.requestedObjectiveCount) objectives; mission target \(loadedGame.boardReport.missionTargetScore)."
         )
         for note in loadedGame.boardReport.notes {
-            accumulator.step("Native Board", .warning, "Board note", note)
+            accumulator.step(.nativeBoard, .warning, "Board note", note)
         }
         accumulator.step(
-            "Native Loader",
+            .nativeLoader,
             loadedGame.deploymentReport.placedAnyScenarioUnit ? .passed : .warning,
             "Applied scenario deployments",
             "\(loadedGame.deploymentReport.succeeded)/\(loadedGame.deploymentReport.attempted) skirmish units placed from native blueprint."
         )
         for note in loadedGame.deploymentReport.notes {
-            accumulator.step("Native Loader", .warning, "Deployment note", note)
+            accumulator.step(.nativeLoader, .warning, "Deployment note", note)
         }
 
         let boardDiagnostic = NativeBoardDiagnosticsRunner.runBattle(
@@ -285,12 +444,12 @@ public enum CampaignAutomationRunner {
         } catch {
             accumulator.issue(
                 .failure,
-                "Native Demo",
+                .nativeDemo,
                 "Native demo completion failed",
                 "\(scenario.title) could not finish the cycle 300 native demo path: \(error)."
             )
             accumulator.step(
-                "Native Demo",
+                .nativeDemo,
                 .failed,
                 "Native demo completion failed",
                 "\(error)"
@@ -315,12 +474,12 @@ public enum CampaignAutomationRunner {
         } catch {
             accumulator.issue(
                 .failure,
-                "Native Poland Pack",
+                .nativePolandPack,
                 "Native Poland completion failed",
                 "\(scenario.title) could not finish the cycle 325 native Poland path: \(error)."
             )
             accumulator.step(
-                "Native Poland Pack",
+                .nativePolandPack,
                 .failed,
                 "Native Poland completion failed",
                 "\(error)"
@@ -345,12 +504,12 @@ public enum CampaignAutomationRunner {
         } catch {
             accumulator.issue(
                 .failure,
-                "Native France Pack",
+                .nativeFrancePack,
                 "Native France completion failed",
                 "\(scenario.title) could not finish the cycle 345 native France path: \(error)."
             )
             accumulator.step(
-                "Native France Pack",
+                .nativeFrancePack,
                 .failed,
                 "Native France completion failed",
                 "\(error)"
@@ -390,12 +549,12 @@ public enum CampaignAutomationRunner {
         } catch {
             accumulator.issue(
                 .failure,
-                "Native Eastern Front Pack",
+                .nativeEasternFrontPack,
                 "Native Eastern Front completion failed",
                 "\(scenario.title) could not finish the cycle 370 native Eastern Front path: \(error)."
             )
             accumulator.step(
-                "Native Eastern Front Pack",
+                .nativeEasternFrontPack,
                 .failed,
                 "Native Eastern Front completion failed",
                 "\(error)"
@@ -460,12 +619,12 @@ public enum CampaignAutomationRunner {
         } catch {
             accumulator.issue(
                 .failure,
-                "Playable Screen Parity",
+                .playableScreenParity,
                 "DZW-style playable screen harness failed",
                 "\(scenario.title) could not finish the routed playable-screen path: \(error)."
             )
             accumulator.step(
-                "Playable Screen Parity",
+                .playableScreenParity,
                 .failed,
                 "DZW-style playable screen harness failed",
                 "\(error)"
@@ -486,12 +645,12 @@ public enum CampaignAutomationRunner {
         } catch {
             accumulator.issue(
                 .failure,
-                "Playable Test Game",
+                .playableTestGame,
                 "Two-sided playable test game failed",
                 "\(scenario.title) could not play to debrief with both AI controllers: \(error)."
             )
             accumulator.step(
-                "Playable Test Game",
+                .playableTestGame,
                 .failed,
                 "Two-sided playable test game failed",
                 "\(error)"
@@ -504,11 +663,11 @@ public enum CampaignAutomationRunner {
         accumulator: inout AutomationAccumulator
     ) {
         let bundle = ScenarioContentCatalog.bundle(for: scenario)
-        accumulator.step("Scenario Data", .passed, "Loaded authored content", "\(bundle.mapLayout.elements.count) map elements, \(bundle.setup.units.count) units, \(scenario.objectives.count) objectives.")
+        accumulator.step(.scenarioData, .passed, "Loaded authored content", "\(bundle.mapLayout.elements.count) map elements, \(bundle.setup.units.count) units, \(scenario.objectives.count) objectives.")
 
         let readiness = NativePlayabilityArchitectureCatalog.readiness(for: scenario)
         accumulator.step(
-            "Native Playability",
+            .nativePlayability,
             readiness.status == .nativePlayable ? .passed : .warning,
             readiness.status.rawValue,
             readiness.summary
@@ -516,23 +675,23 @@ public enum CampaignAutomationRunner {
         if readiness.status != .nativePlayable {
             accumulator.issue(
                 .warning,
-                "Native Playability",
+                .nativePlayability,
                 "Native scenario instance unavailable",
                 "\(scenario.title) is past proxy loading but still has native-playability work before the cycle 400 full-campaign target. Pending hooks: \(readiness.requiredHookIDs.joined(separator: ", ")). \(readiness.notes.joined(separator: " "))"
             )
         }
 
         if bundle.mapLayout.elements.isEmpty {
-            accumulator.issue(.failure, "Scenario Data", "No map elements", "\(scenario.title) has no authored map elements for the automated player to inspect.")
+            accumulator.issue(.failure, .scenarioData, "No map elements", "\(scenario.title) has no authored map elements for the automated player to inspect.")
         }
         if bundle.setup.units.isEmpty {
-            accumulator.issue(.failure, "Scenario Data", "No setup units", "\(scenario.title) has no scenario setup units.")
+            accumulator.issue(.failure, .scenarioData, "No setup units", "\(scenario.title) has no scenario setup units.")
         }
         if bundle.aiPlan.orders.isEmpty {
-            accumulator.issue(.failure, "Scenario Data", "No AI plan", "\(scenario.title) has no German AI orders.")
+            accumulator.issue(.failure, .scenarioData, "No AI plan", "\(scenario.title) has no German AI orders.")
         }
         if bundle.balance.outcomeBands.isEmpty {
-            accumulator.issue(.failure, "Scenario Data", "No debrief bands", "\(scenario.title) cannot show a useful automated debrief.")
+            accumulator.issue(.failure, .scenarioData, "No debrief bands", "\(scenario.title) cannot show a useful automated debrief.")
         }
     }
 
@@ -545,15 +704,15 @@ public enum CampaignAutomationRunner {
         let objectiveCount = Int(game_objective_count(game))
         let mission = game_mission_view(game)
 
-        accumulator.step("Engine State", .passed, "Loaded engine state", "\(unitCount) units, \(objectiveCount) objectives, target score \(Int(mission.target_score)).")
+        accumulator.step(.engineState, .passed, "Loaded engine state", "\(unitCount) units, \(objectiveCount) objectives, target score \(Int(mission.target_score)).")
         if unitCount == 0 {
-            accumulator.issue(.blocker, "Engine State", "No engine units", "\(scenario.title) loaded a dzw game with no units.")
+            accumulator.issue(.blocker, .engineState, "No engine units", "\(scenario.title) loaded a dzw game with no units.")
         }
         if objectiveCount == 0 {
-            accumulator.issue(.blocker, "Engine State", "No engine objectives", "\(scenario.title) loaded a dzw game with no objectives.")
+            accumulator.issue(.blocker, .engineState, "No engine objectives", "\(scenario.title) loaded a dzw game with no objectives.")
         }
         if Int(mission.target_score) <= 0 {
-            accumulator.issue(.blocker, "Engine State", "No mission target", "\(scenario.title) cannot complete because the dzw mission target score is not positive.")
+            accumulator.issue(.blocker, .engineState, "No mission target", "\(scenario.title) cannot complete because the dzw mission target score is not positive.")
         }
     }
 
@@ -567,7 +726,7 @@ public enum CampaignAutomationRunner {
         let targetTurn = balance.targetTurns.upperBound
         var guardCounter = 0
 
-        accumulator.step("Battle Start", .passed, "Automated battle started", "Target turn window \(balance.targetTurns.lowerBound)-\(balance.targetTurns.upperBound).")
+        accumulator.step(.battleStart, .passed, "Automated battle started", "Target turn window \(balance.targetTurns.lowerBound)-\(balance.targetTurns.upperBound).")
 
         while Int(game_view(game).turn_number) <= targetTurn &&
             game_mission_view(game).winner == TE_PLAYER_NONE &&
@@ -586,7 +745,7 @@ public enum CampaignAutomationRunner {
             case TE_PHASE_ASSAULT:
                 runAssaultPhase(game, accumulator: &accumulator)
             default:
-                accumulator.issue(.blocker, "Turn Playback", "Unknown phase", "The engine returned an unknown phase value on turn \(Int(view.turn_number)).")
+                accumulator.issue(.blocker, .turnPlayback, "Unknown phase", "The engine returned an unknown phase value on turn \(Int(view.turn_number)).")
                 return
             }
 
@@ -600,14 +759,14 @@ public enum CampaignAutomationRunner {
 
         let winner = game_mission_view(game).winner
         if winner == TE_PLAYER_NONE {
-            accumulator.issue(.warning, "Debrief", "No engine winner by target turn", "\(scenario.title) reached turn \(Int(game_view(game).turn_number)) without the dzw proxy mission declaring a winner.")
-            accumulator.step("Debrief", .warning, "Target turn reached", "Use this as a pacing signal rather than a hard gameplay failure.")
+            accumulator.issue(.warning, .debrief, "No engine winner by target turn", "\(scenario.title) reached turn \(Int(game_view(game).turn_number)) without the dzw proxy mission declaring a winner.")
+            accumulator.step(.debrief, .warning, "Target turn reached", "Use this as a pacing signal rather than a hard gameplay failure.")
         } else {
-            accumulator.step("Debrief", .passed, "Engine winner recorded", "\(playerName(winner)) won the proxy mission.")
+            accumulator.step(.debrief, .passed, "Engine winner recorded", "\(playerName(winner)) won the proxy mission.")
         }
 
         if guardCounter >= options.maxPhaseAdvances {
-            accumulator.issue(.blocker, "Turn Playback", "Phase advance guard tripped", "\(scenario.title) exceeded \(options.maxPhaseAdvances) phase advances before completion.")
+            accumulator.issue(.blocker, .turnPlayback, "Phase advance guard tripped", "\(scenario.title) exceeded \(options.maxPhaseAdvances) phase advances before completion.")
         }
     }
 
@@ -631,8 +790,8 @@ public enum CampaignAutomationRunner {
         }
 
         accumulator.step(
-            "Turn \(Int(view.turn_number)) \(playerName(view.active_player)) Movement",
-            .passed,
+            .turnPhase(turn: Int(view.turn_number), player: playerName(view.active_player), phase: "Movement"),
+            moved == 0 ? .warning : .passed,
             "Movement phase probed",
             moved == 0 ? "No legal automated movement was found." : "\(moved) units moved toward objectives or contact."
         )
@@ -659,8 +818,8 @@ public enum CampaignAutomationRunner {
         }
 
         accumulator.step(
-            "Turn \(Int(view.turn_number)) \(playerName(view.active_player)) Shooting",
-            .passed,
+            .turnPhase(turn: Int(view.turn_number), player: playerName(view.active_player), phase: "Shooting"),
+            shots == 0 ? .warning : .passed,
             "Shooting phase probed",
             shots == 0 ? "No legal automated shots were found." : "\(shots) units fired."
         )
@@ -688,8 +847,8 @@ public enum CampaignAutomationRunner {
         }
 
         accumulator.step(
-            "Turn \(Int(view.turn_number)) \(playerName(view.active_player)) Assault",
-            .passed,
+            .turnPhase(turn: Int(view.turn_number), player: playerName(view.active_player), phase: "Assault"),
+            assaults == 0 ? .warning : .passed,
             "Assault phase probed",
             assaults == 0 ? "No legal automated assaults were found." : "\(assaults) units assaulted."
         )
@@ -743,14 +902,14 @@ public enum CampaignAutomationRunner {
             before.active_player == after.active_player &&
             before.phase == after.phase &&
             !error.isEmpty {
-            accumulator.issue(.blocker, "Turn Playback", "Phase could not advance", error)
-            accumulator.step("Turn Playback", .blocked, "Advance phase blocked", error)
+            accumulator.issue(.blocker, .turnPlayback, "Phase could not advance", error)
+            accumulator.step(.turnPlayback, .blocked, "Advance phase blocked", error)
             return false
         }
 
         accumulator.phaseAdvances += 1
         accumulator.step(
-            "Turn Playback",
+            .turnPlayback,
             .passed,
             "Advanced phase",
             "\(playerName(after.active_player)) \(phaseName(after.phase)), turn \(Int(after.turn_number))."
@@ -767,17 +926,17 @@ public enum CampaignAutomationRunner {
             if weaponChoice.active {
                 let optionCount = Int(game_pending_weapon_destroy_option_count(game))
                 guard optionCount > 0 else {
-                    accumulator.issue(.blocker, "Pending Choice", "No weapon-destroy options", "The engine requested a weapon-destroy choice but exposed no options.")
+                    accumulator.issue(.blocker, .pendingChoice, "No weapon-destroy options", "The engine requested a weapon-destroy choice but exposed no options.")
                     return false
                 }
                 let option = game_pending_weapon_destroy_option_view(game, 0)
                 accumulator.actionsAttempted += 1
                 if !game_choose_pending_weapon_destroy(game, option.weapon_index) {
-                    accumulator.issue(.blocker, "Pending Choice", "Weapon-destroy choice failed", lastError(in: game))
+                    accumulator.issue(.blocker, .pendingChoice, "Weapon-destroy choice failed", lastError(in: game))
                     return false
                 }
                 accumulator.actionsSucceeded += 1
-                accumulator.step("Pending Choice", .passed, "Resolved weapon damage", cString(option.name))
+                accumulator.step(.pendingChoice, .passed, "Resolved weapon damage", cString(option.name))
                 continue
             }
 
@@ -789,13 +948,13 @@ public enum CampaignAutomationRunner {
                     accumulator.actionsAttempted += 1
                     if game_choose_pending_hit_allocation(game, Int32(index)) {
                         accumulator.actionsSucceeded += 1
-                        accumulator.step("Pending Choice", .passed, "Allocated mixed-profile hit", "\(Int(hitChoice.hits_assigned) + 1)/\(Int(hitChoice.total_hits)) hits assigned.")
+                        accumulator.step(.pendingChoice, .passed, "Allocated mixed-profile hit", "\(Int(hitChoice.hits_assigned) + 1)/\(Int(hitChoice.total_hits)) hits assigned.")
                         resolved = true
                         break
                     }
                 }
                 if !resolved {
-                    accumulator.issue(.blocker, "Pending Choice", "Hit allocation could not resolve", lastError(in: game))
+                    accumulator.issue(.blocker, .pendingChoice, "Hit allocation could not resolve", lastError(in: game))
                     return false
                 }
                 continue
@@ -804,7 +963,7 @@ public enum CampaignAutomationRunner {
             return true
         }
 
-        accumulator.issue(.blocker, "Pending Choice", "Pending choice loop exceeded guard", "The engine kept producing pending choices after 64 automated resolutions.")
+        accumulator.issue(.blocker, .pendingChoice, "Pending choice loop exceeded guard", "The engine kept producing pending choices after 64 automated resolutions.")
         return false
     }
 
@@ -986,7 +1145,7 @@ private struct AutomationAccumulator {
     var playableTestGameSummary = ""
     var playableTestGameBlockers: [String] = []
 
-    mutating func step(_ stage: String, _ status: CampaignAutomationStatus, _ title: String, _ detail: String) {
+    mutating func step(_ stage: CampaignAutomationStage, _ status: CampaignAutomationStatus, _ title: String, _ detail: String) {
         steps.append(
             CampaignAutomationStep(
                 id: "\(scenario.id.rawValue)-step-\(steps.count)",
@@ -998,7 +1157,7 @@ private struct AutomationAccumulator {
         )
     }
 
-    mutating func issue(_ kind: CampaignAutomationIssueKind, _ stage: String, _ title: String, _ detail: String) {
+    mutating func issue(_ kind: CampaignAutomationIssueKind, _ stage: CampaignAutomationStage, _ title: String, _ detail: String) {
         issues.append(
             CampaignAutomationIssue(
                 id: "\(scenario.id.rawValue)-issue-\(issues.count)",
@@ -1018,7 +1177,7 @@ private struct AutomationAccumulator {
         actionsSucceeded += completion.steps.filter { $0.status == .succeeded }.count
         phaseAdvances += completion.phaseAdvances
         step(
-            "Native Demo",
+            .nativeDemo,
             completion.completedFromNativeBoardToDebrief ? .passed : .warning,
             "Completed native demo battle",
             "\(completion.title) finished on turn \(completion.completedTurn) with \(completion.score) VP and \(completion.victoryBand.rawValue) debrief."
@@ -1032,7 +1191,7 @@ private struct AutomationAccumulator {
         actionsSucceeded += diagnostic.legalActionsSucceeded
         phaseAdvances += diagnostic.phaseAdvances
         step(
-            "Native Board Diagnostics",
+            .nativeBoardDiagnostics,
             diagnostic.passedRealBoardDiagnostics ? .passed : .warning,
             diagnostic.passedRealBoardDiagnostics ? "Real board diagnostics passed" : "Real board diagnostics found issues",
             "\(diagnostic.legalActionsSucceeded)/\(diagnostic.legalActionsAttempted) legal actions, \(diagnostic.phaseAdvances) phase advances, \(diagnostic.findings.count) findings."
@@ -1045,7 +1204,7 @@ private struct AutomationAccumulator {
             case .boardUnavailable, .blockedPhase, .impossibleReinforcement, .unwinnableGate:
                 kind = .blocker
             }
-            issue(kind, "Native Board Diagnostics", finding.title, finding.detail)
+            issue(kind, .nativeBoardDiagnostics, finding.title, finding.detail)
         }
     }
 
@@ -1058,7 +1217,7 @@ private struct AutomationAccumulator {
         actionsSucceeded += completion.steps.filter { $0.status == .succeeded }.count
         phaseAdvances += completion.phaseAdvances
         step(
-            "Native Poland Pack",
+            .nativePolandPack,
             completion.completedFromNativePolandBattlefield ? .passed : .warning,
             "Completed native Poland battle",
             "\(completion.pack.title) finished on turn \(completion.completionRecord.completedTurn) with \(completion.completionRecord.score) VP and \(completion.completionRecord.victoryBand.rawValue) debrief."
@@ -1074,7 +1233,7 @@ private struct AutomationAccumulator {
         actionsSucceeded += completion.steps.filter { $0.status == .succeeded }.count
         phaseAdvances += completion.phaseAdvances
         step(
-            "Native France Pack",
+            .nativeFrancePack,
             completion.completedFromNativeFranceBattlefield ? .passed : .warning,
             "Completed native France battle",
             "\(completion.pack.title) finished on turn \(completion.completionRecord.completedTurn) with \(completion.completionRecord.score) VP and \(completion.completionRecord.victoryBand.rawValue) debrief."
@@ -1088,7 +1247,7 @@ private struct AutomationAccumulator {
         easternFrontFoundationReady = ready
         easternFrontFoundationSummary = foundation.summary
         step(
-            "Native Eastern Front Foundation",
+            .nativeEasternFrontFoundation,
             ready ? .passed : .warning,
             "Mapped native Eastern Front foundation",
             foundation.summary
@@ -1104,7 +1263,7 @@ private struct AutomationAccumulator {
         actionsSucceeded += completion.steps.filter { $0.status == .succeeded }.count
         phaseAdvances += completion.phaseAdvances
         step(
-            "Native Eastern Front Pack",
+            .nativeEasternFrontPack,
             completion.completedFromNativeEasternFrontBattlefield ? .passed : .warning,
             "Completed native Eastern Front battle",
             "\(completion.pack.title) finished on turn \(completion.completionRecord.completedTurn) with \(completion.completionRecord.score) VP and \(completion.completionRecord.victoryBand.rawValue) debrief."
@@ -1115,7 +1274,7 @@ private struct AutomationAccumulator {
         nativeAIEventPassReady = report.isNativeAIEventPassReady
         nativeAIEventPassSummary = report.summary
         step(
-            "Native AI/Event Pass",
+            .nativeAIEventPass,
             report.isNativeAIEventPassReady ? .passed : .warning,
             "Mapped native AI/event pass",
             report.summary
@@ -1126,7 +1285,7 @@ private struct AutomationAccumulator {
         nativeAIEventExecutionReady = report.isNativeAIEventExecutionReady
         nativeAIEventExecutionSummary = report.summary
         step(
-            "Native AI/Event Execution",
+            .nativeAIEventExecution,
             report.isNativeAIEventExecutionReady ? .passed : .warning,
             "Resolved AI/event pass on board state",
             report.summary
@@ -1137,13 +1296,13 @@ private struct AutomationAccumulator {
         nativeBalanceUXReady = report.isNativeBalanceUXReady
         nativeBalanceUXSummary = report.summary
         step(
-            "Native Balance/UX",
+            .nativeBalanceUX,
             report.isNativeBalanceUXReady ? .passed : .warning,
             "Audited native balance and UX",
             report.summary
         )
         for blocker in report.blockers {
-            issue(.blocker, "Native Balance/UX", "Balance/UX blocker", blocker)
+            issue(.blocker, .nativeBalanceUX, "Balance/UX blocker", blocker)
         }
     }
 
@@ -1151,7 +1310,7 @@ private struct AutomationAccumulator {
         nativePostShipAnalysisReady = report.isPostShipAnalysisReady
         nativePostShipAnalysisSummary = report.summary
         step(
-            "Native Post-Ship Analysis",
+            .nativePostShipAnalysis,
             report.isPostShipAnalysisReady ? .passed : .warning,
             "Recorded post-ship analysis",
             report.summary
@@ -1165,7 +1324,7 @@ private struct AutomationAccumulator {
         actionsSucceeded += report.probes.reduce(0) { $0 + $1.legalActionsSucceeded }
         phaseAdvances += report.probes.reduce(0) { $0 + $1.phaseAdvances }
         step(
-            "Native Campaign Soak",
+            .nativeCampaignSoak,
             report.isSoakStable ? .passed : .warning,
             "Ran deterministic soak probes",
             report.summary
@@ -1179,13 +1338,13 @@ private struct AutomationAccumulator {
         actionsAttempted += result.steps.count
         actionsSucceeded += result.completedAllStages ? result.steps.count : result.steps.filter { $0.status != .blocked }.count
         step(
-            "Playable Screen Parity",
+            .playableScreenParity,
             result.completedAllStages ? .passed : .blocked,
             result.completedAllStages ? "DZW-style playable screen completed" : "DZW-style playable screen blocked",
             playableScreenParitySummary
         )
         for blocker in result.blockers {
-            issue(.blocker, "Playable Screen Parity", "Playable screen blocker", blocker)
+            issue(.blocker, .playableScreenParity, "Playable screen blocker", blocker)
         }
     }
 
@@ -1199,13 +1358,13 @@ private struct AutomationAccumulator {
         actionsSucceeded += result.steps.filter { $0.status != .blocked }.count
         phaseAdvances += result.phaseAdvances
         step(
-            "Playable Test Game",
+            .playableTestGame,
             result.completedToEnd ? .passed : .blocked,
             result.completedToEnd ? "Two-sided playable test game completed" : "Two-sided playable test game blocked",
             result.summary
         )
         for blocker in result.blockers {
-            issue(.blocker, "Playable Test Game", "Playable test game blocker", blocker)
+            issue(.blocker, .playableTestGame, "Playable test game blocker", blocker)
         }
     }
 

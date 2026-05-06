@@ -69,6 +69,14 @@ void __cyg_profile_func_exit(void *this_fn, void *call_site) {
 }
 #endif
 
+float game_board_width(void) {
+    return TE_BOARD_WIDTH;
+}
+
+float game_board_height(void) {
+    return TE_BOARD_HEIGHT;
+}
+
 typedef enum {
     TE_WEAPON_RAPID_FIRE_INTERNAL = 0,
     TE_WEAPON_ASSAULT_INTERNAL = 1,

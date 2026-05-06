@@ -37,6 +37,9 @@ let package = Package(
                 .define("HEINZ_GUDERIAN_GAME"),
             ]
         ),
+        // Local Guderian integration boundary: scenario catalogs, campaign automation,
+        // and Guderian-specific playable adapters live here so DerZweiteWeltkriegCore
+        // remains a reusable engine target without importing Guderian content.
         .target(
             name: "DerZweiteWeltkriegGuderian",
             dependencies: ["DerZweiteWeltkriegCore"],

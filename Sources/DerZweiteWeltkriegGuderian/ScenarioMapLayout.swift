@@ -23,14 +23,16 @@ public enum ScenarioMapElementKind: String, CaseIterable, Codable, Hashable, Sen
     case deployment = "Deployment"
     case phaseLine = "Phase line"
 
-    public var isWaterFeature: Bool {
-        switch self {
-        case .river, .canal, .lake, .marsh:
-            return true
-        default:
-            return false
-        }
-    }
+    // Marsh is modeled as difficult ground here, not as a waterway.
+    private static let waterFeatures: Set<ScenarioMapElementKind> = [.river, .canal, .lake]
+    private static let crossingFeatures: Set<ScenarioMapElementKind> = [.bridge, .ford, .ferry]
+    private static let settlementFeatures: Set<ScenarioMapElementKind> = [.town, .village, .urbanDistrict]
+    private static let groundTerrainFeatures: Set<ScenarioMapElementKind> = [.forest, .ridge, .bunker, .fortifiedLine, .marsh, .urbanDistrict]
+    private static let fortificationFeatures: Set<ScenarioMapElementKind> = [.bunker, .fortifiedLine]
+    private static let pressureMarkers: Set<ScenarioMapElementKind> = [.artillery, .airPressure]
+    private static let nonPlayableTerrainFeatures: Set<ScenarioMapElementKind> = [.objective, .deployment, .phaseLine]
+
+    public var isWaterFeature: Bool { Self.waterFeatures.contains(self) }
 
     public var isRoadFeature: Bool {
         self == .road
@@ -40,59 +42,17 @@ public enum ScenarioMapElementKind: String, CaseIterable, Codable, Hashable, Sen
         self == .railway
     }
 
-    public var isCrossingFeature: Bool {
-        switch self {
-        case .bridge, .ford, .ferry:
-            return true
-        default:
-            return false
-        }
-    }
+    public var isCrossingFeature: Bool { Self.crossingFeatures.contains(self) }
 
-    public var isSettlementFeature: Bool {
-        switch self {
-        case .town, .village, .urbanDistrict:
-            return true
-        default:
-            return false
-        }
-    }
+    public var isSettlementFeature: Bool { Self.settlementFeatures.contains(self) }
 
-    public var isGroundTerrainFeature: Bool {
-        switch self {
-        case .forest, .ridge, .bunker, .fortifiedLine, .marsh, .urbanDistrict:
-            return true
-        default:
-            return false
-        }
-    }
+    public var isGroundTerrainFeature: Bool { Self.groundTerrainFeatures.contains(self) }
 
-    public var isFortificationFeature: Bool {
-        switch self {
-        case .bunker, .fortifiedLine:
-            return true
-        default:
-            return false
-        }
-    }
+    public var isFortificationFeature: Bool { Self.fortificationFeatures.contains(self) }
 
-    public var isPressureMarker: Bool {
-        switch self {
-        case .artillery, .airPressure:
-            return true
-        default:
-            return false
-        }
-    }
+    public var isPressureMarker: Bool { Self.pressureMarkers.contains(self) }
 
-    public var isPlayableTerrainFeature: Bool {
-        switch self {
-        case .objective, .deployment, .phaseLine:
-            return false
-        default:
-            return true
-        }
-    }
+    public var isPlayableTerrainFeature: Bool { !Self.nonPlayableTerrainFeatures.contains(self) }
 }
 
 public struct ScenarioMapSourceNote: Codable, Hashable, Sendable {

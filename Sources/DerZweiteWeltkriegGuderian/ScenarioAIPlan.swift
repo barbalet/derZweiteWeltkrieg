@@ -6,6 +6,21 @@ public enum GermanAIActionKind: String, Codable, Hashable, Sendable {
     case shooting = "Shooting"
     case assault = "Assault"
     case reinforcement = "Reinforcement"
+
+    public var nativeBoardPhase: NativeBoardPhase {
+        switch self {
+        case .movement, .reinforcement:
+            return .movement
+        case .artillery, .shooting:
+            return .shooting
+        case .assault:
+            return .assault
+        }
+    }
+}
+
+public enum GermanAIPlanExecutionMode: String, Codable, Hashable, Sendable {
+    case nativeAutoplayTargetPriorities = "Native autoplay target priorities"
 }
 
 public struct GermanAIOrder: Identifiable, Codable, Hashable, Sendable {
@@ -30,19 +45,59 @@ public struct GermanAIPlan: Identifiable, Codable, Hashable, Sendable {
     public let strategicGoal: String
     public let targetPriorities: [String]
     public let orders: [GermanAIOrder]
+    public let executionMode: GermanAIPlanExecutionMode
 
     public init(
         id: GuderianBattleID,
         postureName: String,
         strategicGoal: String,
         targetPriorities: [String],
-        orders: [GermanAIOrder]
+        orders: [GermanAIOrder],
+        executionMode: GermanAIPlanExecutionMode = .nativeAutoplayTargetPriorities
     ) {
         self.id = id
         self.postureName = postureName
         self.strategicGoal = strategicGoal
         self.targetPriorities = targetPriorities
         self.orders = orders
+        self.executionMode = executionMode
+    }
+
+    public var isExecutableByNativeAutoplay: Bool {
+        executionMode == .nativeAutoplayTargetPriorities && !targetPriorities.isEmpty
+    }
+
+    public func targetPriorities(for phase: NativeBoardPhase) -> [String] {
+        uniqueNonEmpty(orders.filter { $0.kind.nativeBoardPhase == phase }.map(\.target) + targetPriorities)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case postureName
+        case strategicGoal
+        case targetPriorities
+        case orders
+        case executionMode
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(GuderianBattleID.self, forKey: .id)
+        postureName = try container.decode(String.self, forKey: .postureName)
+        strategicGoal = try container.decode(String.self, forKey: .strategicGoal)
+        targetPriorities = try container.decode([String].self, forKey: .targetPriorities)
+        orders = try container.decode([GermanAIOrder].self, forKey: .orders)
+        executionMode = try container.decodeIfPresent(GermanAIPlanExecutionMode.self, forKey: .executionMode) ?? .nativeAutoplayTargetPriorities
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(postureName, forKey: .postureName)
+        try container.encode(strategicGoal, forKey: .strategicGoal)
+        try container.encode(targetPriorities, forKey: .targetPriorities)
+        try container.encode(orders, forKey: .orders)
+        try container.encode(executionMode, forKey: .executionMode)
     }
 }
 
@@ -315,4 +370,17 @@ private func order(
     _ instruction: String
 ) -> GermanAIOrder {
     GermanAIOrder(id: id, turnWindow: turnWindow, kind: kind, target: target, instruction: instruction)
+}
+
+private func uniqueNonEmpty(_ values: [String]) -> [String] {
+    var seen: Set<String> = []
+    var result: [String] = []
+    for value in values {
+        guard !value.isEmpty, !seen.contains(value) else {
+            continue
+        }
+        seen.insert(value)
+        result.append(value)
+    }
+    return result
 }

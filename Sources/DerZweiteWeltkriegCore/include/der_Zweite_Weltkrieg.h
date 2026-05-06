@@ -258,6 +258,8 @@ typedef struct {
     bool destroyed;
 } unit_view_t;
 
+float game_board_width(void);
+float game_board_height(void);
 game_t *game_create_demo(uint32_t seed);
 game_t *game_create_demo_with_armies(uint32_t seed, army_list_t player_one_army, army_list_t player_two_army);
 game_t *game_create_demo_with_forces(uint32_t seed, army_list_t player_one_army, int player_one_force, army_list_t player_two_army, int player_two_force);

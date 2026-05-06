@@ -34,6 +34,10 @@ enum BattleShellPanel: String, CaseIterable, Identifiable {
             return "list.bullet.rectangle"
         }
     }
+
+    var windowIdentifier: NSUserInterfaceItemIdentifier {
+        NSUserInterfaceItemIdentifier("com.barbalet.derZweiteWeltkrieg.battleShell.\(rawValue)")
+    }
 }
 
 @MainActor
@@ -41,7 +45,6 @@ private final class BattleShellWindowCoordinator: NSObject, ObservableObject, NS
     @Published private(set) var visiblePanels: Set<BattleShellPanel> = []
 
     private var windows: [BattleShellPanel: NSWindow] = [:]
-    private var panelsByWindowID: [ObjectIdentifier: BattleShellPanel] = [:]
 
     func showDefaults(controller: GameController, followUpChoice: Binding<FollowUpChoice>) {
         for panel in [BattleShellPanel.command, .inspector] {
@@ -90,13 +93,12 @@ private final class BattleShellWindowCoordinator: NSObject, ObservableObject, NS
             window.close()
         }
         windows.removeAll()
-        panelsByWindowID.removeAll()
         visiblePanels.removeAll()
     }
 
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
-              let panel = panelsByWindowID[ObjectIdentifier(window)] else {
+              let panel = panel(for: window) else {
             return
         }
         visiblePanels.remove(panel)
@@ -111,12 +113,16 @@ private final class BattleShellWindowCoordinator: NSObject, ObservableObject, NS
             defer: false
         )
         window.title = "derZweiteWeltkrieg \(panel.title)"
+        window.identifier = panel.windowIdentifier
         window.minSize = panel.minimumSize
         window.isReleasedWhenClosed = false
         window.delegate = self
         windows[panel] = window
-        panelsByWindowID[ObjectIdentifier(window)] = panel
         return window
+    }
+
+    private func panel(for window: NSWindow) -> BattleShellPanel? {
+        windows.first { _, storedWindow in storedWindow === window }?.key
     }
 
     private func defaultFrame(for panel: BattleShellPanel) -> CGRect {

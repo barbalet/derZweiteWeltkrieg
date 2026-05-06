@@ -383,24 +383,26 @@ public enum PlayableTestGameRunner {
         switch snapshot.phase {
         case .movement:
             let moved = moveActiveUnits(in: session, snapshot: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            status = .succeeded
+            status = moved == 0 ? .blocked : .succeeded
             title = "\(controller.rawValue) movement"
             detail = moved == 0 ? "No legal movement was available." : "\(moved) active units moved toward priority objectives."
         case .shooting:
             let shots = shootActiveUnits(in: session, snapshot: snapshot)
-            status = .succeeded
+            status = shots == 0 ? .blocked : .succeeded
             title = "\(controller.rawValue) shooting"
             detail = shots == 0 ? "No legal shots were available." : "\(shots) active units fired at nearest enemies."
         case .assault:
             let assaults = assaultActiveUnits(in: session, snapshot: snapshot)
             let resolved = session.resolveFirstPendingChoice()
-            status = .succeeded
             title = "\(controller.rawValue) assault"
             if assaults > 0 {
+                status = .succeeded
                 detail = "\(assaults) active units assaulted nearest enemies."
             } else if resolved {
+                status = .succeeded
                 detail = "Resolved a pending assault or damage choice."
             } else {
+                status = .blocked
                 detail = "No legal assaults or pending choices were available."
             }
         }
@@ -433,7 +435,7 @@ public enum PlayableTestGameRunner {
             session.selectNearestEnemyToSelectedUnit()
             let usedPriority: Bool
             if snapshot.activePlayer == .guderianAI {
-                usedPriority = session.moveSelectedUnitTowardPriorityObjective(named: germanPlan.targetPriorities, maxDistance: movementDistance(for: unit, controller: .guderian))
+                usedPriority = session.moveSelectedUnitTowardPriorityObjective(named: germanPlan.targetPriorities(for: snapshot.phase), maxDistance: movementDistance(for: unit, controller: .guderian))
             } else {
                 usedPriority = session.moveSelectedUnitTowardPriorityObjective(named: antiPlan.targetPriorities, maxDistance: movementDistance(for: unit, controller: .antiGuderian))
             }

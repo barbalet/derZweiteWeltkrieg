@@ -4,10 +4,58 @@ import CoreGraphics
 import DerZweiteWeltkriegCore
 #endif
 
+struct GameControllerLoadedForceState: Equatable, Sendable {
+    var playerOneArmy: army_list_t
+    var playerOneForceIndex: Int
+    var playerTwoArmy: army_list_t
+    var playerTwoForceIndex: Int
+
+    init(
+        playerOneArmy: army_list_t = TE_ARMY_BRITISH,
+        playerOneForceIndex: Int = 0,
+        playerTwoArmy: army_list_t = TE_ARMY_GERMAN,
+        playerTwoForceIndex: Int = 0
+    ) {
+        self.playerOneArmy = playerOneArmy
+        self.playerOneForceIndex = playerOneForceIndex
+        self.playerTwoArmy = playerTwoArmy
+        self.playerTwoForceIndex = playerTwoForceIndex
+    }
+}
+
+struct GameControllerSetupSelectionState: Equatable, Sendable {
+    var playerOneArmyID: String
+    var playerOneForceIndex: Int
+    var playerTwoArmyID: String
+    var playerTwoForceIndex: Int
+
+    init(
+        playerOneArmyID: String = "",
+        playerOneForceIndex: Int = 0,
+        playerTwoArmyID: String = "",
+        playerTwoForceIndex: Int = 0
+    ) {
+        self.playerOneArmyID = playerOneArmyID
+        self.playerOneForceIndex = playerOneForceIndex
+        self.playerTwoArmyID = playerTwoArmyID
+        self.playerTwoForceIndex = playerTwoForceIndex
+    }
+}
+
+struct GameControllerBoardSelectionState: Equatable, Sendable {
+    var selectedUnitID: Int?
+    var selectedTargetID: Int?
+
+    init(selectedUnitID: Int? = nil, selectedTargetID: Int? = nil) {
+        self.selectedUnitID = selectedUnitID
+        self.selectedTargetID = selectedTargetID
+    }
+}
+
 @MainActor
-final class GameController: ObservableObject {
-    static let boardWidth: CGFloat = 72
-    static let boardHeight: CGFloat = 48
+final class GameController: ObservableObject, @unchecked Sendable {
+    static let boardWidth = CGFloat(game_board_width())
+    static let boardHeight = CGFloat(game_board_height())
 
     @Published var appMode: AppMode = .setup
     @Published private(set) var armyReferences: [ArmyReference] = ArmyReferenceCatalog.load()
@@ -20,21 +68,14 @@ final class GameController: ObservableObject {
     @Published private(set) var lastError: String = ""
     @Published private(set) var pendingWeaponDestroyChoice: PendingWeaponDestroyChoiceSnapshot?
     @Published private(set) var pendingHitAllocationChoice: PendingHitAllocationChoiceSnapshot?
-    @Published private(set) var loadedPlayerOneArmy: army_list_t = TE_ARMY_BRITISH
-    @Published private(set) var loadedPlayerOneForceIndex: Int = 0
-    @Published private(set) var loadedPlayerTwoArmy: army_list_t = TE_ARMY_GERMAN
-    @Published private(set) var loadedPlayerTwoForceIndex: Int = 0
+    @Published private(set) var loadedForces = GameControllerLoadedForceState()
+    @Published private(set) var setupSelection = GameControllerSetupSelectionState()
+    @Published private(set) var boardSelection = GameControllerBoardSelectionState()
     @Published var resumableAppMode: AppMode = .deployment
     @Published var currentBattleConfiguration: SkirmishConfiguration?
     @Published var currentOpponentPlan: GeneratedOpponentPlan?
     @Published var isAITurnInProgress: Bool = false
     @Published var setupMessage: String = ""
-    @Published var selectedUnitID: Int?
-    @Published var selectedTargetID: Int?
-    @Published var playerOneArmyID: String = ""
-    @Published var playerOneForceIndex: Int = 0
-    @Published var playerTwoArmyID: String = ""
-    @Published var playerTwoForceIndex: Int = 0
     @Published var playerUnitCounts: [Int: Int] = [:]
     @Published var pointsLimit: Int = 750
     @Published var seedText: String = "1944"
@@ -43,6 +84,41 @@ final class GameController: ObservableObject {
     var recordedActions: [RecordedBattleAction] = []
     var aiTask: Task<Void, Never>?
     var isReplayingBattle: Bool = false
+
+    var loadedPlayerOneArmy: army_list_t { loadedForces.playerOneArmy }
+    var loadedPlayerOneForceIndex: Int { loadedForces.playerOneForceIndex }
+    var loadedPlayerTwoArmy: army_list_t { loadedForces.playerTwoArmy }
+    var loadedPlayerTwoForceIndex: Int { loadedForces.playerTwoForceIndex }
+
+    var selectedUnitID: Int? {
+        get { boardSelection.selectedUnitID }
+        set { boardSelection.selectedUnitID = newValue }
+    }
+
+    var selectedTargetID: Int? {
+        get { boardSelection.selectedTargetID }
+        set { boardSelection.selectedTargetID = newValue }
+    }
+
+    var playerOneArmyID: String {
+        get { setupSelection.playerOneArmyID }
+        set { setupSelection.playerOneArmyID = newValue }
+    }
+
+    var playerOneForceIndex: Int {
+        get { setupSelection.playerOneForceIndex }
+        set { setupSelection.playerOneForceIndex = newValue }
+    }
+
+    var playerTwoArmyID: String {
+        get { setupSelection.playerTwoArmyID }
+        set { setupSelection.playerTwoArmyID = newValue }
+    }
+
+    var playerTwoForceIndex: Int {
+        get { setupSelection.playerTwoForceIndex }
+        set { setupSelection.playerTwoForceIndex = newValue }
+    }
 
     init(seed: UInt32 = 1_944) {
         guard let handle = game_create_demo_with_forces(seed, TE_ARMY_BRITISH, 0, TE_ARMY_GERMAN, 0) else {
@@ -66,10 +142,12 @@ final class GameController: ObservableObject {
             phase: gameView.phase
         )
         mission = MissionSnapshot(raw: game_mission_view(handle))
-        loadedPlayerOneArmy = game_player_army(handle, TE_PLAYER_ONE)
-        loadedPlayerOneForceIndex = Int(game_player_force(handle, TE_PLAYER_ONE))
-        loadedPlayerTwoArmy = game_player_army(handle, TE_PLAYER_TWO)
-        loadedPlayerTwoForceIndex = Int(game_player_force(handle, TE_PLAYER_TWO))
+        loadedForces = GameControllerLoadedForceState(
+            playerOneArmy: game_player_army(handle, TE_PLAYER_ONE),
+            playerOneForceIndex: Int(game_player_force(handle, TE_PLAYER_ONE)),
+            playerTwoArmy: game_player_army(handle, TE_PLAYER_TWO),
+            playerTwoForceIndex: Int(game_player_force(handle, TE_PLAYER_TWO))
+        )
 
         units = (0..<Int(game_unit_count(handle))).map { index in
             UnitSnapshot(raw: game_unit_view(handle, Int32(index)))
@@ -104,10 +182,12 @@ final class GameController: ObservableObject {
 
     private func initializeSetupSelections() {
         armyReferences = ArmyReferenceCatalog.load()
-        playerOneArmyID = preferredArmyID(named: "British") ?? armyReferences.first(where: { $0.allegiance == .allies })?.id ?? ""
-        playerTwoArmyID = preferredArmyID(named: "German") ?? armyReferences.first(where: { $0.allegiance == .axis })?.id ?? ""
-        playerOneForceIndex = 0
-        playerTwoForceIndex = 0
+        setupSelection = GameControllerSetupSelectionState(
+            playerOneArmyID: preferredArmyID(named: "British") ?? armyReferences.first(where: { $0.allegiance == .allies })?.id ?? "",
+            playerOneForceIndex: 0,
+            playerTwoArmyID: preferredArmyID(named: "German") ?? armyReferences.first(where: { $0.allegiance == .axis })?.id ?? "",
+            playerTwoForceIndex: 0
+        )
         playerUnitCounts = defaultUnitCounts(for: playerOneArmy?.preset ?? TE_ARMY_BRITISH)
         reconcileForceSelections()
         refreshOpponentPlan()
