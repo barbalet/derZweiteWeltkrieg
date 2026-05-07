@@ -82,6 +82,7 @@ final class HistoricalCampaignContractsTests: XCTestCase {
     func testHistoricalAutoplayContractCapturesMontyTestShape() {
         let contract = HistoricalAutoplayContract(
             primarySurfaceName: "MontyTestFirstBattleAutoplayView",
+            retiredEmbeddedSurfaceNames: ["MontyPrototypeBattleView"],
             requiredAccessibilityIdentifiers: [
                 "monty-test-first-battle-autoplay",
                 "monty-test-run-to-debrief-button",
@@ -95,8 +96,52 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         )
 
         XCTAssertEqual(contract.embeddedBattleSurfaceName, "HistoricalPlayableBattleView")
+        XCTAssertEqual(contract.retiredEmbeddedSurfaceNames, ["MontyPrototypeBattleView"])
         XCTAssertEqual(contract.speedModes, ["Inspect", "Standard", "Fast"])
         XCTAssertTrue(contract.isFirstBattleAutoplayContract)
+    }
+
+    func testHistoricalAutoplayRunControllerStepsSharedBoardActions() throws {
+        let session = try AutoplayDemoHistoricalBoardSession()
+        let controller = try HistoricalAutoplayRunController(
+            session: session,
+            configuration: Self.makeDemoAutoplayConfiguration()
+        )
+        let opening = controller.latestSnapshot
+
+        XCTAssertEqual(controller.runState, .ready)
+        XCTAssertTrue(controller.canStep)
+
+        let firstStep = try controller.stepOnce()
+
+        XCTAssertEqual(firstStep?.battleID, .alamElHalfa)
+        XCTAssertEqual(firstStep?.activeSideID, opening.activeSideID)
+        XCTAssertEqual(firstStep?.phase, .movement)
+        XCTAssertEqual(firstStep?.status, .succeeded)
+        XCTAssertEqual(controller.runState, .paused)
+        XCTAssertEqual(controller.phaseAdvances, 1)
+        XCTAssertLessThanOrEqual(controller.phaseProgressFraction, 1)
+        XCTAssertGreaterThan(controller.phaseBudgetRemaining, 0)
+    }
+
+    func testHistoricalAutoplayRunControllerCompletesToDebriefWithBothSidesActing() throws {
+        let session = try AutoplayDemoHistoricalBoardSession()
+        let controller = try HistoricalAutoplayRunController(
+            session: session,
+            configuration: Self.makeDemoAutoplayConfiguration()
+        )
+
+        let report = try controller.runToDebrief()
+
+        XCTAssertEqual(controller.runState, .completed)
+        XCTAssertTrue(report.completedToDebrief, report.debriefRecord.blockers.joined(separator: "\n"))
+        XCTAssertTrue(report.bothSidesActed)
+        XCTAssertTrue(report.debriefRecord.automatedSideIDs.isSuperset(of: ["montgomery", "axis"]))
+        XCTAssertEqual(report.debriefRecord.winningSideID, "montgomery")
+        XCTAssertEqual(report.surfaceName, "MontyTestFirstBattleAutoplayView")
+        XCTAssertEqual(report.embeddedBattleSurfaceName, HistoricalPlayableSurfaceCatalog.sharedHostSurfaceName)
+        XCTAssertTrue(report.finalResultSummary.contains("Battle of Alam el Halfa"))
+        XCTAssertLessThanOrEqual(report.debriefRecord.phaseAdvances, controller.maxPhaseAdvances)
     }
 
     func testHistoricalBoardSessionProtocolSupportsGenericSnapshotAndActions() throws {
@@ -231,6 +276,43 @@ final class HistoricalCampaignContractsTests: XCTestCase {
                     ),
                 ]
             )
+        )
+    }
+
+    fileprivate static func makeDemoAutoplayConfiguration() -> HistoricalAutoplayConfiguration<DemoHistoricalBattleID> {
+        HistoricalAutoplayConfiguration(
+            battleID: .alamElHalfa,
+            battleTitle: "Battle of Alam el Halfa",
+            seed: 77,
+            contract: HistoricalAutoplayContract(
+                primarySurfaceName: "MontyTestFirstBattleAutoplayView",
+                requiredAccessibilityIdentifiers: [
+                    "monty-test-first-battle-autoplay",
+                    "monty-test-run-to-debrief-button",
+                    "monty-test-step-button",
+                    "monty-test-pause-button",
+                    "monty-test-speed-picker",
+                    "monty-test-safety-cap",
+                    "monty-test-event-log",
+                    "monty-test-result-summary",
+                ]
+            ),
+            targetTurnUpperBound: 8,
+            maxPhaseAdvances: 24,
+            sidePlans: [
+                HistoricalAutoplaySidePlan(
+                    sideID: "montgomery",
+                    controllerLabel: "Montgomery AI",
+                    movementPriorityNames: ["Alam el Halfa ridge"],
+                    movementDistance: 4
+                ),
+                HistoricalAutoplaySidePlan(
+                    sideID: "axis",
+                    controllerLabel: "Axis AI",
+                    movementPriorityNames: ["Southern approach"],
+                    movementDistance: 6
+                ),
+            ]
         )
     }
 }
@@ -375,5 +457,191 @@ private final class DemoHistoricalBoardSession: HistoricalBoardSession {
         phase = .shooting
         lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Phase advanced", detail: "Battle advanced to shooting.")
         log.append(lastAction.detail)
+    }
+}
+
+private final class AutoplayDemoHistoricalBoardSession: HistoricalBoardSession {
+    let battleID = DemoHistoricalBattleID.alamElHalfa
+    let launch: HistoricalBattleLaunch<DemoHistoricalBattleID>
+
+    private var turnNumber = 1
+    private var activeSideID = "montgomery"
+    private var phase = HistoricalBoardPhase.movement
+    private var winningSideID: String?
+    private var selectedUnitID: Int?
+    private var selectedTargetID: Int?
+    private var lastAction = HistoricalBoardActionMessage(status: .idle, title: "Ready", detail: "Autoplay demo ready.")
+    private var log = ["Autoplay demo opened."]
+
+    init() throws {
+        launch = try HistoricalBattleLaunchResolver.makeLaunch(
+            scenario: HistoricalCampaignContractsTests.makeDemoScenario(),
+            chosenHumanSideID: "montgomery",
+            seed: 77
+        )
+    }
+
+    func snapshot() -> HistoricalBoardSnapshot<DemoHistoricalBattleID> {
+        HistoricalBoardSnapshot(
+            battleID: battleID,
+            turnNumber: turnNumber,
+            activeSideID: activeSideID,
+            phase: phase,
+            mission: HistoricalBoardMissionSnapshot(
+                name: "Alam el Halfa ridge",
+                targetScore: 8,
+                humanScore: activeSideID == "montgomery" ? 4 : 3,
+                aiScore: activeSideID == "axis" ? 4 : 2,
+                winningSideID: winningSideID
+            ),
+            units: [
+                unit(
+                    id: 1,
+                    sideID: "montgomery",
+                    name: "6-pounder anti-tank screen",
+                    position: HistoricalBattleCoordinate(x: 42, y: 22)
+                ),
+                unit(
+                    id: 2,
+                    sideID: "axis",
+                    name: "Panzer probe",
+                    position: HistoricalBattleCoordinate(x: 28, y: 34)
+                ),
+            ],
+            zones: [],
+            objectives: [
+                HistoricalBoardObjectiveSnapshot(
+                    id: 1,
+                    name: activeSideID == "axis" ? "Southern approach" : "Alam el Halfa ridge",
+                    location: HistoricalBattleCoordinate(x: 52, y: 24),
+                    radius: 5,
+                    controllingSideID: winningSideID ?? "montgomery"
+                ),
+            ],
+            lastAction: lastAction,
+            log: log
+        )
+    }
+
+    func selectUnit(_ id: Int) {
+        selectedUnitID = id
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Selected", detail: "Selected unit \(id).")
+    }
+
+    func selectTarget(_ id: Int) {
+        selectedTargetID = id
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Targeted", detail: "Targeted unit \(id).")
+    }
+
+    func selectFirstActiveUnit() {
+        selectUnit(activeSideID == "montgomery" ? 1 : 2)
+    }
+
+    func selectNearestEnemyToSelectedUnit() {
+        selectTarget(activeSideID == "montgomery" ? 2 : 1)
+    }
+
+    func moveSelectedUnitTowardNearestObjective(maxDistance: Double) -> Bool {
+        moveSelectedUnitTowardPriorityObjective(named: ["nearest objective"], maxDistance: maxDistance)
+    }
+
+    func moveSelectedUnitTowardPriorityObjective(named priorityNames: [String], maxDistance: Double) -> Bool {
+        guard selectedUnitID != nil else {
+            return false
+        }
+        lastAction = HistoricalBoardActionMessage(
+            status: .succeeded,
+            title: "Moved",
+            detail: "\(activeSideID) moved toward \(priorityNames.first ?? "objective")."
+        )
+        log.append(lastAction.detail)
+        return true
+    }
+
+    func moveUnit(_ id: Int, to point: HistoricalBattleCoordinate) -> Bool {
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Moved", detail: "Moved unit \(id).")
+        return true
+    }
+
+    func rotateUnit(_ id: Int, to facingDegrees: Double) -> Bool {
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Rotated", detail: "Rotated unit \(id).")
+        return true
+    }
+
+    func toggleCover(for id: Int, enabled: Bool) -> Bool {
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Cover", detail: "Updated cover for \(id).")
+        return true
+    }
+
+    func toggleHullDown(for id: Int, enabled: Bool) -> Bool {
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Hull down", detail: "Updated hull-down for \(id).")
+        return true
+    }
+
+    func shootUnit(_ attackerID: Int, targetID: Int) -> Bool {
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Shot", detail: "Unit \(attackerID) fired at \(targetID).")
+        log.append(lastAction.detail)
+        return true
+    }
+
+    func assaultUnit(_ attackerID: Int, targetID: Int, advance: Bool) -> Bool {
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Assault", detail: "Unit \(attackerID) assaulted \(targetID).")
+        log.append(lastAction.detail)
+        return true
+    }
+
+    func shootSelectedTarget() -> Bool {
+        guard let selectedUnitID, let selectedTargetID else {
+            return false
+        }
+        return shootUnit(selectedUnitID, targetID: selectedTargetID)
+    }
+
+    func resolveFirstPendingChoice() -> Bool {
+        false
+    }
+
+    func advancePhase() {
+        switch phase {
+        case .movement:
+            phase = .shooting
+        case .shooting:
+            phase = .assault
+        case .assault:
+            phase = .movement
+            if activeSideID == "montgomery" {
+                activeSideID = "axis"
+            } else {
+                activeSideID = "montgomery"
+                turnNumber += 1
+                winningSideID = "montgomery"
+            }
+        }
+        selectedUnitID = nil
+        selectedTargetID = nil
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "Phase advanced", detail: "Battle advanced to \(phase.rawValue).")
+        log.append(lastAction.detail)
+    }
+
+    private func unit(
+        id: Int,
+        sideID: String,
+        name: String,
+        position: HistoricalBattleCoordinate
+    ) -> HistoricalBoardUnitSnapshot {
+        HistoricalBoardUnitSnapshot(
+            id: id,
+            sideID: sideID,
+            name: name,
+            kind: sideID == "axis" ? "Vehicle" : "Gun",
+            role: sideID == "axis" ? "Flank probe" : "Anti-tank lane",
+            position: position,
+            facingDegrees: sideID == "axis" ? 0 : 180,
+            canMoveNow: phase == .movement && activeSideID == sideID,
+            canShootNow: phase == .shooting && activeSideID == sideID,
+            canAssaultNow: phase == .assault && activeSideID == sideID,
+            selected: selectedUnitID == id,
+            targeted: selectedTargetID == id
+        )
     }
 }

@@ -46,7 +46,10 @@ let package = Package(
         // remains a reusable engine target without importing Guderian content.
         .target(
             name: "DerZweiteWeltkriegGuderian",
-            dependencies: ["DerZweiteWeltkriegCore"],
+            dependencies: [
+                "DerZweiteWeltkriegCore",
+                "DerZweiteWeltkriegHistorical",
+            ],
             path: "Sources/DerZweiteWeltkriegGuderian"
         ),
         .target(

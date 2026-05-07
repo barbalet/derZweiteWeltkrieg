@@ -89,6 +89,7 @@ public enum HistoricalPlayableSurfaceCatalog {
 public struct HistoricalAutoplayContract: Codable, Hashable, Sendable {
     public let primarySurfaceName: String
     public let embeddedBattleSurfaceName: String
+    public let retiredEmbeddedSurfaceNames: [String]
     public let requiredAccessibilityIdentifiers: [String]
     public let speedModes: [String]
     public let supportsDeterministicSeed: Bool
@@ -98,6 +99,7 @@ public struct HistoricalAutoplayContract: Codable, Hashable, Sendable {
     public init(
         primarySurfaceName: String,
         embeddedBattleSurfaceName: String = HistoricalPlayableSurfaceCatalog.sharedHostSurfaceName,
+        retiredEmbeddedSurfaceNames: [String] = [],
         requiredAccessibilityIdentifiers: [String],
         speedModes: [String] = ["Inspect", "Standard", "Fast"],
         supportsDeterministicSeed: Bool = true,
@@ -106,6 +108,7 @@ public struct HistoricalAutoplayContract: Codable, Hashable, Sendable {
     ) {
         self.primarySurfaceName = primarySurfaceName
         self.embeddedBattleSurfaceName = embeddedBattleSurfaceName
+        self.retiredEmbeddedSurfaceNames = retiredEmbeddedSurfaceNames
         self.requiredAccessibilityIdentifiers = requiredAccessibilityIdentifiers
         self.speedModes = speedModes
         self.supportsDeterministicSeed = supportsDeterministicSeed
