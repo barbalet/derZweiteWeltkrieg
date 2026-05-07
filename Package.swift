@@ -16,6 +16,10 @@ let package = Package(
             targets: ["DerZweiteWeltkriegAppUI"]
         ),
         .library(
+            name: "DerZweiteWeltkriegHistorical",
+            targets: ["DerZweiteWeltkriegHistorical"]
+        ),
+        .library(
             name: "DerZweiteWeltkriegGuderian",
             targets: ["DerZweiteWeltkriegGuderian"]
         ),
@@ -57,6 +61,11 @@ let package = Package(
                 .linkedFramework("AppKit"),
             ]
         ),
+        .target(
+            name: "DerZweiteWeltkriegHistorical",
+            dependencies: ["DerZweiteWeltkriegCore"],
+            path: "Sources/DerZweiteWeltkriegHistorical"
+        ),
         .executableTarget(
             name: "DerZweiteWeltkriegApp",
             dependencies: ["DerZweiteWeltkriegAppUI"],
@@ -79,6 +88,7 @@ let package = Package(
             name: "DerZweiteWeltkriegTests",
             dependencies: [
                 "DerZweiteWeltkriegCore",
+                "DerZweiteWeltkriegHistorical",
                 "DerZweiteWeltkriegGuderian",
             ],
             path: "Tests/DerZweiteWeltkriegTests"
