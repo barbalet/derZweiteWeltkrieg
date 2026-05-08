@@ -381,7 +381,7 @@ public enum GuderianHistoricalAutoplayCatalog {
         seed: UInt32 = defaultSeed
     ) -> HistoricalAutoplayConfiguration<GuderianBattleID> {
         let balance = ScenarioBalanceCatalog.profile(for: scenario)
-        let antiGuderianPlan = AntiGuderianAIPlanCatalog.plan(for: scenario)
+        let opposingForcePlan = OpposingForceAIPlanCatalog.plan(for: scenario)
         let germanPlan = GermanAIPlanCatalog.plan(for: scenario)
 
         return HistoricalAutoplayConfiguration(
@@ -394,7 +394,7 @@ public enum GuderianHistoricalAutoplayCatalog {
                 HistoricalAutoplaySidePlan(
                     sideID: GuderianHistoricalSideID.opposingForce,
                     controllerLabel: "Default-side automation",
-                    movementPriorityNames: antiGuderianPlan.targetPriorities,
+                    movementPriorityNames: opposingForcePlan.targetPriorities(for: .movement),
                     movementDistance: 5
                 ),
                 HistoricalAutoplaySidePlan(
