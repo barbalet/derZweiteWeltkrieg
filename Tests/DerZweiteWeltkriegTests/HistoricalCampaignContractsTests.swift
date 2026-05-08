@@ -1,5 +1,6 @@
 import DerZweiteWeltkriegCore
 @testable import DerZweiteWeltkriegHistorical
+import SwiftUI
 import XCTest
 
 private enum DemoHistoricalBattleID: String, Codable, Hashable, Sendable, HistoricalBattleID {
@@ -70,6 +71,21 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         XCTAssertEqual(launch.aiSideID, "montgomery")
         XCTAssertEqual(launch.enginePlayerSlot(for: "axis"), .playerTwo)
         XCTAssertEqual(launch.controller(for: "montgomery"), .ai)
+    }
+
+    @MainActor
+    func testSharedSidePickerBuildsDropdownFromHistoricalScenarioOptions() {
+        let scenario = Self.makeDemoScenario()
+        let picker = HistoricalBattleSidePicker(
+            scenario: scenario,
+            selectedSideID: .constant("montgomery")
+        )
+
+        XCTAssertEqual(HistoricalBattleSidePickerDefaults.title, "Play as")
+        XCTAssertEqual(HistoricalBattleSidePickerDefaults.accessibilityIdentifier, "battle-side-selector")
+        XCTAssertEqual(HistoricalBattleSidePickerDefaults.optionAccessibilityIDPrefix, "battle-side-option")
+        XCTAssertEqual(scenario.sideOptions.map(\.id), ["montgomery", "axis"])
+        XCTAssertTrue(String(describing: type(of: picker)).contains("HistoricalBattleSidePicker"))
     }
 
     func testSideSelectionRejectsUnknownSideIDs() throws {

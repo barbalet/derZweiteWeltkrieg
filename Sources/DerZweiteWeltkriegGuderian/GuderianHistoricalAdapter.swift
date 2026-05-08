@@ -9,6 +9,62 @@ public enum GuderianHistoricalSideID {
     public static let opposingForce = "opposing-force"
 }
 
+public enum GuderianHistoricalSideSelectionMemory {
+    public static func selectedSideID(
+        for scenario: GuderianScenario,
+        encodedSelections: String,
+        fallbackSideID: String = GuderianHistoricalSideSelectionResolver.defaultHumanSideID
+    ) -> String {
+        let historicalScenario = GuderianHistoricalScenarioAdapter.scenario(for: scenario)
+        let selections = sideSelections(from: encodedSelections)
+
+        if let selectedSideID = selections[scenario.id.rawValue],
+           historicalScenario.sideOption(id: selectedSideID) != nil {
+            return selectedSideID
+        }
+
+        if historicalScenario.sideOption(id: fallbackSideID) != nil {
+            return fallbackSideID
+        }
+
+        return GuderianHistoricalSideSelectionResolver.defaultHumanSideID
+    }
+
+    public static func encodedSelections(
+        _ encodedSelections: String,
+        selecting sideID: String,
+        for scenario: GuderianScenario
+    ) -> String {
+        guard GuderianHistoricalScenarioAdapter.scenario(for: scenario).sideOption(id: sideID) != nil else {
+            return encodedSelections
+        }
+
+        var selections = sideSelections(from: encodedSelections)
+        selections[scenario.id.rawValue] = sideID
+        return encode(selections)
+    }
+
+    public static func sideSelections(from encodedSelections: String) -> [String: String] {
+        guard let data = encodedSelections.data(using: .utf8),
+              let selections = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return selections
+    }
+
+    private static func encode(_ selections: [String: String]) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        guard let data = try? encoder.encode(selections),
+              let encoded = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+
+        return encoded
+    }
+}
+
 public enum GuderianHistoricalSideSelectionResolver {
     public static let defaultHumanSideID = GuderianHistoricalSideID.opposingForce
 
