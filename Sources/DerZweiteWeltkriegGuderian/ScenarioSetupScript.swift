@@ -205,7 +205,7 @@ public enum ScenarioSetupCatalog {
         ],
         triggers: [
             trigger("wizna-turn-pressure", "Bombardment pressure", "Start of German turns 1 and 2", "Apply artillery/pinning pressure to bunker objectives."),
-            trigger("wizna-last-stand", "Last bunker stand", "Player controls one or fewer bunker objectives", "Award delay points and surface withdrawal/hold guidance."),
+            trigger("wizna-last-stand", "Last bunker stand", "Default side controls one or fewer bunker objectives", "Award delay points and surface withdrawal/hold guidance."),
         ],
         tutorialSteps: [
             tutorial("wizna-cover", "Use the bunkers", "Select a fortified unit and keep it inside the bunker belt to preserve cover saves."),

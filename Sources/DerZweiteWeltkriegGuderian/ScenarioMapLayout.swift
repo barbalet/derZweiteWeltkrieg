@@ -321,7 +321,7 @@ public enum ScenarioMapCatalog {
             marker("german-artillery", "German artillery park", .artillery, .guderianAI, p(15, 47), radius: 4, note: "Pressure source for tutorial bombardment events."),
         ] + wiznaEnrichment,
         deploymentZones: [
-            zone("polish-line", "Polish fortified line", .player, p(30, 16), 38, 30, "Player deploys bunkers, machine guns, and anti-tank guns along the line."),
+            zone("polish-line", "Polish fortified line", .player, p(30, 16), 38, 30, "Opposing force deploys bunkers, machine guns, and anti-tank guns along the line."),
             zone("german-approach", "German assembly area", .guderianAI, p(0, 39), 24, 21, "German armor and infantry enter from the western approach."),
         ]
     )
@@ -498,7 +498,7 @@ public enum ScenarioMapCatalog {
             marker("stonne-village", "Stonne village", .town, .neutral, p(52, 33), radius: 7, note: "Repeatedly contested village objective."),
             marker("stonne-heights", "Stonne heights", .ridge, .player, p(58, 25), radius: 6, note: "Observation and bridgehead threat."),
             marker("stonne-char-b1", "Char B1 shock point", .objective, .player, p(44, 39), radius: 4, note: "French heavy-tank counterattack start."),
-            marker("stonne-bridgehead-risk", "Bridgehead risk line", .objective, .player, p(69, 25), radius: 4, note: "Player scores by threatening the Sedan bridgehead flank."),
+            marker("stonne-bridgehead-risk", "Bridgehead risk line", .objective, .player, p(69, 25), radius: 4, note: "Default side scores by threatening the Sedan bridgehead flank."),
             marker("stonne-german-support", "German support line", .artillery, .guderianAI, p(31, 48), radius: 5, note: "Motorized infantry, anti-tank, and artillery support."),
         ] + stonneEnrichment,
         deploymentZones: [
@@ -1347,7 +1347,7 @@ public enum ScenarioMapCatalog {
                 line("\(scenario.id.rawValue)-main-road", "Operational road", .road, [p(4, 51), p(35, 38), p(63, 26), p(96, 13)], note: "Generic campaign route until a hand-authored map is added."),
             ] + featureElements,
             deploymentZones: [
-                zone("\(scenario.id.rawValue)-player", "Player deployment", .player, p(58, 11), 34, 28, "Opposing force deployment area."),
+                zone("\(scenario.id.rawValue)-player", "Opposing force deployment", .player, p(58, 11), 34, 28, "Opposing force deployment area."),
                 zone("\(scenario.id.rawValue)-german", "Guderian approach", .guderianAI, p(2, 36), 30, 22, "German attack or pursuit start area."),
             ]
         )

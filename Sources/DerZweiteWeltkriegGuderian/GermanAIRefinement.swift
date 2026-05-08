@@ -81,13 +81,13 @@ public enum GermanAIRefinementCatalog {
         case .breakout:
             behaviors.append(behavior("\(scenario.id.rawValue)-fallback-cut-exit", "A breakout or evacuation lane remains open.", "Redirect the nearest mobile order toward the exit lane instead of chasing low-value units."))
         case .counterattack:
-            behaviors.append(behavior("\(scenario.id.rawValue)-fallback-cover-columns", "Player armor or cavalry threatens column or support units.", "Hold one mobile reserve back as a security group until the raid is contained."))
+            behaviors.append(behavior("\(scenario.id.rawValue)-fallback-cover-columns", "Default-side armor or cavalry threatens column or support units.", "Hold one mobile reserve back as a security group until the raid is contained."))
         case .evacuationDefense:
             behaviors.append(behavior("\(scenario.id.rawValue)-fallback-capacity-pressure", "Evacuation scoring continues for two consecutive turns.", "Target evacuation capacity or port/beach control before local attrition."))
         case .fortifiedDelay, .urbanDefense:
             behaviors.append(behavior("\(scenario.id.rawValue)-fallback-suppress-strongpoint", "A strongpoint survives an assault.", "Use artillery or engineer support before another direct assault."))
         case .mobileDelay:
-            behaviors.append(behavior("\(scenario.id.rawValue)-fallback-road-control", "Player delay units remain mobile on road objectives.", "Prioritize road hubs and exits over low-value combat exchanges."))
+            behaviors.append(behavior("\(scenario.id.rawValue)-fallback-road-control", "Default-side delay units remain mobile on road objectives.", "Prioritize road hubs and exits over low-value combat exchanges."))
         }
 
         if let lastOrder = plan.orders.last {

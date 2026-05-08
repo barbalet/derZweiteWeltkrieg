@@ -223,12 +223,12 @@ public enum LateCareerStaffBattlefieldSetACatalog {
                 objective("kursk-panzer-breakthrough", "German breakthrough pressure", .guderianAI, 5, "German pressure scores for crossing both fortified phase lines."),
             ],
             forces: [
-                force("kursk-soviet-defenders", .player, "Soviet Central and Voronezh Front defenders", "Mine belts, anti-tank zones, artillery, and armored reserves.", "Player opposes German armored doctrine pressure."),
+                force("kursk-soviet-defenders", .player, "Soviet Central and Voronezh Front defenders", "Mine belts, anti-tank zones, artillery, and armored reserves.", "Playable force studies German armored doctrine pressure from the defending side."),
                 force("kursk-german-pressure", .guderianAI, "German panzer and assault formations", "Armored breakthrough attempt through prepared defenses.", "Guderian is staff context as Inspector General, not field commander."),
             ],
             rules: [
                 rule("kursk-mine-attrition", "Mine belt attrition", "German armor enters a mine-belt marker.", "Apply a movement stop and add a repair or morale pressure marker."),
-                rule("kursk-at-depth", "Anti-tank depth", "Player holds two ridge or fortified markers at turn end.", "Increase Soviet defensive score and delay German breakthrough phase."),
+                rule("kursk-at-depth", "Anti-tank depth", "Playable force holds two ridge or fortified markers at turn end.", "Increase Soviet defensive score and delay German breakthrough phase."),
                 rule("kursk-reserve-counterstroke", "Reserve counterstroke", "A Soviet reserve objective is still linked to a road lane after the first phase line falls.", "Unlock a counterattack marker against the German spearhead."),
                 rule("kursk-rail-strain", "Rail strain", "Soviet forces contest the rail spur or supply objective.", "Add German logistics friction before the next pressure move."),
             ]
@@ -244,14 +244,14 @@ public enum LateCareerStaffBattlefieldSetACatalog {
                 objective("dnieper-german-withdrawal", "German withdrawal corridors", .guderianAI, 5, "German pressure scores for preserving road and ferry exits."),
             ],
             forces: [
-                force("dnieper-soviet-fronts", .player, "Soviet Front crossing detachments", "Engineers, rifle formations, artillery, and mobile groups forcing the river.", "Player drives the east-to-west crossing pressure."),
+                force("dnieper-soviet-fronts", .player, "Soviet Front crossing detachments", "Engineers, rifle formations, artillery, and mobile groups forcing the river.", "Playable force drives the east-to-west crossing pressure."),
                 force("dnieper-german-withdrawal", .guderianAI, "German retreat and bridgehead groups", "River defense, demolition teams, rear guards, and armored reserves.", "Guderian is inspector-level readiness context, not battlefield command."),
             ],
             rules: [
-                rule("dnieper-assault-crossing", "Assault crossing", "Player controls a ferry, ford, or bridge marker.", "Create a temporary bridgehead objective on the west bank."),
+                rule("dnieper-assault-crossing", "Assault crossing", "Playable force controls a ferry, ford, or bridge marker.", "Create a temporary bridgehead objective on the west bank."),
                 rule("dnieper-demolition-risk", "Demolition risk", "German pressure controls a crossing at phase end.", "Mark the crossing denied until engineers restore it."),
                 rule("dnieper-wetland-friction", "Wetland friction", "Any force leaves a road inside marsh terrain.", "Reduce movement and expose the unit to artillery pressure."),
-                rule("dnieper-bridgehead-isolation", "Bridgehead isolation", "Player controls both road and rail exits behind a bridgehead.", "Score isolation points and remove one German withdrawal option."),
+                rule("dnieper-bridgehead-isolation", "Bridgehead isolation", "Playable force controls both road and rail exits behind a bridgehead.", "Score isolation points and remove one German withdrawal option."),
             ]
         ),
         battlefield(
@@ -265,13 +265,13 @@ public enum LateCareerStaffBattlefieldSetACatalog {
                 objective("korsun-breakout-route", "German breakout route", .guderianAI, 5, "German pressure scores by opening a continuous road to the western exit."),
             ],
             forces: [
-                force("korsun-soviet-blocking", .player, "Soviet blocking and cavalry-mechanized groups", "Seal roads, crossings, and thaw lanes around the pocket.", "Player closes the pocket against German relief pressure."),
+                force("korsun-soviet-blocking", .player, "Soviet blocking and cavalry-mechanized groups", "Seal roads, crossings, and thaw lanes around the pocket.", "Playable force closes the pocket against German relief pressure."),
                 force("korsun-german-pocket", .guderianAI, "German pocket and relief groups", "Breakout columns, relief armor, and rear guards.", "Guderian remains staff-context only."),
             ],
             rules: [
                 rule("korsun-thaw-lanes", "Snow and thaw lanes", "A force moves through marsh or thaw terrain.", "Apply movement friction unless connected to a road marker."),
                 rule("korsun-relief-contact", "Relief contact", "German pressure controls a relief objective and a pocket road in the same turn.", "Open a temporary breakout corridor."),
-                rule("korsun-crossing-block", "Crossing block", "Player controls two Gniloy Tikich crossings.", "Prevent German breakout scoring this round."),
+                rule("korsun-crossing-block", "Crossing block", "Playable force controls two Gniloy Tikich crossings.", "Prevent German breakout scoring this round."),
                 rule("korsun-pocket-shrink", "Pocket shrink", "Both phase lines are under player control.", "Reduce German deployment depth and increase Soviet score."),
             ]
         ),
@@ -286,13 +286,13 @@ public enum LateCareerStaffBattlefieldSetACatalog {
                 objective("kamenets-german-escape", "German armored escape", .guderianAI, 5, "German pressure scores for opening a continuous westward corridor."),
             ],
             forces: [
-                force("kamenets-soviet-mobile", .player, "Soviet mobile groups", "Tank, cavalry-mechanized, engineer, and rifle forces closing the pocket exits.", "Player tries to close the corridor before German armor slips away."),
+                force("kamenets-soviet-mobile", .player, "Soviet mobile groups", "Tank, cavalry-mechanized, engineer, and rifle forces closing the pocket exits.", "Playable force tries to close the corridor before German armor slips away."),
                 force("kamenets-german-pocket", .guderianAI, "German First Panzer Army escape groups", "Armored columns, rear guards, and bridge-control detachments.", "Guderian is inspector-level context before his General Staff role."),
             ],
             rules: [
                 rule("kamenets-mud-corridor", "Mud corridor", "German pressure leaves a road while mud markers are active.", "Add friction and delay the escape corridor by one phase."),
-                rule("kamenets-river-gate", "River gate", "Player controls a bridge and ferry pair.", "Close one escape option until German pressure retakes either marker."),
-                rule("kamenets-road-net-cut", "Road net cut", "Player controls Tarnopol road and rail objectives together.", "Break German corridor continuity for scoring."),
+                rule("kamenets-river-gate", "River gate", "Playable force controls a bridge and ferry pair.", "Close one escape option until German pressure retakes either marker."),
+                rule("kamenets-road-net-cut", "Road net cut", "Playable force controls Tarnopol road and rail objectives together.", "Break German corridor continuity for scoring."),
                 rule("kamenets-armored-slip", "Armored slip", "German pressure controls two consecutive road markers after the phase line.", "Open a temporary westward escape lane."),
             ]
         ),
@@ -339,7 +339,7 @@ private extension LateCareerStaffBattlefieldSetACatalog {
             lateLine("kursk-phase-reserve", "Reserve counterstroke phase line", .phaseLine, [lp(58, 39), lp(75, 34), lp(93, 29)], width: 2, "Phase line for Soviet reserve commitment."),
             ],
             deploymentZones: [
-                lateZone("kursk-soviet-depth", "Soviet defense in depth", .player, lp(38, 20), 48, 28, "Player starts in layered belts, rail districts, and reserve lanes."),
+                lateZone("kursk-soviet-depth", "Soviet defense in depth", .player, lp(38, 20), 48, 28, "Playable force starts in layered belts, rail districts, and reserve lanes."),
                 lateZone("kursk-german-entry", "German armored pressure", .guderianAI, lp(0, 42), 30, 18, "German pressure enters from the west and south-west."),
             ],
             sourceNotes: [lateSource("Kursk staff-context source", "https://en.wikipedia.org/wiki/Battle_of_Kursk", "Used as the source shelf for a staff-influence armored pressure battlefield.")]
@@ -441,9 +441,9 @@ private extension LateCareerStaffBattlefieldSetACatalog {
             lateLine("kamenets-wooded-hills", "Wooded hill belt", .forest, [lp(36, 20), lp(56, 23), lp(77, 26)], width: 5, "Wooded hills on the northern flank."),
             lateMarker("kamenets-corridor-ridge", "Corridor ridge", .ridge, .neutral, lp(66, 39), radius: 4, "High ground overlooking the escape road."),
             lateLine("kamenets-soviet-block-line", "Soviet blocking line", .fortifiedLine, [lp(49, 41), lp(66, 39), lp(83, 36)], width: 3, "Blocking line across the westward corridor."),
-            lateMarker("kamenets-river-exit", "River exit control", .objective, .player, lp(61, 42), radius: 4, "Player objective for closing river exits."),
+            lateMarker("kamenets-river-exit", "River exit control", .objective, .player, lp(61, 42), radius: 4, "Playable-force objective for closing river exits."),
             lateMarker("kamenets-west-corridor", "West corridor gate", .objective, .guderianAI, lp(94, 36), radius: 4, "German escape corridor objective."),
-            lateMarker("kamenets-road-net-cut", "Road net cut marker", .objective, .player, lp(73, 39), radius: 4, "Player objective for cutting Tarnopol road traffic."),
+            lateMarker("kamenets-road-net-cut", "Road net cut marker", .objective, .player, lp(73, 39), radius: 4, "Playable-force objective for cutting Tarnopol road traffic."),
             lateLine("kamenets-phase-pocket", "Pocket corridor phase line", .phaseLine, [lp(48, 42), lp(66, 40), lp(85, 37)], width: 2, "Phase line for corridor continuity."),
             lateLine("kamenets-phase-river", "River exit phase line", .phaseLine, [lp(53, 43), lp(70, 39), lp(94, 35)], width: 2, "Phase line for river exit control."),
             ],

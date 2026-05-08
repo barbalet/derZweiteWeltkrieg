@@ -204,7 +204,7 @@ public enum GuderianHistoricalScenarioAdapter {
                 historicalForce: scenario.guderianCommand,
                 commander: "Heinz Guderian",
                 armyListName: "German",
-                playerBriefing: "Drive the historical German operational plan and force a breakthrough.",
+                playerBriefing: "Use the German command-side study mode to compare operational pressure while keeping the non-celebratory historical framing visible.",
                 aiBriefing: "Use German AI priorities to pressure the scenario objectives."
             ),
             HistoricalSideOption(
@@ -214,7 +214,7 @@ public enum GuderianHistoricalScenarioAdapter {
                 historicalForce: scenario.playerForceSummary,
                 commander: nil,
                 armyListName: opposingArmyListName(for: scenario),
-                playerBriefing: "Delay, counterattack, evacuate, or defend according to the scenario posture.",
+                playerBriefing: "Use the default opposing-force lens to delay, counterattack, evacuate, or defend according to the scenario posture.",
                 aiBriefing: "Use anti-Guderian priorities to contest the German plan."
             ),
         ]
@@ -393,13 +393,13 @@ public enum GuderianHistoricalAutoplayCatalog {
             sidePlans: [
                 HistoricalAutoplaySidePlan(
                     sideID: GuderianHistoricalSideID.opposingForce,
-                    controllerLabel: "Anti-Guderian AI",
+                    controllerLabel: "Default-side automation",
                     movementPriorityNames: antiGuderianPlan.targetPriorities,
                     movementDistance: 5
                 ),
                 HistoricalAutoplaySidePlan(
                     sideID: GuderianHistoricalSideID.guderianCommand,
-                    controllerLabel: "Guderian AI",
+                    controllerLabel: "Guderian-command automation",
                     movementPriorityNames: germanPlan.targetPriorities(for: .movement),
                     movementDistance: 7
                 ),

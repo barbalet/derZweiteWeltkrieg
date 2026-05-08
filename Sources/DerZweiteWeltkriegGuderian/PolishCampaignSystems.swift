@@ -145,7 +145,7 @@ public enum PolishCampaignSystemCatalog {
             asset("brzesc-ft17", "FT-17 tank detachment", .obsoleteTank, "Represents old armor used as mobile strongpoints.", "Cannot duel modern panzers without terrain support."),
         ],
         specialRules: [
-            rule("brzesc-rail-control", "Rail control", "The player controls a rail objective.", "Armored train support can fire or cover a fallback."),
+            rule("brzesc-rail-control", "Rail control", "The default side controls a rail objective.", "Armored train support can fire or cover a fallback."),
             rule("brzesc-inner-fallback", "Inner fallback", "Outer fortress sectors are lost.", "Move surviving defenders into citadel positions and score preservation points."),
         ]
     )
@@ -161,7 +161,7 @@ public enum PolishCampaignSystemCatalog {
         ],
         specialRules: [
             rule("kobryn-roadblock", "Western roadblock", "Polish guns or reserve infantry contest the western road.", "Delay the German fixing attack and preserve one eastern exit from immediate pressure."),
-            rule("kobryn-rearguard", "Rearguard timing", "The player holds a town objective through the midgame.", "Unlock withdrawal scoring for infantry groups."),
+            rule("kobryn-rearguard", "Rearguard timing", "The default side holds a town objective through the midgame.", "Unlock withdrawal scoring for infantry groups."),
             rule("kobryn-cohesion", "Cohesion preservation", "Three or more units exit through the same lane.", "Award operational success for preserving the rearguard."),
         ]
     )

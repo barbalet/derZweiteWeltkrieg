@@ -124,7 +124,7 @@ public enum GuderianCareerScopeCatalog {
             label: "1-18 Sep 1939",
             scope: .directFieldCommand,
             commandRole: "XIX Panzer Corps in the invasion of Poland.",
-            playableFraming: "The player resists XIX Corps as Polish forces trying to delay, preserve forces, or hold fortress positions.",
+            playableFraming: "Default play resists XIX Corps as Polish forces trying to delay, preserve forces, or hold fortress positions; the side selector can also launch German command study mode.",
             scenarioIDs: [.tucholaForest, .wizna, .brzescLitewski, .kobryn],
             sources: [
                 careerSource("Heinz Guderian", "https://en.wikipedia.org/wiki/Heinz_Guderian"),
@@ -139,7 +139,7 @@ public enum GuderianCareerScopeCatalog {
             label: "12-26 May 1940",
             scope: .directFieldCommand,
             commandRole: "XIX Army Corps during the Meuse crossing and Channel coast drive.",
-            playableFraming: "The player commands French, British, and Belgian defenders delaying the Meuse breakthrough and port battles.",
+            playableFraming: "Default play commands French, British, and Belgian defenders delaying the Meuse breakthrough and port battles; the side selector can also launch German command study mode.",
             scenarioIDs: [.sedan, .stonne, .montcornet, .amiensAbbeville, .boulogne, .calais],
             sources: [
                 careerSource("Heinz Guderian", "https://en.wikipedia.org/wiki/Heinz_Guderian"),
@@ -154,7 +154,7 @@ public enum GuderianCareerScopeCatalog {
             label: "26 May-4 Jun 1940",
             scope: .adjacentCampaignPressure,
             commandRole: "Adjacent pressure after the Channel port drive, not a clean direct Guderian field-command battle.",
-            playableFraming: "The player defends the evacuation perimeter while the scenario explicitly labels the Guderian connection as contextual.",
+            playableFraming: "Default play defends the evacuation perimeter while the scenario explicitly labels the Guderian connection as contextual; side-selected command study remains non-celebratory.",
             scenarioIDs: [.dunkirk],
             sources: [
                 careerSource("Battle of Dunkirk", "https://en.wikipedia.org/wiki/Battle_of_Dunkirk"),
@@ -169,7 +169,7 @@ public enum GuderianCareerScopeCatalog {
             label: "10-22 Jun 1940",
             scope: .directFieldCommand,
             commandRole: "Panzergruppe Guderian during the late-France drive to the Swiss border.",
-            playableFraming: "The player uses French bridge, fortress, and retreat-corridor defenses against Guderian's exploitation.",
+            playableFraming: "Default play uses French bridge, fortress, and retreat-corridor defenses against Guderian's exploitation; the side selector can also launch German command study mode.",
             scenarioIDs: [.fallRot],
             sources: [
                 careerSource("Fall Rot", "https://en.wikipedia.org/wiki/Fall_Rot"),
@@ -184,7 +184,7 @@ public enum GuderianCareerScopeCatalog {
             label: "22 Jun 1941-7 Jan 1942",
             scope: .directFieldCommand,
             commandRole: "2nd Panzer Group, later 2nd Panzer Army, until Guderian's dismissal during the Moscow crisis.",
-            playableFraming: "The player commands Soviet defenders, breakout forces, and counterattack groups against Guderian's 1941 panzer command; Moscow carries an end-date caveat because the battle outlasts his command.",
+            playableFraming: "Default play commands Soviet defenders, breakout forces, and counterattack groups against Guderian's 1941 panzer command; the side selector can also launch German command study mode, and Moscow carries an end-date caveat because the battle outlasts his command.",
             scenarioIDs: [.bialystokMinsk, .smolensk, .roslavlNovozybkov, .kiev, .bryansk, .mtsensk, .moscowTulaKashira],
             sources: [
                 careerSource("2nd Panzer Army", "https://en.wikipedia.org/wiki/2nd_Panzer_Army"),

@@ -70,7 +70,7 @@ public enum ScenarioHistoricalOverlayCatalog {
         case .moscowTulaKashira:
             return "The scenario follows Guderian's 2nd Panzer Army on the southern Moscow approach, where Tula, Venev, Kashira, and winter supply all shape the final offensive failure."
         default:
-            return "\(scenario.guderianCommand) is the command frame for this battle; the player controls \(scenario.playerForceSummary) to resist, delay, escape, or counterattack."
+            return "\(scenario.guderianCommand) is the command frame for this battle; default opposing-force play uses \(scenario.playerForceSummary) to resist, delay, escape, or counterattack, while Guderian command remains available as sober command study."
         }
     }
 
@@ -79,7 +79,7 @@ public enum ScenarioHistoricalOverlayCatalog {
         if objectiveNames.isEmpty {
             return "\(layout.title) abstracts the main roads, defensive terrain, and command-relevant objectives used by the scenario."
         }
-        return "\(layout.title) emphasizes \(objectiveNames) as the player-facing operational map anchors."
+        return "\(layout.title) emphasizes \(objectiveNames) as the playable operational map anchors."
     }
 
     private static func outcomeSummary(for scenario: GuderianScenario) -> String {
@@ -98,7 +98,7 @@ public enum ScenarioHistoricalOverlayCatalog {
     private static func caveats(for scenario: GuderianScenario) -> [String] {
         var values = [
             "This is a compact operational scenario, not a literal one-to-one recreation of every formation and movement.",
-            "The player-facing role remains opposition to Guderian's formations; the presentation avoids celebratory framing.",
+            "Field-command play can be launched from either side; the default opposing-force lens and any Guderian command study mode avoid celebratory framing.",
         ]
 
         if scenario.id == .dunkirk {

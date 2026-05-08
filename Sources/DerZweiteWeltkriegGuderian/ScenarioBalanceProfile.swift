@@ -226,7 +226,7 @@ public enum ScenarioBalanceCatalog {
         pacingRules: [
             pacing("brzesc-rail-window", "Rail support window", "Turns 1-2", "Armored trains can act before German rail-cut pressure fully applies."),
             pacing("brzesc-isolation-clock", "Isolation clock", "Turns 3-5", "German isolation pressure grows only after town or rail control changes."),
-            pacing("brzesc-fallback-choice", "Fallback choice", "Turns 5-8", "Player must choose whether to keep the citadel contested or preserve mobile assets."),
+            pacing("brzesc-fallback-choice", "Fallback choice", "Turns 5-8", "Default side must choose whether to keep the citadel contested or preserve mobile assets."),
         ],
         reinforcements: [
             reinforcement("brzesc-german-engineers", .guderianAI, "Turns 3-4", "German engineer assault group", "Enter after town or rail approach is German-controlled.", "Fortress reduction"),
@@ -768,7 +768,7 @@ public enum ScenarioBalanceCatalog {
             ],
             reinforcements: [],
             outcomeBands: [
-                outcome("\(scenario.id.rawValue)-tactical", .tactical, 4...8, "The player achieves the main local scenario goal."),
+                outcome("\(scenario.id.rawValue)-tactical", .tactical, 4...8, "The default side achieves the main local scenario goal."),
                 outcome("\(scenario.id.rawValue)-historical", .historicalPressure, 0...3, "The battle follows historical German pressure."),
             ]
         )

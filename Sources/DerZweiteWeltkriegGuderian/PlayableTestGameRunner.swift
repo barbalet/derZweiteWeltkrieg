@@ -1,8 +1,8 @@
 import Foundation
 
 public enum PlayableTestAIController: String, Codable, Hashable, Sendable {
-    case antiGuderian = "Anti-Guderian AI"
-    case guderian = "Guderian AI"
+    case antiGuderian = "Default-side automation"
+    case guderian = "Guderian-command automation"
 
     init(activePlayer: NativeBoardPlayer) {
         switch activePlayer {
@@ -235,7 +235,7 @@ public struct PlayableTestGameBattleResult: Identifiable, Codable, Hashable, Sen
     }
 
     public var summary: String {
-        "\(title) played to debrief with \(antiGuderianStepCount) Anti-Guderian AI steps, \(germanStepCount) German AI steps, and \(phaseAdvances) phase advances."
+        "\(title) played to debrief with \(antiGuderianStepCount) default-side automation steps, \(germanStepCount) Guderian-command automation steps, and \(phaseAdvances) phase advances."
     }
 }
 
@@ -345,10 +345,10 @@ public enum PlayableTestGameRunner {
         }
         let automatedSides = Set(steps.map(\.activePlayer))
         if !automatedSides.contains(.player) {
-            blockers.append("Anti-Guderian AI did not receive an active phase.")
+            blockers.append("Default-side automation did not receive an active phase.")
         }
         if !automatedSides.contains(.guderianAI) {
-            blockers.append("Guderian AI did not receive an active phase.")
+            blockers.append("Guderian-command automation did not receive an active phase.")
         }
 
         let completion = try PlayableBattleCompletionResolver.completeBattle(from: session)

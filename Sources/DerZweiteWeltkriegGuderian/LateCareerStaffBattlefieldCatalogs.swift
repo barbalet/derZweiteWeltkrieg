@@ -543,18 +543,18 @@ private func lateContextBattlefield(
         playableFraming: candidate.playableFraming,
         map: map,
         objectives: [
-            lateContextObjective("\(candidate.id)-primary", playerObjectiveName, .player, 5, "Primary player objective for \(candidate.title)."),
+            lateContextObjective("\(candidate.id)-primary", playerObjectiveName, .player, 5, "Primary playable-force objective for \(candidate.title)."),
             lateContextObjective("\(candidate.id)-support", playerSupportObjectiveName, .player, 4, "Support objective that keeps the staff-context map tactically playable."),
             lateContextObjective("\(candidate.id)-denial", denialObjectiveName, .player, 3, "Denial objective tied to crossings, roads, rail, or defensive belts."),
             lateContextObjective("\(candidate.id)-german", germanObjectiveName, .guderianAI, 5, "Opposition pressure objective; Guderian is context rather than field commander."),
         ],
         forces: [
-            lateContextForce("\(candidate.id)-player-force", .player, playerForceName, candidate.playerRole, "Player controls the anti-Guderian side in a command-caveated late-war context."),
+            lateContextForce("\(candidate.id)-player-force", .player, playerForceName, candidate.playerRole, "Playable force studies the opposing side in a command-caveated late-war context."),
             lateContextForce("\(candidate.id)-german-force", .guderianAI, germanForceName, germanContext, "German side reflects \(candidate.scope.rawValue), not direct Guderian field command."),
         ],
         rules: [
-            lateContextRule("\(candidate.id)-crossing-rule", "Crossing pressure", "Player controls two crossing markers.", "Score crossing pressure and constrain the German operational response."),
-            lateContextRule("\(candidate.id)-rail-rule", "Rail and road disruption", "Player controls a rail or road objective at phase end.", "Add logistics friction before the next German pressure step."),
+            lateContextRule("\(candidate.id)-crossing-rule", "Crossing pressure", "Playable force controls two crossing markers.", "Score crossing pressure and constrain the German operational response."),
+            lateContextRule("\(candidate.id)-rail-rule", "Rail and road disruption", "Playable force controls a rail or road objective at phase end.", "Add logistics friction before the next German pressure step."),
             lateContextRule("\(candidate.id)-caveat-rule", "Command caveat visible", "The battlefield opens in any late-career UI surface.", "Show the command caveat label before objectives are scored."),
             lateContextRule("\(candidate.id)-phase-rule", "Phase-line escalation", "Either side crosses a phase line.", "Advance the crisis state and refresh German AI priority pressure."),
         ],
