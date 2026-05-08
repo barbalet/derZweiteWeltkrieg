@@ -179,6 +179,205 @@ public struct HistoricalBoardSnapshot<ID: HistoricalBattleID>: Codable, Hashable
     }
 }
 
+public enum HistoricalBoardSelectionIntent: Hashable, Sendable {
+    case selectUnit(Int)
+    case selectTarget(Int)
+    case clearSelection
+    case ignored
+
+    public var unitID: Int? {
+        switch self {
+        case .selectUnit(let id), .selectTarget(let id):
+            return id
+        case .clearSelection, .ignored:
+            return nil
+        }
+    }
+}
+
+public enum HistoricalBoardInteractionResolver {
+    public static func unitTapIntent<ID: HistoricalBattleID>(
+        for unit: HistoricalBoardUnitSnapshot,
+        in snapshot: HistoricalBoardSnapshot<ID>
+    ) -> HistoricalBoardSelectionIntent {
+        guard !unit.destroyed else {
+            return .ignored
+        }
+
+        if unit.sideID == snapshot.activeSideID {
+            return .selectUnit(unit.id)
+        }
+
+        return .selectTarget(unit.id)
+    }
+}
+
+public struct HistoricalBoardUnitLayoutSlot: Identifiable, Codable, Hashable, Sendable {
+    public let id: Int
+    public let coordinate: HistoricalBattleCoordinate
+    public let offsetIndex: Int
+
+    public init(id: Int, coordinate: HistoricalBattleCoordinate, offsetIndex: Int) {
+        self.id = id
+        self.coordinate = coordinate
+        self.offsetIndex = offsetIndex
+    }
+}
+
+public struct HistoricalBoardReadabilityAudit: Codable, Hashable, Sendable {
+    public let unitCount: Int
+    public let objectiveCount: Int
+    public let zoneCount: Int
+    public let directBoardNameLabelCount: Int
+    public let estimatedOverlappingTokenPairs: Int
+    public let usesIDOnlyUnitTokens: Bool
+    public let hasSidebarDetailDisclosure: Bool
+
+    public init(
+        unitCount: Int,
+        objectiveCount: Int,
+        zoneCount: Int,
+        directBoardNameLabelCount: Int,
+        estimatedOverlappingTokenPairs: Int,
+        usesIDOnlyUnitTokens: Bool,
+        hasSidebarDetailDisclosure: Bool
+    ) {
+        self.unitCount = unitCount
+        self.objectiveCount = objectiveCount
+        self.zoneCount = zoneCount
+        self.directBoardNameLabelCount = directBoardNameLabelCount
+        self.estimatedOverlappingTokenPairs = estimatedOverlappingTokenPairs
+        self.usesIDOnlyUnitTokens = usesIDOnlyUnitTokens
+        self.hasSidebarDetailDisclosure = hasSidebarDetailDisclosure
+    }
+
+    public var passesCriticalReadabilityGate: Bool {
+        unitCount > 0 &&
+            objectiveCount > 0 &&
+            directBoardNameLabelCount == 0 &&
+            estimatedOverlappingTokenPairs == 0 &&
+            usesIDOnlyUnitTokens &&
+            hasSidebarDetailDisclosure
+    }
+}
+
+public enum HistoricalBoardLayoutResolver {
+    private static let boardWidth = 100.0
+    private static let boardHeight = 64.0
+    private static let clusterDistance = 10.0
+    private static let tokenWidth = 7.8
+    private static let tokenHeight = 6.8
+    private static let tokenOffsets = [
+        HistoricalBattleCoordinate(x: 0, y: 0),
+        HistoricalBattleCoordinate(x: 9, y: 0),
+        HistoricalBattleCoordinate(x: -9, y: 0),
+        HistoricalBattleCoordinate(x: 0, y: 7),
+        HistoricalBattleCoordinate(x: 0, y: -7),
+        HistoricalBattleCoordinate(x: 9, y: 7),
+        HistoricalBattleCoordinate(x: -9, y: 7),
+        HistoricalBattleCoordinate(x: 9, y: -7),
+        HistoricalBattleCoordinate(x: -9, y: -7),
+        HistoricalBattleCoordinate(x: 18, y: 0),
+        HistoricalBattleCoordinate(x: -18, y: 0),
+        HistoricalBattleCoordinate(x: 0, y: 14),
+        HistoricalBattleCoordinate(x: 0, y: -14),
+    ]
+
+    public static func resolvedUnitSlots<ID: HistoricalBattleID>(
+        for snapshot: HistoricalBoardSnapshot<ID>
+    ) -> [HistoricalBoardUnitLayoutSlot] {
+        snapshot.units
+            .sorted { $0.id < $1.id }
+            .map { unit in
+                let offsetIndex = clusterOffsetIndex(for: unit, in: snapshot)
+                let offset = tokenOffsets[offsetIndex % tokenOffsets.count]
+                return HistoricalBoardUnitLayoutSlot(
+                    id: unit.id,
+                    coordinate: clamped(
+                        HistoricalBattleCoordinate(
+                            x: unit.position.x + offset.x,
+                            y: unit.position.y + offset.y
+                        )
+                    ),
+                    offsetIndex: offsetIndex
+                )
+            }
+    }
+
+    public static func resolvedUnitCoordinate<ID: HistoricalBattleID>(
+        for unit: HistoricalBoardUnitSnapshot,
+        in snapshot: HistoricalBoardSnapshot<ID>
+    ) -> HistoricalBattleCoordinate {
+        resolvedUnitSlots(for: snapshot).first { $0.id == unit.id }?.coordinate ?? unit.position
+    }
+
+    public static func readabilityAudit<ID: HistoricalBattleID>(
+        for snapshot: HistoricalBoardSnapshot<ID>
+    ) -> HistoricalBoardReadabilityAudit {
+        let readability = HistoricalPlayableSurfaceCatalog.boardReadabilityProfile
+        return HistoricalBoardReadabilityAudit(
+            unitCount: snapshot.units.filter { !$0.destroyed }.count,
+            objectiveCount: snapshot.objectives.count,
+            zoneCount: snapshot.zones.count,
+            directBoardNameLabelCount: readability.directBoardNameLabelCount,
+            estimatedOverlappingTokenPairs: estimatedOverlappingTokenPairs(for: snapshot),
+            usesIDOnlyUnitTokens: readability.usesIDOnlyUnitTokens,
+            hasSidebarDetailDisclosure: readability.hasSidebarDetailDisclosure
+        )
+    }
+
+    private static func clusterOffsetIndex<ID: HistoricalBattleID>(
+        for unit: HistoricalBoardUnitSnapshot,
+        in snapshot: HistoricalBoardSnapshot<ID>
+    ) -> Int {
+        let nearby = snapshot.units
+            .filter { !$0.destroyed && boardDistance($0.position, unit.position) <= clusterDistance }
+            .sorted { $0.id < $1.id }
+
+        return nearby.firstIndex { $0.id == unit.id } ?? 0
+    }
+
+    private static func estimatedOverlappingTokenPairs<ID: HistoricalBattleID>(
+        for snapshot: HistoricalBoardSnapshot<ID>
+    ) -> Int {
+        let slots = resolvedUnitSlots(for: snapshot)
+        var overlappingPairs = 0
+
+        for lhsIndex in slots.indices {
+            let rhsStart = slots.index(after: lhsIndex)
+            guard rhsStart < slots.endIndex else {
+                continue
+            }
+
+            for rhsIndex in rhsStart..<slots.endIndex {
+                let lhs = slots[lhsIndex].coordinate
+                let rhs = slots[rhsIndex].coordinate
+                if abs(lhs.x - rhs.x) < tokenWidth && abs(lhs.y - rhs.y) < tokenHeight {
+                    overlappingPairs += 1
+                }
+            }
+        }
+
+        return overlappingPairs
+    }
+
+    private static func boardDistance(
+        _ lhs: HistoricalBattleCoordinate,
+        _ rhs: HistoricalBattleCoordinate
+    ) -> Double {
+        let dx = lhs.x - rhs.x
+        let dy = lhs.y - rhs.y
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    private static func clamped(_ point: HistoricalBattleCoordinate) -> HistoricalBattleCoordinate {
+        HistoricalBattleCoordinate(
+            x: min(max(3, point.x), boardWidth - 3),
+            y: min(max(3, point.y), boardHeight - 3)
+        )
+    }
+}
+
 public protocol HistoricalBoardSession: AnyObject {
     associatedtype BattleID: HistoricalBattleID
 

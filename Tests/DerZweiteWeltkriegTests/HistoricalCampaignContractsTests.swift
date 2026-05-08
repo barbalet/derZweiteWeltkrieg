@@ -79,6 +79,38 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         XCTAssertTrue(contract.retiredGameSpecificSurfaceNames.contains("NativeBattleBoardView"))
     }
 
+    func testSharedPlayableSurfaceProfilesRequireDirectBoardInteractionAndReadableLabels() throws {
+        let interaction = HistoricalPlayableSurfaceCatalog.boardInteractionProfile
+        let readability = HistoricalPlayableSurfaceCatalog.boardReadabilityProfile
+        let viewport = HistoricalPlayableSurfaceCatalog.boardViewportProfile
+        let session = try DemoHistoricalBoardSession()
+        let snapshot = session.snapshot()
+        let activeUnit = try XCTUnwrap(snapshot.units.first { $0.sideID == snapshot.activeSideID })
+        let opposingUnit = try XCTUnwrap(snapshot.units.first { $0.sideID != snapshot.activeSideID })
+        let audit = HistoricalBoardLayoutResolver.readabilityAudit(for: snapshot)
+
+        XCTAssertTrue(interaction.supportsGuderianStyleBoardCommands)
+        XCTAssertEqual(interaction.resolverName, "HistoricalBoardInteractionResolver")
+        XCTAssertEqual(
+            HistoricalBoardInteractionResolver.unitTapIntent(for: activeUnit, in: snapshot),
+            .selectUnit(activeUnit.id)
+        )
+        XCTAssertEqual(
+            HistoricalBoardInteractionResolver.unitTapIntent(for: opposingUnit, in: snapshot),
+            .selectTarget(opposingUnit.id)
+        )
+        XCTAssertTrue(readability.preventsDenseAlwaysOnBoardText)
+        XCTAssertFalse(readability.terrainNamesDrawnDirectlyOnBoard)
+        XCTAssertFalse(readability.objectiveNamesDrawnDirectlyOnBoard)
+        XCTAssertFalse(readability.unitNamesDrawnDirectlyOnBoard)
+        XCTAssertTrue(readability.usesIDOnlyUnitTokens)
+        XCTAssertTrue(readability.hasSidebarDetailDisclosure)
+        XCTAssertTrue(viewport.isCriticalViewportReady)
+        XCTAssertTrue(audit.passesCriticalReadabilityGate)
+        XCTAssertEqual(audit.directBoardNameLabelCount, 0)
+        XCTAssertEqual(audit.estimatedOverlappingTokenPairs, 0)
+    }
+
     func testHistoricalAutoplayContractCapturesMontyTestShape() {
         let contract = HistoricalAutoplayContract(
             primarySurfaceName: "MontyTestFirstBattleAutoplayView",
