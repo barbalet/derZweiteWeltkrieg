@@ -395,13 +395,15 @@ public enum GuderianHistoricalAutoplayCatalog {
                     sideID: GuderianHistoricalSideID.opposingForce,
                     controllerLabel: "Default-side automation",
                     movementPriorityNames: opposingForcePlan.targetPriorities(for: .movement),
-                    movementDistance: 5
+                    movementDistance: 5,
+                    tacticalPlan: HistoricalAutoplayTacticalPlan(opposingForcePlan: opposingForcePlan)
                 ),
                 HistoricalAutoplaySidePlan(
                     sideID: GuderianHistoricalSideID.guderianCommand,
                     controllerLabel: "Guderian-command automation",
                     movementPriorityNames: germanPlan.targetPriorities(for: .movement),
-                    movementDistance: 7
+                    movementDistance: 7,
+                    tacticalPlan: HistoricalAutoplayTacticalPlan(germanPlan: germanPlan)
                 ),
             ]
         )
@@ -425,5 +427,58 @@ public enum GuderianHistoricalAutoplayCatalog {
             supportsDeterministicSeed: configuration?.seed == defaultSeed,
             exposesSharedAutoplayConfiguration: configuration != nil
         )
+    }
+}
+
+private extension HistoricalAutoplayTacticalPlan {
+    init(opposingForcePlan plan: OpposingForceAIPlan) {
+        self.init(
+            id: plan.id.rawValue,
+            armyFamilyName: plan.armyFamily.rawValue,
+            behaviorProfileName: plan.behaviorProfile.rawValue,
+            strategicGoal: plan.strategicGoal,
+            targetPriorities: plan.targetPriorities,
+            orders: plan.orders.map {
+                HistoricalAutoplayTacticalOrder(
+                    id: $0.id,
+                    turnWindow: $0.turnWindow,
+                    phase: HistoricalBoardPhase(native: $0.kind.nativeBoardPhase),
+                    target: $0.target,
+                    instruction: $0.instruction
+                )
+            }
+        )
+    }
+
+    init(germanPlan plan: GermanAIPlan) {
+        self.init(
+            id: "german-\(plan.id.rawValue)",
+            armyFamilyName: "German command",
+            behaviorProfileName: plan.postureName,
+            strategicGoal: plan.strategicGoal,
+            targetPriorities: plan.targetPriorities,
+            orders: plan.orders.map {
+                HistoricalAutoplayTacticalOrder(
+                    id: $0.id,
+                    turnWindow: $0.turnWindow,
+                    phase: HistoricalBoardPhase(native: $0.kind.nativeBoardPhase),
+                    target: $0.target,
+                    instruction: $0.instruction
+                )
+            }
+        )
+    }
+}
+
+private extension HistoricalBoardPhase {
+    init(native phase: NativeBoardPhase) {
+        switch phase {
+        case .movement:
+            self = .movement
+        case .shooting:
+            self = .shooting
+        case .assault:
+            self = .assault
+        }
     }
 }

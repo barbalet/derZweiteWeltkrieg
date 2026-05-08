@@ -41,8 +41,23 @@ final class DerZweiteWeltkriegGuderianGameplayTests: XCTestCase {
             GuderianHistoricalSideID.opposingForce,
             GuderianHistoricalSideID.guderianCommand,
         ])
+        XCTAssertEqual(configuration.plan(for: GuderianHistoricalSideID.opposingForce).tacticalPlan?.armyFamilyName, "Polish")
+        XCTAssertEqual(configuration.plan(for: GuderianHistoricalSideID.guderianCommand).tacticalPlan?.armyFamilyName, "German command")
+        XCTAssertTrue(configuration.plan(for: GuderianHistoricalSideID.opposingForce).tacticalPlan?.isPhaseAware == true)
         XCTAssertTrue(configuration.contract.isFirstBattleAutoplayContract)
         XCTAssertGreaterThanOrEqual(configuration.maxPhaseAdvances, 24)
+    }
+
+    func testGuderianAboutCatalogLivesInDZWSharedAboutModel() {
+        XCTAssertEqual(GuderianAppAboutCatalog.content.appName, "Guderian")
+        XCTAssertEqual(GuderianAppAboutCatalog.releaseVersion, "1.02")
+        XCTAssertEqual(
+            GuderianAppAboutCatalog.content.displayVersion(
+                bundleInfo: ["CFBundleShortVersionString": "$(MARKETING_VERSION)"]
+            ),
+            "1.02"
+        )
+        XCTAssertTrue(GuderianAppAboutCatalog.developmentParagraphs.joined(separator: " ").contains("dzw"))
     }
 
     func testGuderianHistoricalSideSelectionMapsEitherSideToNativeEngineSlots() throws {

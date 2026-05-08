@@ -47,22 +47,114 @@ public enum HistoricalAutoplayError: Error, CustomStringConvertible, Hashable, S
     }
 }
 
+public struct HistoricalAutoplayTacticalOrder: Identifiable, Codable, Hashable, Sendable {
+    public let id: String
+    public let turnWindow: String
+    public let phase: HistoricalBoardPhase
+    public let target: String
+    public let instruction: String
+
+    public init(
+        id: String,
+        turnWindow: String,
+        phase: HistoricalBoardPhase,
+        target: String,
+        instruction: String
+    ) {
+        self.id = id
+        self.turnWindow = turnWindow
+        self.phase = phase
+        self.target = target
+        self.instruction = instruction
+    }
+}
+
+public struct HistoricalAutoplayTacticalPlan: Identifiable, Codable, Hashable, Sendable {
+    public let id: String
+    public let armyFamilyName: String
+    public let behaviorProfileName: String
+    public let strategicGoal: String
+    public let targetPriorities: [String]
+    public let orders: [HistoricalAutoplayTacticalOrder]
+
+    public init(
+        id: String,
+        armyFamilyName: String,
+        behaviorProfileName: String,
+        strategicGoal: String,
+        targetPriorities: [String],
+        orders: [HistoricalAutoplayTacticalOrder]
+    ) {
+        self.id = id
+        self.armyFamilyName = armyFamilyName
+        self.behaviorProfileName = behaviorProfileName
+        self.strategicGoal = strategicGoal
+        self.targetPriorities = targetPriorities
+        self.orders = orders
+    }
+
+    public var isPhaseAware: Bool {
+        !targetPriorities(for: .movement).isEmpty &&
+            !targetPriorities(for: .shooting).isEmpty &&
+            !targetPriorities(for: .assault).isEmpty
+    }
+
+    public var visibleReasoning: [String] {
+        orders.map { "\($0.target): \($0.instruction)" }
+    }
+
+    public func targetPriorities(for phase: HistoricalBoardPhase) -> [String] {
+        uniqueHistoricalAutoplayNames(
+            orders.filter { $0.phase == phase }.map(\.target) + targetPriorities
+        )
+    }
+
+    public func instruction(for phase: HistoricalBoardPhase) -> String {
+        orders.first { $0.phase == phase }?.instruction ?? strategicGoal
+    }
+}
+
 public struct HistoricalAutoplaySidePlan: Codable, Hashable, Sendable {
     public let sideID: String
     public let controllerLabel: String
     public let movementPriorityNames: [String]
     public let movementDistance: Double
+    public let tacticalPlan: HistoricalAutoplayTacticalPlan?
 
     public init(
         sideID: String,
         controllerLabel: String,
         movementPriorityNames: [String],
-        movementDistance: Double = 6
+        movementDistance: Double = 6,
+        tacticalPlan: HistoricalAutoplayTacticalPlan? = nil
     ) {
         self.sideID = sideID
         self.controllerLabel = controllerLabel
         self.movementPriorityNames = movementPriorityNames
         self.movementDistance = movementDistance
+        self.tacticalPlan = tacticalPlan
+    }
+
+    public func priorityNames(for phase: HistoricalBoardPhase) -> [String] {
+        let legacyPriorities = phase == .movement ? movementPriorityNames : []
+        guard let tacticalPlan else {
+            return legacyPriorities
+        }
+        return uniqueHistoricalAutoplayNames(tacticalPlan.targetPriorities(for: phase) + legacyPriorities)
+    }
+
+    public func priorityTarget(for phase: HistoricalBoardPhase) -> String {
+        priorityNames(for: phase).first ?? "nearest legal objective"
+    }
+
+    public func priorityInstruction(for phase: HistoricalBoardPhase) -> String {
+        guard let tacticalPlan else {
+            if phase == .movement && !movementPriorityNames.isEmpty {
+                return "Move toward configured scenario objectives before falling back to the nearest legal objective."
+            }
+            return "Use the nearest legal action while preserving the side's scenario goal."
+        }
+        return tacticalPlan.instruction(for: phase)
     }
 }
 
@@ -422,27 +514,37 @@ public final class HistoricalAutoplayRunController<Session: HistoricalBoardSessi
         switch snapshot.phase {
         case .movement:
             let moved = moveActiveUnits(snapshot: snapshot, sidePlan: sidePlan)
+            let target = sidePlan.priorityTarget(for: snapshot.phase)
+            let reason = sidePlan.priorityInstruction(for: snapshot.phase)
             status = moved == 0 ? .blocked : .succeeded
             title = "\(sidePlan.controllerLabel) movement"
-            detail = moved == 0 ? "No legal movement was available." : "\(moved) active units moved toward priority objectives."
+            detail = moved == 0 ?
+                "No legal movement was available for priority target \(target); fallback to nearest legal objective also failed. Reason: \(reason)" :
+                "\(moved) active units moved toward priority target \(target), with nearest legal objective as fallback. Reason: \(reason)"
         case .shooting:
             let shots = shootActiveUnits(snapshot: snapshot)
+            let target = sidePlan.priorityTarget(for: snapshot.phase)
+            let reason = sidePlan.priorityInstruction(for: snapshot.phase)
             status = shots == 0 ? .blocked : .succeeded
             title = "\(sidePlan.controllerLabel) shooting"
-            detail = shots == 0 ? "No legal shots were available." : "\(shots) active units fired at nearest enemies."
+            detail = shots == 0 ?
+                "No legal shots were available while protecting priority target \(target). Reason: \(reason)" :
+                "\(shots) active units fired at nearest enemies to protect priority target \(target). Reason: \(reason)"
         case .assault:
             let assaults = assaultActiveUnits(snapshot: snapshot)
             let resolved = session.resolveFirstPendingChoice()
+            let target = sidePlan.priorityTarget(for: snapshot.phase)
+            let reason = sidePlan.priorityInstruction(for: snapshot.phase)
             title = "\(sidePlan.controllerLabel) assault"
             if assaults > 0 {
                 status = .succeeded
-                detail = "\(assaults) active units assaulted nearest enemies."
+                detail = "\(assaults) active units assaulted nearest enemies around priority target \(target). Reason: \(reason)"
             } else if resolved {
                 status = .succeeded
-                detail = "Resolved a pending assault or damage choice."
+                detail = "Resolved a pending assault or damage choice around priority target \(target). Reason: \(reason)"
             } else {
                 status = .blocked
-                detail = "No legal assaults or pending choices were available."
+                detail = "No legal assaults or pending choices were available around priority target \(target). Reason: \(reason)"
             }
         }
 
@@ -472,7 +574,7 @@ public final class HistoricalAutoplayRunController<Session: HistoricalBoardSessi
             session.selectUnit(unit.id)
             session.selectNearestEnemyToSelectedUnit()
             let usedPriority = session.moveSelectedUnitTowardPriorityObjective(
-                named: sidePlan.movementPriorityNames,
+                named: sidePlan.priorityNames(for: .movement),
                 maxDistance: sidePlan.movementDistance
             )
             if usedPriority || session.moveSelectedUnitTowardNearestObjective(maxDistance: sidePlan.movementDistance) {
@@ -550,4 +652,19 @@ public final class HistoricalAutoplayRunController<Session: HistoricalBoardSessi
             blockers.append(blocker)
         }
     }
+}
+
+private func uniqueHistoricalAutoplayNames(_ values: [String]) -> [String] {
+    var seen: Set<String> = []
+    var result: [String] = []
+    for value in values {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = trimmed.lowercased()
+        guard !trimmed.isEmpty, !seen.contains(key) else {
+            continue
+        }
+        seen.insert(key)
+        result.append(trimmed)
+    }
+    return result
 }

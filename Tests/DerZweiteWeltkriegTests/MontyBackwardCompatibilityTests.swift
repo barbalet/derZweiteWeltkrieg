@@ -151,6 +151,10 @@ final class MontyBackwardCompatibilityTests: XCTestCase {
         XCTAssertTrue(configuration.contract.supportsDeterministicSeed)
         XCTAssertTrue(configuration.contract.isFirstBattleAutoplayContract)
         XCTAssertEqual(configuration.plan(for: "montgomery").controllerLabel, "Montgomery AI")
+        XCTAssertEqual(configuration.plan(for: "montgomery").tacticalPlan?.armyFamilyName, "British Eighth Army")
+        XCTAssertEqual(configuration.plan(for: "opposition").tacticalPlan?.behaviorProfileName, "Axis ridge probe")
+        XCTAssertTrue(configuration.plan(for: "montgomery").tacticalPlan?.isPhaseAware == true)
+        XCTAssertEqual(configuration.plan(for: "montgomery").priorityNames(for: .movement).first, "Alam el Halfa ridge")
         XCTAssertEqual(HistoricalAutoplaySpeed.allCases.map(\.rawValue), configuration.contract.speedModes)
         XCTAssertTrue(HistoricalAutoplayRunState.completed.isTerminal)
         XCTAssertFalse(HistoricalAutoplayRunState.paused.isTerminal)
@@ -165,6 +169,7 @@ final class MontyBackwardCompatibilityTests: XCTestCase {
         XCTAssertEqual(report.embeddedBattleSurfaceName, HistoricalPlayableSurfaceCatalog.sharedHostSurfaceName)
         XCTAssertEqual(report.finalSnapshot.mission.winningSideID, "montgomery")
         XCTAssertTrue(report.finalResultSummary.contains("Battle of Alam el Halfa"))
+        XCTAssertTrue(report.steps.contains { $0.detail.contains("priority target Alam el Halfa ridge") && $0.detail.contains("Reason:") })
         XCTAssertLessThanOrEqual(report.debriefRecord.phaseAdvances, controller.maxPhaseAdvances)
     }
 
@@ -200,6 +205,32 @@ final class MontyBackwardCompatibilityTests: XCTestCase {
 
         XCTAssertTrue(String(describing: type(of: view)).contains("HistoricalPlayableBattleView"))
         XCTAssertEqual(debrief.persistedResultIdentifier, "battle-persisted-result")
+    }
+
+    @MainActor
+    func testMontyBackwardcompatibilityCanUseSharedAboutDialogContent() {
+        let content = HistoricalAppAboutContent(
+            appName: "Monty",
+            releaseVersion: "1.0",
+            buildLabel: "Native macOS historical wargame",
+            contactLine: "Contact: Monty project maintainers",
+            developmentParagraphs: [
+                "Monty can describe its own Montgomery campaign while reusing dzw historical presentation patterns.",
+                "The About dialog can name the shared dzw rules engine, SwiftUI app shell, side selection, and sober historical framing without importing Guderian UI code.",
+            ],
+            credits: [
+                "Engine foundation: derZweiteWeltkrieg / dzw",
+                "Interface: SwiftUI macOS app shell",
+            ]
+        )
+
+        XCTAssertEqual(content.displayVersion(bundleInfo: ["CFBundleShortVersionString": "$(MARKETING_VERSION)"]), "1.0")
+        XCTAssertEqual(content.displayVersion(bundleInfo: ["CFBundleShortVersionString": "1.0"]), "1.0")
+        XCTAssertEqual(content.displayVersion(bundleInfo: ["CFBundleShortVersionString": "1.1"]), "1.1")
+        XCTAssertTrue(content.developmentParagraphs.joined(separator: " ").localizedCaseInsensitiveContains("side selection"))
+
+        let view = HistoricalAppAboutView(content: content)
+        XCTAssertTrue(String(describing: type(of: view)).contains("HistoricalAppAboutView"))
     }
 
     private static func driveMontyCommandSet<Session: HistoricalBoardSession>(_ session: Session) throws {
@@ -371,13 +402,81 @@ private enum MontyBackwardCompatibilityFixtures {
                     sideID: "montgomery",
                     controllerLabel: "Montgomery AI",
                     movementPriorityNames: ["Alam el Halfa ridge"],
-                    movementDistance: 4
+                    movementDistance: 4,
+                    tacticalPlan: montgomeryTacticalPlan()
                 ),
                 HistoricalAutoplaySidePlan(
                     sideID: "opposition",
                     controllerLabel: "Opposition AI",
                     movementPriorityNames: ["Alam el Halfa ridge"],
-                    movementDistance: 4
+                    movementDistance: 4,
+                    tacticalPlan: oppositionTacticalPlan()
+                ),
+            ]
+        )
+    }
+
+    static func montgomeryTacticalPlan() -> HistoricalAutoplayTacticalPlan {
+        HistoricalAutoplayTacticalPlan(
+            id: "monty-alam-el-halfa",
+            armyFamilyName: "British Eighth Army",
+            behaviorProfileName: "Ridge defense",
+            strategicGoal: "Hold Alam el Halfa ridge, keep anti-tank lanes coherent, and blunt the Axis thrust before it can break through.",
+            targetPriorities: ["Alam el Halfa ridge", "Minefield lanes", "Axis armor"],
+            orders: [
+                HistoricalAutoplayTacticalOrder(
+                    id: "monty-hold-ridge",
+                    turnWindow: "Opening turns",
+                    phase: .movement,
+                    target: "Alam el Halfa ridge",
+                    instruction: "Keep mobile reserves tied to ridge objectives before chasing exposed Axis units."
+                ),
+                HistoricalAutoplayTacticalOrder(
+                    id: "monty-anti-tank-fire",
+                    turnWindow: "Contact turns",
+                    phase: .shooting,
+                    target: "Axis armor",
+                    instruction: "Fire to preserve anti-tank lanes and punish armor that leaves minefield cover."
+                ),
+                HistoricalAutoplayTacticalOrder(
+                    id: "monty-local-counterattack",
+                    turnWindow: "Endgame",
+                    phase: .assault,
+                    target: "Minefield lanes",
+                    instruction: "Counterattack only when it restores the ridge screen or prevents a breakthrough."
+                ),
+            ]
+        )
+    }
+
+    static func oppositionTacticalPlan() -> HistoricalAutoplayTacticalPlan {
+        HistoricalAutoplayTacticalPlan(
+            id: "axis-alam-el-halfa",
+            armyFamilyName: "Axis desert force",
+            behaviorProfileName: "Axis ridge probe",
+            strategicGoal: "Probe the ridge line, draw British reserves, and find a pass through the minefield lanes.",
+            targetPriorities: ["Alam el Halfa ridge", "Minefield lanes", "British reserves"],
+            orders: [
+                HistoricalAutoplayTacticalOrder(
+                    id: "axis-probe-ridge",
+                    turnWindow: "Opening turns",
+                    phase: .movement,
+                    target: "Alam el Halfa ridge",
+                    instruction: "Move toward ridge pressure while avoiding unnecessary exposure to prepared anti-tank lanes."
+                ),
+                HistoricalAutoplayTacticalOrder(
+                    id: "axis-suppress-reserves",
+                    turnWindow: "Contact turns",
+                    phase: .shooting,
+                    target: "British reserves",
+                    instruction: "Suppress reserve units that can seal minefield gaps."
+                ),
+                HistoricalAutoplayTacticalOrder(
+                    id: "axis-force-lane",
+                    turnWindow: "Endgame",
+                    phase: .assault,
+                    target: "Minefield lanes",
+                    instruction: "Assault only where a local lane can be forced without losing the probe."
                 ),
             ]
         )
