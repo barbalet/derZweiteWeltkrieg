@@ -45,6 +45,36 @@ final class DerZweiteWeltkriegGuderianGameplayTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(configuration.maxPhaseAdvances, 24)
     }
 
+    func testGuderianHistoricalSideSelectionMapsEitherSideToNativeEngineSlots() throws {
+        let scenario = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
+        let opposingLaunch = try GuderianHistoricalSideSelectionResolver.makeLaunch(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideID.opposingForce,
+            seed: 620_001
+        )
+        let guderianLaunch = try GuderianHistoricalSideSelectionResolver.makeLaunch(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideID.guderianCommand,
+            seed: 620_002
+        )
+        let guderianSelection = try GuderianHistoricalSideSelectionResolver.resolvedSelection(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideID.guderianCommand,
+            seed: 620_002
+        )
+        let session = try XCTUnwrap(NativeBoardSession(scenario: scenario, launch: guderianLaunch))
+
+        XCTAssertEqual(opposingLaunch.humanBinding?.enginePlayerSlot, .playerOne)
+        XCTAssertEqual(opposingLaunch.aiBinding?.enginePlayerSlot, .playerTwo)
+        XCTAssertEqual(guderianLaunch.humanBinding?.enginePlayerSlot, .playerTwo)
+        XCTAssertEqual(guderianLaunch.aiBinding?.enginePlayerSlot, .playerOne)
+        XCTAssertEqual(guderianSelection.selectedSide?.id, GuderianHistoricalSideID.guderianCommand)
+        XCTAssertEqual(guderianSelection.opposingSide?.id, GuderianHistoricalSideID.opposingForce)
+        XCTAssertEqual(session.launch.chosenHumanSideID, GuderianHistoricalSideID.guderianCommand)
+        XCTAssertEqual(session.humanPlayer, .guderianAI)
+        XCTAssertEqual(session.aiPlayer, .player)
+    }
+
     func testGuderianScenarioBoardSessionIsHostedByDZWPackage() throws {
         let scenario = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
         let session = try XCTUnwrap(NativeBoardSession(scenario: scenario, seed: 1_939_0901))

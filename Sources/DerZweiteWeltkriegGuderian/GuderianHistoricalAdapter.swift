@@ -9,6 +9,83 @@ public enum GuderianHistoricalSideID {
     public static let opposingForce = "opposing-force"
 }
 
+public enum GuderianHistoricalSideSelectionResolver {
+    public static let defaultHumanSideID = GuderianHistoricalSideID.opposingForce
+
+    public static func makeLaunch(
+        for scenario: GuderianScenario,
+        chosenHumanSideID: String = defaultHumanSideID,
+        seed: UInt32
+    ) throws -> HistoricalBattleLaunch<GuderianBattleID> {
+        let historicalScenario = GuderianHistoricalScenarioAdapter.scenario(for: scenario)
+        let humanSlot = enginePlayerSlot(for: chosenHumanSideID) ?? .playerOne
+        return try HistoricalBattleLaunchResolver.makeLaunch(
+            scenario: historicalScenario,
+            chosenHumanSideID: chosenHumanSideID,
+            seed: seed,
+            humanSlot: humanSlot
+        )
+    }
+
+    public static func resolvedSelection(
+        for scenario: GuderianScenario,
+        chosenHumanSideID: String = defaultHumanSideID,
+        seed: UInt32
+    ) throws -> HistoricalBattleSideSelection<GuderianBattleID> {
+        let historicalScenario = GuderianHistoricalScenarioAdapter.scenario(for: scenario)
+        let launch = try makeLaunch(
+            for: scenario,
+            chosenHumanSideID: chosenHumanSideID,
+            seed: seed
+        )
+        return historicalScenario.resolvedSideSelection(for: launch)
+    }
+
+    public static func nativePlayer(for sideID: String) -> NativeBoardPlayer? {
+        switch sideID {
+        case GuderianHistoricalSideID.opposingForce:
+            return .player
+        case GuderianHistoricalSideID.guderianCommand:
+            return .guderianAI
+        default:
+            return nil
+        }
+    }
+
+    public static func sideID(for player: NativeBoardPlayer) -> String? {
+        switch player {
+        case .player:
+            return GuderianHistoricalSideID.opposingForce
+        case .guderianAI:
+            return GuderianHistoricalSideID.guderianCommand
+        case .none:
+            return nil
+        }
+    }
+
+    public static func enginePlayerSlot(for sideID: String) -> HistoricalEnginePlayerSlot? {
+        switch nativePlayer(for: sideID) {
+        case .some(.player):
+            return .playerOne
+        case .some(.guderianAI):
+            return .playerTwo
+        case .some(.none), nil:
+            return nil
+        }
+    }
+
+    public static func sideTitle(
+        for player: NativeBoardPlayer,
+        in scenario: GuderianScenario
+    ) -> String {
+        guard let sideID = sideID(for: player),
+              let side = GuderianHistoricalScenarioAdapter.scenario(for: scenario).sideOption(id: sideID) else {
+            return player.rawValue
+        }
+        return side.title
+    }
+}
+
 public enum GuderianHistoricalScenarioAdapter {
     public static func scenario(for guderianScenario: GuderianScenario) -> HistoricalBattleScenario<GuderianBattleID> {
         let balance = ScenarioBalanceCatalog.profile(for: guderianScenario)

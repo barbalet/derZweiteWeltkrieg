@@ -50,6 +50,28 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         XCTAssertEqual(launch.aiBinding?.enginePlayerSlot, .playerTwo)
     }
 
+    func testResolvedSideSelectionExposesSharedSelectedAndOpposingSides() throws {
+        let scenario = Self.makeDemoScenario()
+        let launch = try HistoricalBattleLaunchResolver.makeLaunch(
+            scenario: scenario,
+            chosenHumanSideID: "axis",
+            seed: 99,
+            humanSlot: .playerTwo
+        )
+        let selection = scenario.resolvedSideSelection(for: launch)
+
+        XCTAssertEqual(selection.selectedSide?.id, "axis")
+        XCTAssertEqual(selection.opposingSide?.id, "montgomery")
+        XCTAssertEqual(selection.selectedSideTitle, "Panzerarmee Afrika")
+        XCTAssertEqual(selection.opposingSideTitle, "Montgomery's Eighth Army")
+        XCTAssertEqual(selection.humanEnginePlayerSlot, .playerTwo)
+        XCTAssertEqual(selection.aiEnginePlayerSlot, .playerOne)
+        XCTAssertEqual(launch.humanSideID, "axis")
+        XCTAssertEqual(launch.aiSideID, "montgomery")
+        XCTAssertEqual(launch.enginePlayerSlot(for: "axis"), .playerTwo)
+        XCTAssertEqual(launch.controller(for: "montgomery"), .ai)
+    }
+
     func testSideSelectionRejectsUnknownSideIDs() throws {
         let scenario = Self.makeDemoScenario()
 

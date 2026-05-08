@@ -1,4 +1,5 @@
 import DerZweiteWeltkriegCore
+import DerZweiteWeltkriegHistorical
 import Foundation
 
 public enum NativeBoardPlayer: String, Codable, Hashable, Sendable {
@@ -282,6 +283,7 @@ public final class NativeBoardSession {
     public static let cycleRange = 281...290
 
     public let loadout: NativeScenarioLoadout
+    public let launch: HistoricalBattleLaunch<GuderianBattleID>
     private let loadedGame: NativeScenarioLoadedGame
     private let nativeUnitByEngineID: [Int: NativeBattleUnit]
     private var selectedUnitID: Int?
@@ -292,16 +294,51 @@ public final class NativeBoardSession {
         loadedGame.handle
     }
 
-    public init?(scenario: GuderianScenario, seed: UInt32 = 1941) {
-        let loadout = NativeScenarioLoader.load(scenario, seed: seed)
+    public var humanPlayer: NativeBoardPlayer {
+        launch.humanSideID
+            .flatMap(GuderianHistoricalSideSelectionResolver.nativePlayer(for:)) ?? .player
+    }
+
+    public var aiPlayer: NativeBoardPlayer {
+        launch.aiSideID
+            .flatMap(GuderianHistoricalSideSelectionResolver.nativePlayer(for:)) ?? .guderianAI
+    }
+
+    public init?(
+        scenario: GuderianScenario,
+        seed: UInt32 = 1941,
+        launch: HistoricalBattleLaunch<GuderianBattleID>? = nil
+    ) {
+        let resolvedLaunch: HistoricalBattleLaunch<GuderianBattleID>
+        if let launch {
+            resolvedLaunch = launch
+        } else if let defaultLaunch = try? GuderianHistoricalSideSelectionResolver.makeLaunch(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideSelectionResolver.defaultHumanSideID,
+            seed: seed
+        ) {
+            resolvedLaunch = defaultLaunch
+        } else {
+            return nil
+        }
+
+        let loadout = NativeScenarioLoader.load(scenario, seed: resolvedLaunch.seed)
         guard let loadedGame = loadout.makeGame() else {
             return nil
         }
         self.loadout = loadout
+        self.launch = resolvedLaunch
         self.loadedGame = loadedGame
         nativeUnitByEngineID = Self.nativeUnitMap(handle: loadedGame.handle, instance: loadout.instance)
         selectFirstActiveUnit()
         selectNearestEnemyToSelectedUnit()
+    }
+
+    public convenience init?(
+        scenario: GuderianScenario,
+        launch: HistoricalBattleLaunch<GuderianBattleID>
+    ) {
+        self.init(scenario: scenario, seed: launch.seed, launch: launch)
     }
 
     public convenience init?(battleID: GuderianBattleID, seed: UInt32 = 1941) {
