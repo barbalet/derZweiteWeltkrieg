@@ -50,12 +50,12 @@ final class DerZweiteWeltkriegGuderianGameplayTests: XCTestCase {
 
     func testGuderianAboutCatalogLivesInDZWSharedAboutModel() {
         XCTAssertEqual(GuderianAppAboutCatalog.content.appName, "Guderian")
-        XCTAssertEqual(GuderianAppAboutCatalog.releaseVersion, "1.02")
+        XCTAssertEqual(GuderianAppAboutCatalog.releaseVersion, "1.03")
         XCTAssertEqual(
             GuderianAppAboutCatalog.content.displayVersion(
                 bundleInfo: ["CFBundleShortVersionString": "$(MARKETING_VERSION)"]
             ),
-            "1.02"
+            "1.03"
         )
         XCTAssertTrue(GuderianAppAboutCatalog.developmentParagraphs.joined(separator: " ").contains("dzw"))
     }
