@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum HistoricalBattleSidePickerDefaults {
-    public static let title = "Play as"
+    public static let title = "Side"
     public static let accessibilityIdentifier = "battle-side-selector"
     public static let optionAccessibilityIDPrefix = "battle-side-option"
 }
@@ -35,39 +35,28 @@ public struct HistoricalBattleSidePicker<ID: HistoricalBattleID>: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 12) {
-                Label(title, systemImage: "person.crop.circle.badge.checkmark")
-                    .font(.headline)
-                    .lineLimit(1)
-
-                Spacer(minLength: 8)
-
-                Picker(title, selection: $selectedSideID) {
-                    ForEach(scenario.sideOptions) { side in
-                        Text(side.title)
-                            .tag(side.id)
-                            .accessibilityIdentifier("\(optionAccessibilityIDPrefix)-\(side.id)")
-                    }
+            Picker(title, selection: $selectedSideID) {
+                ForEach(scenario.sideOptions) { side in
+                    Text(side.title)
+                        .tag(side.id)
+                        .accessibilityIdentifier("\(optionAccessibilityIDPrefix)-\(side.id)")
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(minWidth: 190, alignment: .trailing)
             }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .controlSize(showsBriefing ? .regular : .small)
+            .frame(maxWidth: showsBriefing ? 420 : 360, alignment: .leading)
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+            .accessibilityLabel(title)
 
-            if let selectedSide {
-                Text("\(selectedSide.title) under human control")
+            if showsBriefing, let selectedSide {
+                Text(selectedSide.playerBriefing)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-
-                if showsBriefing {
-                    Text(selectedSide.playerBriefing)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .disabled(!isEnabled)

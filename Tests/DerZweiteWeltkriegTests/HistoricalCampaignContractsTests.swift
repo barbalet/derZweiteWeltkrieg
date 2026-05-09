@@ -74,17 +74,25 @@ final class HistoricalCampaignContractsTests: XCTestCase {
     }
 
     @MainActor
-    func testSharedSidePickerBuildsDropdownFromHistoricalScenarioOptions() {
+    func testSharedSidePickerBuildsSegmentedControlFromHistoricalScenarioOptions() throws {
         let scenario = Self.makeDemoScenario()
         let picker = HistoricalBattleSidePicker(
             scenario: scenario,
             selectedSideID: .constant("montgomery")
         )
+        let source = try String(
+            contentsOfFile: "Sources/DerZweiteWeltkriegHistorical/HistoricalBattleSidePicker.swift",
+            encoding: .utf8
+        )
 
-        XCTAssertEqual(HistoricalBattleSidePickerDefaults.title, "Play as")
+        XCTAssertEqual(HistoricalBattleSidePickerDefaults.title, "Side")
         XCTAssertEqual(HistoricalBattleSidePickerDefaults.accessibilityIdentifier, "battle-side-selector")
         XCTAssertEqual(HistoricalBattleSidePickerDefaults.optionAccessibilityIDPrefix, "battle-side-option")
         XCTAssertEqual(scenario.sideOptions.map(\.id), ["montgomery", "axis"])
+        XCTAssertTrue(source.contains(".pickerStyle(.segmented)"))
+        XCTAssertFalse(source.contains(".pickerStyle(.menu)"))
+        XCTAssertFalse(source.contains("person.crop.circle.badge.checkmark"))
+        XCTAssertFalse(source.contains("under human control"))
         XCTAssertTrue(String(describing: type(of: picker)).contains("HistoricalBattleSidePicker"))
     }
 
