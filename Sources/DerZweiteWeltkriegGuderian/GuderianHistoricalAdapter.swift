@@ -210,7 +210,7 @@ public enum GuderianHistoricalScenarioAdapter {
             HistoricalSideOption(
                 id: GuderianHistoricalSideID.opposingForce,
                 role: .opponent,
-                title: "Opposing army",
+                title: opposingForceTitle(for: scenario),
                 historicalForce: scenario.playerForceSummary,
                 commander: nil,
                 armyListName: opposingArmyListName(for: scenario),
@@ -218,6 +218,12 @@ public enum GuderianHistoricalScenarioAdapter {
                 aiBriefing: "Use anti-Guderian priorities to contest the German plan."
             ),
         ]
+    }
+
+    public static func opposingForceTitle(for scenario: GuderianScenario) -> String {
+        scenario.forces.first { $0.side == "Opposing side" }?.historicalForce.nonEmptyTrimmed
+            ?? scenario.playerForceSummary.nonEmptyTrimmed
+            ?? "Opposing force"
     }
 
     private static func historicalMap(for scenario: GuderianScenario) -> HistoricalBattleMap {
@@ -317,6 +323,13 @@ public enum GuderianHistoricalScenarioAdapter {
             x: spacing * Double(index + 1),
             y: Double(game_board_height()) * 0.48
         )
+    }
+}
+
+private extension String {
+    var nonEmptyTrimmed: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
