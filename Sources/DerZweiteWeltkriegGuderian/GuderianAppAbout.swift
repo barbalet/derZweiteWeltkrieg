@@ -4,7 +4,7 @@ import Foundation
 public enum GuderianAppAboutCatalog {
     public static let content = HistoricalAppAboutContent(
         appName: "Guderian",
-        releaseVersion: "1.03",
+        releaseVersion: "1.04",
         buildLabel: "Native macOS wargame",
         contactLine: "Contact: barbalet at gmail dot com",
         developmentParagraphs: [
