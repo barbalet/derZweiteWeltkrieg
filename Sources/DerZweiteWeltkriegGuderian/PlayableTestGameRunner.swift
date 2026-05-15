@@ -462,6 +462,7 @@ public struct PlayableTestGameStep: Identifiable, Codable, Hashable, Sendable {
     public let status: NativeBoardActionStatus
     public let title: String
     public let detail: String
+    public let movementDistance: Double
 
     public init(
         id: String,
@@ -471,7 +472,8 @@ public struct PlayableTestGameStep: Identifiable, Codable, Hashable, Sendable {
         phase: NativeBoardPhase,
         status: NativeBoardActionStatus,
         title: String,
-        detail: String
+        detail: String,
+        movementDistance: Double = 0
     ) {
         self.id = id
         self.turnNumber = turnNumber
@@ -481,6 +483,7 @@ public struct PlayableTestGameStep: Identifiable, Codable, Hashable, Sendable {
         self.status = status
         self.title = title
         self.detail = detail
+        self.movementDistance = movementDistance
     }
 }
 
@@ -534,6 +537,14 @@ public struct PlayableTestGameBattleResult: Identifiable, Codable, Hashable, Sen
 
     public var germanStepCount: Int {
         steps.filter { $0.controller == .guderian }.count
+    }
+
+    public var totalMovementDistance: Double {
+        steps.map(\.movementDistance).reduce(0, +)
+    }
+
+    public var blockedMovementPhases: Int {
+        steps.filter { $0.phase == .movement && $0.status == .blocked }.count
     }
 
     public var completedToEnd: Bool {
@@ -739,17 +750,19 @@ public enum PlayableTestGameRunner {
         let status: NativeBoardActionStatus
         let title: String
         let detail: String
+        let movementDistance: Double
 
         switch snapshot.phase {
         case .movement:
-            let moved = moveActiveUnits(in: session, snapshot: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
+            let movement = moveActiveUnits(in: session, snapshot: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
             let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
             let reason = priorityInstruction(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            status = moved == 0 ? .blocked : .succeeded
+            status = movement.moved == 0 ? .blocked : .succeeded
             title = "\(controller.rawValue) movement"
-            detail = moved == 0 ?
+            detail = movement.moved == 0 ?
                 "No legal movement was available for priority target \(target); fallback to nearest legal objective also failed. Reason: \(reason)" :
-                "\(moved) active units moved toward priority target \(target), with nearest legal objective as fallback. Reason: \(reason)"
+                "\(movement.moved) active units moved \(String(format: "%.1f", movement.distance))\" toward priority target \(target), with nearest legal objective as fallback. Reason: \(reason)"
+            movementDistance = movement.distance
         case .shooting:
             let shots = shootActiveUnits(in: session, snapshot: snapshot)
             let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
@@ -759,12 +772,14 @@ public enum PlayableTestGameRunner {
             detail = shots == 0 ?
                 "No legal shots were available while protecting priority target \(target). Reason: \(reason)" :
                 "\(shots) active units fired at nearest enemies to protect priority target \(target). Reason: \(reason)"
+            movementDistance = 0
         case .assault:
             let assaults = assaultActiveUnits(in: session, snapshot: snapshot)
             let resolved = session.resolveFirstPendingChoice()
             let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
             let reason = priorityInstruction(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
             title = "\(controller.rawValue) assault"
+            movementDistance = 0
             if assaults > 0 {
                 status = .succeeded
                 detail = "\(assaults) active units assaulted nearest enemies around priority target \(target). Reason: \(reason)"
@@ -785,7 +800,8 @@ public enum PlayableTestGameRunner {
             phase: snapshot.phase,
             status: status,
             title: title,
-            detail: detail
+            detail: detail,
+            movementDistance: movementDistance
         )
     }
 
@@ -794,26 +810,36 @@ public enum PlayableTestGameRunner {
         snapshot: NativeBoardSnapshot,
         antiPlan: AntiGuderianAIPlan,
         germanPlan: GermanAIPlan
-    ) -> Int {
+    ) -> PlayableMovementPhaseResult {
         let activeUnits = snapshot.units
             .filter { $0.owner == snapshot.activePlayer && !$0.destroyed && $0.canMoveNow }
             .sorted { $0.id < $1.id }
         var moved = 0
+        var distance = 0.0
 
         for unit in activeUnits {
             session.selectUnit(unit.id)
             session.selectNearestEnemyToSelectedUnit()
             let controller = PlayableTestAIController(activePlayer: snapshot.activePlayer)
+            let maxDistance = movementDistance(
+                for: unit,
+                controller: controller,
+                scenarioID: snapshot.scenarioID,
+                turnNumber: snapshot.turnNumber
+            )
             let usedPriority = session.moveSelectedUnitTowardPriorityObjective(
                 named: phasePriorities(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan),
-                maxDistance: movementDistance(for: unit, controller: controller)
+                maxDistance: maxDistance
             )
-            if usedPriority || session.moveSelectedUnitTowardNearestObjective(maxDistance: movementDistance(for: unit, controller: controller)) {
+            if usedPriority || session.moveSelectedUnitTowardNearestObjective(maxDistance: maxDistance) {
                 moved += 1
+                if let after = session.snapshot().units.first(where: { $0.id == unit.id }) {
+                    distance += hypot(after.x - unit.x, after.y - unit.y)
+                }
             }
         }
 
-        return moved
+        return PlayableMovementPhaseResult(moved: moved, distance: distance)
     }
 
     private static func phasePriorities(
@@ -926,17 +952,49 @@ public enum PlayableTestGameRunner {
         }
     }
 
-    private static func movementDistance(for unit: NativeBoardUnitSnapshot, controller: PlayableTestAIController) -> Double {
+    private static func movementDistance(
+        for unit: NativeBoardUnitSnapshot,
+        controller: PlayableTestAIController,
+        scenarioID: GuderianBattleID,
+        turnNumber: Int
+    ) -> Double {
         let base: Double
         if unit.kind == "Vehicle" || unit.kind == "Assault gun" {
             base = controller == .guderian ? 9 : 7
         } else {
             base = controller == .guderian ? 5 : 4
         }
-        return base
+        return max(3, base - movementFriction(for: scenarioID, controller: controller, turnNumber: turnNumber))
+    }
+
+    private static func movementFriction(
+        for scenarioID: GuderianBattleID,
+        controller: PlayableTestAIController,
+        turnNumber: Int
+    ) -> Double {
+        switch scenarioID {
+        case .montcornet:
+            return controller == .guderian && turnNumber <= 4 ? 2 : 0
+        case .wizna, .kobryn, .stonne, .amiensAbbeville, .boulogne:
+            return controller == .guderian && turnNumber <= 4 ? 1 : 0
+        case .calais:
+            return controller == .guderian && turnNumber <= 5 ? 1 : 0
+        case .mtsensk:
+            if controller == .guderian && turnNumber <= 3 {
+                return 2
+            }
+            return controller == .guderian ? 1 : 0
+        default:
+            return 0
+        }
     }
 
     private static func defaultSeed(for scenario: GuderianScenario) -> UInt32 {
         UInt32(620_000 + scenario.order)
     }
+}
+
+private struct PlayableMovementPhaseResult: Hashable, Sendable {
+    let moved: Int
+    let distance: Double
 }
