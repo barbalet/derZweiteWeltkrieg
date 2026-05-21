@@ -4,6 +4,7 @@ import PackageDescription
 let package = Package(
     name: "DerZweiteWeltkrieg",
     platforms: [
+        .iOS(.v17),
         .macOS(.v14),
     ],
     products: [
