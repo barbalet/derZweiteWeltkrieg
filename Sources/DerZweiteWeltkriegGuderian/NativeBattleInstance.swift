@@ -776,7 +776,7 @@ private struct NativeBattleInstanceBuilder {
                 kind: .tutorial,
                 title: step.title,
                 timing: "Tutorial",
-                condition: "Player reaches tutorial step",
+                condition: "Selected side reaches tutorial step",
                 effect: step.instruction,
                 sourceID: step.id
             )

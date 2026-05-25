@@ -157,7 +157,7 @@ public enum NativePlayabilityArchitectureCatalog {
             hook("scenario-instance-loader", "Scenario-defined game creation", "Create a game from Guderian-owned units, zones, objectives, deployment, mission target, and seed rather than inherited force presets.", 271...280),
             hook("scenario-mission-state", "Scenario mission state", "Expose mission target, score channels, winner, and debrief-relevant state for Guderian victory bands.", 271...300),
             hook("scenario-event-triggers", "Scenario event triggers", "Allow reinforcements, weather, supply, demolition, evacuation, pocket, and air-pressure events to alter legal board state.", 291...380),
-            hook("scenario-ai-controls", "Scenario AI controls", "Let Guderian AI select priorities from scenario-authored objectives, exit lanes, supply targets, and fallback behaviors.", 291...380),
+            hook("scenario-ai-controls", "Scenario AI controls", "Let Guderian-command automation select priorities from scenario-authored objectives, exit lanes, supply targets, and fallback behaviors.", 291...380),
         ]
     )
 

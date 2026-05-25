@@ -226,7 +226,7 @@ public enum ScenarioBalanceCatalog {
         pacingRules: [
             pacing("brzesc-rail-window", "Rail support window", "Turns 1-2", "Armored trains can act before German rail-cut pressure fully applies."),
             pacing("brzesc-isolation-clock", "Isolation clock", "Turns 3-5", "German isolation pressure grows only after town or rail control changes."),
-            pacing("brzesc-fallback-choice", "Fallback choice", "Turns 5-8", "Player must choose whether to keep the citadel contested or preserve mobile assets."),
+            pacing("brzesc-fallback-choice", "Fallback choice", "Turns 5-8", "Default side must choose whether to keep the citadel contested or preserve mobile assets."),
         ],
         reinforcements: [
             reinforcement("brzesc-german-engineers", .guderianAI, "Turns 3-4", "German engineer assault group", "Enter after town or rail approach is German-controlled.", "Fortress reduction"),
@@ -241,24 +241,25 @@ public enum ScenarioBalanceCatalog {
 
     private static let kobryn = ScenarioBalanceProfile(
         id: .kobryn,
-        targetTurns: 5...7,
+        targetTurns: 6...8,
         balanceIntent: "Model Kobryn as an inconclusive rearguard where preservation and cohesion matter more than final town possession.",
         playerWinCondition: "Keep Kobryn contested through the midgame and withdraw at least three Polish units through one eastern lane.",
         germanPressureLimit: "German flank patrols can threaten one exit early, but both exits should not close before rearguard scoring unlocks.",
         scoreChannels: [
             score("kobryn-town-contest", "Kobryn contested", .player, 3, "Turns 1-4", "Award if the town remains contested or Polish-controlled."),
             score("kobryn-roadblock-delay", "Western roadblock delay", .player, 2, "Turns 1-3", "Award for delaying German motorized entry."),
-            score("kobryn-cohesion-exit", "Cohesion withdrawal", .player, 5, "Turns 4-7", "Award for withdrawing three or more units through the same eastern lane."),
+            score("kobryn-cohesion-exit", "Cohesion withdrawal", .player, 5, "Turns 4-8", "Award for withdrawing three or more units through the same eastern lane."),
             score("kobryn-gun-preservation", "Gun preservation", .player, 2, "Scenario end", "Award if at least one field or anti-tank gun exits or remains unbroken."),
             score("kobryn-german-envelopment", "German envelopment", .guderianAI, 6, "Scenario end", "German score for controlling Kobryn and both eastern exits."),
         ],
         pacingRules: [
             pacing("kobryn-no-early-collapse", "No early collapse", "Turns 1-2", "German pressure starts by fixing roadblocks before exit closure."),
             pacing("kobryn-rearguard-unlock", "Rearguard unlock", "Turn 3", "If Kobryn is contested, withdrawal scoring becomes available."),
-            pacing("kobryn-exit-race", "Exit race", "Turns 4-7", "German patrols target exits while the player scores cohesion."),
+            pacing("kobryn-exit-race", "Exit race", "Turns 4-8", "German patrols target exits while the player scores cohesion."),
+            pacing("kobryn-roadblock-friction", "Roadblock friction", "Turns 1-4", "German motorized movement loses tempo until the western roadblock or town contest is resolved."),
         ],
         reinforcements: [
-            reinforcement("kobryn-german-flank", .guderianAI, "Turns 3-4", "German flank patrols", "Enter once the western roadblock is cleared or Kobryn is contested.", "Exit threat"),
+            reinforcement("kobryn-german-flank", .guderianAI, "Turns 4-5", "German flank patrols", "Enter once the western roadblock is cleared or Kobryn is contested.", "Exit threat"),
         ],
         outcomeBands: [
             outcome("kobryn-decisive", .decisive, 10...12, "The rearguard preserves cohesion and denies a clean envelopment."),
@@ -270,7 +271,7 @@ public enum ScenarioBalanceCatalog {
 
     private static let wizna = ScenarioBalanceProfile(
         id: .wizna,
-        targetTurns: 5...7,
+        targetTurns: 6...8,
         balanceIntent: "Teach fortified delay by letting the player score meaningful success even as the line is eventually overwhelmed.",
         playerWinCondition: "Hold at least two bunker objectives through turn 5 or preserve the command post after the final German assault.",
         germanPressureLimit: "German artillery can pin but should not remove a full bunker before the player has acted twice.",
@@ -283,9 +284,10 @@ public enum ScenarioBalanceCatalog {
         pacingRules: [
             pacing("wizna-no-alpha", "No opening wipeout", "Turn 1", "Limit German fire to suppression/pinning before armor has moved."),
             pacing("wizna-escalation", "Escalating pressure", "Turns 3-5", "Allow assaults only after artillery or machine-gun pressure has marked the bunker as isolated."),
+            pacing("wizna-final-bunker-stand", "Final bunker stand", "Turns 6-8", "The last bunker or command-post contest should remain a scoring decision rather than an automatic collapse."),
         ],
         reinforcements: [
-            reinforcement("wizna-pioneers", .guderianAI, "Turn 3", "German assault pioneers", "Enter if at least one bunker is pinned.", "Bunker assault"),
+            reinforcement("wizna-pioneers", .guderianAI, "Turn 4", "German assault pioneers", "Enter if at least one bunker is pinned.", "Bunker assault"),
         ],
         outcomeBands: [
             outcome("wizna-decisive", .decisive, 8...10, "The fortified line delays the assault far beyond expectations."),
@@ -327,7 +329,7 @@ public enum ScenarioBalanceCatalog {
 
     private static let stonne = ScenarioBalanceProfile(
         id: .stonne,
-        targetTurns: 5...7,
+        targetTurns: 6...8,
         balanceIntent: "Stonne should feel like a violent bridgehead-flank contest: heavy tanks are powerful, but village control is unstable and overextended armor can be isolated.",
         playerWinCondition: "Contest Stonne and the heights while damaging German support, then preserve at least one heavy-tank group.",
         germanPressureLimit: "German anti-tank fire should need flank, isolation, or support markers before reliably stopping Char B1 attacks.",
@@ -342,6 +344,7 @@ public enum ScenarioBalanceCatalog {
             pacing("stonne-shock-window", "Shock window", "Turns 1-2", "French heavy tanks get an early shock opportunity before German flank markers build."),
             pacing("stonne-control-flips", "Control flips", "Turns 2-5", "Village control can change repeatedly without ending the scenario."),
             pacing("stonne-isolation-risk", "Isolation risk", "Turns 4-7", "Unsupported heavy tanks become vulnerable to German containment."),
+            pacing("stonne-final-stabilization", "Final stabilization", "Turns 6-8", "The last turns decide whether heavy tanks can disengage or German support finally secures the heights."),
         ],
         reinforcements: [
             reinforcement("stonne-german-support", .guderianAI, "Turns 3-4", "German bridgehead support group", "Enter after Stonne changes hands or a Char B1 shock score is earned.", "Flank containment"),
@@ -356,24 +359,25 @@ public enum ScenarioBalanceCatalog {
 
     private static let montcornet = ScenarioBalanceProfile(
         id: .montcornet,
-        targetTurns: 5...6,
+        targetTurns: 6...7,
         balanceIntent: "Montcornet is a raid, not a hold-ground battle: the player scores by disrupting German road assets and then escaping before air and reserve pressure peaks.",
         playerWinCondition: "Score at least two road-column disruption objectives and withdraw armor before the air-pressure peak.",
         germanPressureLimit: "German reserves and air pressure should react after the player has an initial raid window.",
         scoreChannels: [
             score("montcornet-column-raid", "Column raid", .player, 5, "Turns 1-3", "Award for destroying or disordering German transport, command, or road assets."),
             score("montcornet-armor-mobile", "Armor remains mobile", .player, 2, "Turns 3-5", "Award if a French tank group remains unpinned after the raid."),
-            score("montcornet-withdrawal", "Timed withdrawal", .player, 3, "Turns 4-6", "Award for exiting armor before air pressure peaks."),
+            score("montcornet-withdrawal", "Timed withdrawal", .player, 3, "Turns 4-7", "Award for exiting armor before air pressure peaks."),
             score("montcornet-german-trap", "German trap", .guderianAI, 6, "Scenario end", "German score for isolating or pinning French armor after the raid."),
         ],
         pacingRules: [
             pacing("montcornet-raid-window", "Raid window", "Turns 1-3", "French armor has priority access to road-column objectives."),
-            pacing("montcornet-reaction", "Reserve reaction", "Turns 3-4", "German reserves begin to close exits after disruption scoring opens."),
-            pacing("montcornet-air-peak", "Air-pressure peak", "Turns 4-6", "Lingering French armor becomes exposed to air-pressure penalties."),
+            pacing("montcornet-roadblock-friction", "Roadblock friction", "Turns 2-4", "German reserve movement must spend tempo through roadblocks before it can close all raid exits."),
+            pacing("montcornet-reaction", "Reserve reaction", "Turns 3-5", "German reserves begin to close exits after disruption scoring opens."),
+            pacing("montcornet-air-peak", "Air-pressure peak", "Turns 5-7", "Lingering French armor becomes exposed to air-pressure penalties."),
         ],
         reinforcements: [
-            reinforcement("montcornet-german-reserves", .guderianAI, "Turns 3-4", "German reserve reaction", "Enter after first French disruption score.", "Counterattack"),
-            reinforcement("montcornet-air-pressure", .guderianAI, "Turns 4-5", "Luftwaffe reaction", "Enter if French armor still holds a road objective.", "Air pressure"),
+            reinforcement("montcornet-german-reserves", .guderianAI, "Turns 3-5", "German reserve reaction", "Enter after first French disruption score.", "Counterattack"),
+            reinforcement("montcornet-air-pressure", .guderianAI, "Turns 5-6", "Luftwaffe reaction", "Enter if French armor still holds a road objective.", "Air pressure"),
         ],
         outcomeBands: [
             outcome("montcornet-decisive", .decisive, 9...10, "The raid badly disrupts German columns and French armor withdraws intact."),
@@ -385,7 +389,7 @@ public enum ScenarioBalanceCatalog {
 
     private static let amiensAbbeville = ScenarioBalanceProfile(
         id: .amiensAbbeville,
-        targetTurns: 5...7,
+        targetTurns: 6...8,
         balanceIntent: "The Channel race should be tense and mostly unwinnable positionally, with player success measured by bridge delay and evacuation time.",
         playerWinCondition: "Hold or demolish enough Somme crossings to buy at least three turns before the Channel cut completes.",
         germanPressureLimit: "German armor can move fast, but each contested bridge or roadblock must cost an order window before exit scoring.",
@@ -399,10 +403,11 @@ public enum ScenarioBalanceCatalog {
         pacingRules: [
             pacing("amiens-opening-race", "Opening race", "Turn 1", "German armor pressures Amiens but must spend orders into contested bridges."),
             pacing("amiens-bridge-cost", "Bridge cost", "Turns 2-4", "Each contested crossing cancels one German exit-scoring attempt."),
-            pacing("amiens-evacuation-shift", "Evacuation shift", "Turns 4-7", "After Abbeville is threatened, player scoring shifts to time bought and force preservation."),
+            pacing("amiens-roadblock-friction", "Roadblock friction", "Turns 2-5", "Allied bridge and roadblock positions force German armor to spend a movement window before exit scoring."),
+            pacing("amiens-evacuation-shift", "Evacuation shift", "Turns 4-8", "After Abbeville is threatened, player scoring shifts to time bought and force preservation."),
         ],
         reinforcements: [
-            reinforcement("amiens-2nd-panzer-pressure", .guderianAI, "Turns 3-4", "2nd Panzer Abbeville thrust", "Enter after Amiens road hub is German-controlled.", "Channel exit"),
+            reinforcement("amiens-2nd-panzer-pressure", .guderianAI, "Turns 4-5", "2nd Panzer Abbeville thrust", "Enter after Amiens road hub is German-controlled.", "Channel exit"),
         ],
         outcomeBands: [
             outcome("amiens-decisive", .decisive, 10...12, "The Channel cut is delayed long enough to materially aid northern Allied evacuation."),
@@ -414,7 +419,7 @@ public enum ScenarioBalanceCatalog {
 
     private static let boulogne = ScenarioBalanceProfile(
         id: .boulogne,
-        targetTurns: 5...7,
+        targetTurns: 6...8,
         balanceIntent: "Boulogne is a short evacuation-defense battle: the player should feel the port collapsing while still having meaningful windows for embarkation, naval fire, and demolition.",
         playerWinCondition: "Embark at least two formations or evacuation markers, use naval support once, and deny the harbor before German final assault scoring.",
         germanPressureLimit: "German armor cannot both isolate the old town and close the harbor before destroyer support has one entry window.",
@@ -428,7 +433,8 @@ public enum ScenarioBalanceCatalog {
         pacingRules: [
             pacing("boulogne-destroyer-window", "Destroyer entry window", "Turns 2-3", "Naval support can enter before air pressure reaches maximum."),
             pacing("boulogne-harbor-capacity", "Harbor capacity", "Turns 2-5", "Each air-pressure marker reduces but does not erase embarkation capacity."),
-            pacing("boulogne-final-collapse", "Final collapse", "Turns 5-7", "German final assault targets demolition and harbor control."),
+            pacing("boulogne-port-friction", "Port friction", "Turns 2-5", "Harbor streets and demolition parties slow German movement before the final assault can close every embarkation route."),
+            pacing("boulogne-final-collapse", "Final collapse", "Turns 6-8", "German final assault targets demolition and harbor control."),
         ],
         reinforcements: [
             reinforcement("boulogne-destroyers", .player, "Turns 2-3", "Royal Navy destroyer support", "Enter while harbor is open or contested.", "Naval support"),
@@ -444,7 +450,7 @@ public enum ScenarioBalanceCatalog {
 
     private static let calais = ScenarioBalanceProfile(
         id: .calais,
-        targetTurns: 6...8,
+        targetTurns: 7...9,
         balanceIntent: "Calais rewards strategic delay over survival: every held layer should matter because it fixes German armor away from Dunkirk.",
         playerWinCondition: "Hold an inner perimeter or supply point long enough to score at least four Dunkirk-time points before the citadel/docks fall.",
         germanPressureLimit: "German attacks can be costly and strong, but supply pressure should not remove all defensive fire before turn 3.",
@@ -458,7 +464,8 @@ public enum ScenarioBalanceCatalog {
         pacingRules: [
             pacing("calais-opening-investment", "Opening investment", "Turns 1-2", "German movement and suppression invest the perimeter before all-out assault."),
             pacing("calais-supply-degrades", "Supply degrades", "Turns 3-6", "Each lost layer worsens supply but does not erase all defense."),
-            pacing("calais-final-siege", "Final siege", "Turns 6-8", "German attacks focus citadel and docks to end delay scoring."),
+            pacing("calais-perimeter-friction", "Perimeter friction", "Turns 2-6", "Layered roadblocks and supply points force German movement to clear one perimeter band before the next closes."),
+            pacing("calais-final-siege", "Final siege", "Turns 7-9", "German attacks focus citadel and docks to end delay scoring."),
         ],
         reinforcements: [
             reinforcement("calais-german-assault", .guderianAI, "Turns 4-5", "German concentrated assault group", "Enter after supply pressure or an outer perimeter break.", "Siege reduction"),
@@ -688,7 +695,7 @@ public enum ScenarioBalanceCatalog {
 
     private static let mtsensk = ScenarioBalanceProfile(
         id: .mtsensk,
-        targetTurns: 5...7,
+        targetTurns: 6...8,
         balanceIntent: "Mtsensk is a compact armored showcase: Soviet T-34/KV ambushes should feel sharp and surprising, but the player still has to preserve scarce tanks after the first German shock fades.",
         playerWinCondition: "Score at least two German tank-loss or immobilization results, keep the Tula road delayed, and withdraw one elite tank group before final German artillery pressure.",
         germanPressureLimit: "German armor can recover after the first ambush, but unsupported panzer assaults should be punished and early player armor should not be wiped before revealing from cover.",
@@ -696,18 +703,19 @@ public enum ScenarioBalanceCatalog {
             score("mtsensk-panzer-losses", "German tank losses", .player, 5, "Ambush turns", "Award for destroying, immobilizing, or pinning German spearhead vehicles."),
             score("mtsensk-t34-shock", "T-34/KV shock", .player, 3, "First reveal", "Award when Soviet armor cancels unsupported German armor pressure."),
             score("mtsensk-tula-road-delay", "Tula road delayed", .player, 3, "Scenario end", "Award if the German force fails to make a clean road exit toward Tula."),
-            score("mtsensk-guards-preserved", "Guards tanks preserved", .player, 3, "Turns 4-7", "Award for withdrawing one tank group after it scores an ambush."),
+            score("mtsensk-guards-preserved", "Guards tanks preserved", .player, 3, "Turns 4-8", "Award for withdrawing one tank group after it scores an ambush."),
             score("mtsensk-german-road", "Road reopened", .guderianAI, 6, "Scenario end", "German score for clearing the road, ridge cover, and Tula exit."),
         ],
         pacingRules: [
             pacing("mtsensk-hidden-start", "Hidden start", "Turn 1", "Soviet tank groups begin concealed; German opening pressure is movement and recon, not full assault."),
             pacing("mtsensk-ambush-window", "Ambush window", "Turns 2-3", "T-34/KV groups can score high-value ambush results before German caution markers stack."),
-            pacing("mtsensk-withdrawal-choice", "Withdrawal choice", "Turns 4-6", "Revealed Soviet tanks must choose between a second attack and preservation scoring."),
+            pacing("mtsensk-road-caution", "Road caution", "Turns 2-5", "German movement through the ambush lane loses tempo until recon or artillery reduces the threat."),
+            pacing("mtsensk-withdrawal-choice", "Withdrawal choice", "Turns 4-7", "Revealed Soviet tanks must choose between a second attack and preservation scoring."),
             pacing("mtsensk-german-adaptation", "German adaptation", "Turns 4+", "German artillery, flank probes, and cautious movement reduce repeated ambush certainty."),
         ],
         reinforcements: [
             reinforcement("mtsensk-lavrinenko-platoon", .player, "Turns 2-3", "Lavrinenko-style tank platoon", "Enter from a concealed ridge after German armor reaches the kill zone.", "Mobile kill team"),
-            reinforcement("mtsensk-german-artillery", .guderianAI, "Turns 4-5", "German artillery and air pressure", "Enter after an ambush lane is revealed.", "Ambush suppression"),
+            reinforcement("mtsensk-german-artillery", .guderianAI, "Turns 5-6", "German artillery and air pressure", "Enter after an ambush lane is revealed.", "Ambush suppression"),
         ],
         outcomeBands: [
             outcome("mtsensk-decisive", .decisive, 12...14, "Katukov's force wrecks the panzer lead and preserves tanks for the Tula defense."),
@@ -768,7 +776,7 @@ public enum ScenarioBalanceCatalog {
             ],
             reinforcements: [],
             outcomeBands: [
-                outcome("\(scenario.id.rawValue)-tactical", .tactical, 4...8, "The player achieves the main local scenario goal."),
+                outcome("\(scenario.id.rawValue)-tactical", .tactical, 4...8, "The default side achieves the main local scenario goal."),
                 outcome("\(scenario.id.rawValue)-historical", .historicalPressure, 0...3, "The battle follows historical German pressure."),
             ]
         )

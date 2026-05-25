@@ -217,7 +217,7 @@ public enum DZWPlayableScreenHarness {
         let aiAfter = session.snapshot()
         record(.aiTurn, snapshot: aiAfter, id: "german-turn-button", detail: aiAfter.lastAction.detail, into: &steps)
         if aiTurn.activePlayer != .guderianAI || !movedAI {
-            blockers.append("German AI turn did not execute a priority move: \(aiAfter.lastAction.detail)")
+            blockers.append("Guderian-command automation did not execute a priority move: \(aiAfter.lastAction.detail)")
         }
 
         let completion = try PlayableBattleCompletionResolver.completeBattle(from: session)
@@ -356,7 +356,7 @@ public enum PlayableBattleAcceptanceGate: String, CaseIterable, Codable, Hashabl
     case scenarioUnits = "Scenario units"
     case terrainObjectives = "Terrain and objectives"
     case commandActions = "Command actions"
-    case aiTurn = "Guderian AI turn"
+    case aiTurn = "Guderian-command automation turn"
     case blockedReporting = "Blocked-action reporting"
     case debriefPersistence = "Debrief and persistence"
     case automatedHarness = "Automated harness"

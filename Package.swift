@@ -4,6 +4,7 @@ import PackageDescription
 let package = Package(
     name: "DerZweiteWeltkrieg",
     platforms: [
+        .iOS(.v17),
         .macOS(.v14),
     ],
     products: [
@@ -14,6 +15,10 @@ let package = Package(
         .library(
             name: "DerZweiteWeltkriegAppUI",
             targets: ["DerZweiteWeltkriegAppUI"]
+        ),
+        .library(
+            name: "DerZweiteWeltkriegHistorical",
+            targets: ["DerZweiteWeltkriegHistorical"]
         ),
         .library(
             name: "DerZweiteWeltkriegGuderian",
@@ -42,7 +47,10 @@ let package = Package(
         // remains a reusable engine target without importing Guderian content.
         .target(
             name: "DerZweiteWeltkriegGuderian",
-            dependencies: ["DerZweiteWeltkriegCore"],
+            dependencies: [
+                "DerZweiteWeltkriegCore",
+                "DerZweiteWeltkriegHistorical",
+            ],
             path: "Sources/DerZweiteWeltkriegGuderian"
         ),
         .target(
@@ -56,6 +64,11 @@ let package = Package(
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("AppKit"),
             ]
+        ),
+        .target(
+            name: "DerZweiteWeltkriegHistorical",
+            dependencies: ["DerZweiteWeltkriegCore"],
+            path: "Sources/DerZweiteWeltkriegHistorical"
         ),
         .executableTarget(
             name: "DerZweiteWeltkriegApp",
@@ -79,6 +92,7 @@ let package = Package(
             name: "DerZweiteWeltkriegTests",
             dependencies: [
                 "DerZweiteWeltkriegCore",
+                "DerZweiteWeltkriegHistorical",
                 "DerZweiteWeltkriegGuderian",
             ],
             path: "Tests/DerZweiteWeltkriegTests"

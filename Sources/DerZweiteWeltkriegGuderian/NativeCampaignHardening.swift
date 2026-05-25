@@ -566,7 +566,7 @@ public enum NativeBalanceUXAuditCatalog {
         [
             readableDensity ? nil : "Native unit/objective/terrain density exceeds readable board limits.",
             pacingReady ? nil : "Target turns or pacing rules do not support playable pacing.",
-            agencyReady ? nil : "Player agency score does not cover the native mission target.",
+            agencyReady ? nil : "Default-side agency score does not cover the native mission target.",
             debriefReady ? nil : "Victory bands do not cover maximum player score.",
             accessibilityReady ? nil : "UI flow accessibility identifiers do not cover the full battle flow.",
             saveLoadReady ? nil : "Campaign save/load continuity did not round-trip.",
@@ -587,7 +587,7 @@ public enum NativeBalanceUXAuditCatalog {
     ) -> [NativeBalanceUXSignal] {
         [
             signal(scenario, "pacing", .pacing, "Playable pacing", "Target turn window \(balance.targetTurns.lowerBound)-\(balance.targetTurns.upperBound) with \(balance.pacingRules.count) pacing rules.", pacingReady),
-            signal(scenario, "agency", .agency, "Player agency", balance.playerWinCondition, agencyReady),
+            signal(scenario, "agency", .agency, "Default-side agency", balance.playerWinCondition, agencyReady),
             signal(scenario, "density", .density, "Readable board density", "Native units, objectives, and summarized board terrain stay inside cycle 390 limits.", readableDensity),
             signal(scenario, "readability", .readability, "Victory readability", "\(balance.outcomeBands.count) debrief bands cover the native mission target.", debriefReady),
             signal(scenario, "accessibility", .accessibility, "UI flow labels", "Campaign row through completion exposes stable accessibility identifiers.", accessibilityReady),
@@ -792,7 +792,7 @@ public enum NativeCampaignShipReportCatalog {
 }
 
 public enum NativePostShipAnalysisTheme: String, Codable, Hashable, Sendable {
-    case playerAgency = "Player agency"
+    case playerAgency = "Default-side agency"
     case aiPressure = "AI pressure"
     case eventTiming = "Event timing"
     case historicalContext = "Historical context"

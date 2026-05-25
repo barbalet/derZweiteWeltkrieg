@@ -1,8 +1,136 @@
 import DerZweiteWeltkriegCore
+import DerZweiteWeltkriegHistorical
 @testable import DerZweiteWeltkriegGuderian
 import XCTest
 
 final class DerZweiteWeltkriegGuderianGameplayTests: XCTestCase {
+    func testGuderianScenarioAdaptsToSharedHistoricalScenarioContract() throws {
+        let scenario = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
+        let historical = GuderianHistoricalScenarioAdapter.scenario(for: scenario)
+
+        XCTAssertEqual(historical.id, .tucholaForest)
+        XCTAssertEqual(historical.title, scenario.title)
+        XCTAssertEqual(historical.status, .playable)
+        XCTAssertTrue(historical.hasTwoPlayableSides)
+        XCTAssertEqual(
+            historical.sideOptions.map(\.id),
+            [
+                GuderianHistoricalSideID.guderianCommand,
+                GuderianHistoricalSideID.opposingForce,
+            ]
+        )
+        XCTAssertEqual(historical.sideOptions.first?.role, .protagonist)
+        XCTAssertEqual(historical.sideOptions.last?.role, .opponent)
+        XCTAssertEqual(historical.objectives.count, scenario.objectives.count)
+        XCTAssertGreaterThanOrEqual(historical.victory.targetScore, scenario.objectives.map(\.victoryPoints).max() ?? 0)
+    }
+
+    func testGuderianAutoplayAdapterExposesSharedHistoricalHarnessContract() throws {
+        let report = GuderianHistoricalAutoplayCatalog.rewriteReport
+        let scenario = try XCTUnwrap(GuderianHistoricalAutoplayCatalog.firstBattleScenario())
+        let nativeScenario = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
+        let configuration = GuderianHistoricalAutoplayCatalog.configuration(for: nativeScenario)
+
+        XCTAssertTrue(report.isReady)
+        XCTAssertEqual(scenario.id, .tucholaForest)
+        XCTAssertEqual(configuration.battleID, .tucholaForest)
+        XCTAssertEqual(configuration.seed, GuderianHistoricalAutoplayCatalog.defaultSeed)
+        XCTAssertEqual(configuration.contract.embeddedBattleSurfaceName, HistoricalPlayableSurfaceCatalog.sharedHostSurfaceName)
+        XCTAssertTrue(configuration.contract.retiredEmbeddedSurfaceNames.contains("DZWPlayableBattleView"))
+        XCTAssertEqual(configuration.sidePlans.map(\.sideID), [
+            GuderianHistoricalSideID.opposingForce,
+            GuderianHistoricalSideID.guderianCommand,
+        ])
+        XCTAssertEqual(configuration.plan(for: GuderianHistoricalSideID.opposingForce).tacticalPlan?.armyFamilyName, "Polish")
+        XCTAssertEqual(configuration.plan(for: GuderianHistoricalSideID.guderianCommand).tacticalPlan?.armyFamilyName, "German command")
+        XCTAssertTrue(configuration.plan(for: GuderianHistoricalSideID.opposingForce).tacticalPlan?.isPhaseAware == true)
+        XCTAssertTrue(configuration.contract.isFirstBattleAutoplayContract)
+        XCTAssertGreaterThanOrEqual(configuration.maxPhaseAdvances, 24)
+    }
+
+    func testGuderianAboutCatalogLivesInDZWSharedAboutModel() {
+        XCTAssertEqual(GuderianAppAboutCatalog.content.appName, "Guderian")
+        XCTAssertEqual(GuderianAppAboutCatalog.releaseVersion, "1.04")
+        XCTAssertEqual(
+            GuderianAppAboutCatalog.content.displayVersion(
+                bundleInfo: ["CFBundleShortVersionString": "$(MARKETING_VERSION)"]
+            ),
+            "1.04"
+        )
+        XCTAssertTrue(GuderianAppAboutCatalog.developmentParagraphs.joined(separator: " ").contains("dzw"))
+    }
+
+    func testGuderianHistoricalSideSelectionMapsEitherSideToNativeEngineSlots() throws {
+        let scenario = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
+        let opposingLaunch = try GuderianHistoricalSideSelectionResolver.makeLaunch(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideID.opposingForce,
+            seed: 620_001
+        )
+        let guderianLaunch = try GuderianHistoricalSideSelectionResolver.makeLaunch(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideID.guderianCommand,
+            seed: 620_002
+        )
+        let guderianSelection = try GuderianHistoricalSideSelectionResolver.resolvedSelection(
+            for: scenario,
+            chosenHumanSideID: GuderianHistoricalSideID.guderianCommand,
+            seed: 620_002
+        )
+        let session = try XCTUnwrap(NativeBoardSession(scenario: scenario, launch: guderianLaunch))
+
+        XCTAssertEqual(opposingLaunch.humanBinding?.enginePlayerSlot, .playerOne)
+        XCTAssertEqual(opposingLaunch.aiBinding?.enginePlayerSlot, .playerTwo)
+        XCTAssertEqual(guderianLaunch.humanBinding?.enginePlayerSlot, .playerTwo)
+        XCTAssertEqual(guderianLaunch.aiBinding?.enginePlayerSlot, .playerOne)
+        XCTAssertEqual(guderianSelection.selectedSide?.id, GuderianHistoricalSideID.guderianCommand)
+        XCTAssertEqual(guderianSelection.opposingSide?.id, GuderianHistoricalSideID.opposingForce)
+        XCTAssertEqual(session.launch.chosenHumanSideID, GuderianHistoricalSideID.guderianCommand)
+        XCTAssertEqual(session.humanPlayer, .guderianAI)
+        XCTAssertEqual(session.aiPlayer, .player)
+    }
+
+    func testGuderianSideSelectionMemoryStoresChoicesPerBattle() throws {
+        let tuchola = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
+        let sedan = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .sedan))
+        var encodedSelections = ""
+
+        encodedSelections = GuderianHistoricalSideSelectionMemory.encodedSelections(
+            encodedSelections,
+            selecting: GuderianHistoricalSideID.guderianCommand,
+            for: tuchola
+        )
+
+        XCTAssertEqual(
+            GuderianHistoricalSideSelectionMemory.selectedSideID(
+                for: tuchola,
+                encodedSelections: encodedSelections
+            ),
+            GuderianHistoricalSideID.guderianCommand
+        )
+        XCTAssertEqual(
+            GuderianHistoricalSideSelectionMemory.selectedSideID(
+                for: sedan,
+                encodedSelections: encodedSelections
+            ),
+            GuderianHistoricalSideID.opposingForce
+        )
+
+        encodedSelections = GuderianHistoricalSideSelectionMemory.encodedSelections(
+            encodedSelections,
+            selecting: GuderianHistoricalSideID.opposingForce,
+            for: sedan
+        )
+
+        XCTAssertEqual(
+            GuderianHistoricalSideSelectionMemory.sideSelections(from: encodedSelections),
+            [
+                GuderianBattleID.tucholaForest.rawValue: GuderianHistoricalSideID.guderianCommand,
+                GuderianBattleID.sedan.rawValue: GuderianHistoricalSideID.opposingForce,
+            ]
+        )
+    }
+
     func testGuderianScenarioBoardSessionIsHostedByDZWPackage() throws {
         let scenario = try XCTUnwrap(GuderianCampaignCatalog.scenario(id: .tucholaForest))
         let session = try XCTUnwrap(NativeBoardSession(scenario: scenario, seed: 1_939_0901))

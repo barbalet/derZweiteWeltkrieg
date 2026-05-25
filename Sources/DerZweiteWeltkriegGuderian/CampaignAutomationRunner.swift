@@ -1071,9 +1071,9 @@ public enum CampaignAutomationRunner {
     private static func playerName(_ player: player_t) -> String {
         switch player {
         case DZW_PLAYER_ONE:
-            return "Player"
+            return "Default side"
         case DZW_PLAYER_TWO:
-            return "Guderian AI"
+            return "Guderian command"
         default:
             return "None"
         }
@@ -1450,9 +1450,9 @@ private struct AutomationAccumulator {
     private func playerName(_ player: player_t) -> String {
         switch player {
         case DZW_PLAYER_ONE:
-            return "Player"
+            return "Default side"
         case DZW_PLAYER_TWO:
-            return "Guderian AI"
+            return "Guderian command"
         default:
             return "None"
         }
