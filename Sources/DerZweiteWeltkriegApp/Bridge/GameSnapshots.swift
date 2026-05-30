@@ -569,6 +569,18 @@ struct UnitSnapshot: Identifiable {
     let lastAssaultLoserID: Int
     let lastAssaultLoserDestroyed: Bool
     let lastAssaultRegroupDistance: CGFloat
+    let lastAssaultVehicleTarget: Bool
+    let lastAssaultAntitankEquipped: Bool
+    let lastAssaultEnclosedArmourOrderTestRequired: Bool
+    let lastAssaultEnclosedArmourOrderTestRoll: Int
+    let lastAssaultEnclosedArmourOrderTestTarget: Int
+    let lastAssaultEnclosedArmourOrderTestFailed: Bool
+    let lastAssaultVehicleDefensiveFireResolved: Bool
+    let lastAssaultVehicleHits: Int
+    let lastAssaultVehicleDamageValue: Int
+    let lastAssaultVehiclePenetrationModifier: Int
+    let lastAssaultVehicleDamageRoll: Int
+    let lastAssaultVehicleDamageClass: dzw_vehicle_damage_class_t
 
     init(raw: unit_view_t) {
         id = Int(raw.id)
@@ -695,6 +707,18 @@ struct UnitSnapshot: Identifiable {
         lastAssaultLoserID = Int(raw.last_assault_loser_id)
         lastAssaultLoserDestroyed = raw.last_assault_loser_destroyed
         lastAssaultRegroupDistance = CGFloat(raw.last_assault_regroup_distance)
+        lastAssaultVehicleTarget = raw.last_assault_vehicle_target
+        lastAssaultAntitankEquipped = raw.last_assault_antitank_equipped
+        lastAssaultEnclosedArmourOrderTestRequired = raw.last_assault_enclosed_armour_order_test_required
+        lastAssaultEnclosedArmourOrderTestRoll = Int(raw.last_assault_enclosed_armour_order_test_roll)
+        lastAssaultEnclosedArmourOrderTestTarget = Int(raw.last_assault_enclosed_armour_order_test_target)
+        lastAssaultEnclosedArmourOrderTestFailed = raw.last_assault_enclosed_armour_order_test_failed
+        lastAssaultVehicleDefensiveFireResolved = raw.last_assault_vehicle_defensive_fire_resolved
+        lastAssaultVehicleHits = Int(raw.last_assault_vehicle_hits)
+        lastAssaultVehicleDamageValue = Int(raw.last_assault_vehicle_damage_value)
+        lastAssaultVehiclePenetrationModifier = Int(raw.last_assault_vehicle_penetration_modifier)
+        lastAssaultVehicleDamageRoll = Int(raw.last_assault_vehicle_damage_roll)
+        lastAssaultVehicleDamageClass = raw.last_assault_vehicle_damage_class
     }
 
     var ownerName: String {
@@ -774,6 +798,21 @@ struct UnitSnapshot: Identifiable {
             parts.append("Assault \(lastAssaultTargetID)")
             if lastAssaultTargetReaction != DZW_TARGET_REACTION_NONE {
                 parts.append(lastAssaultTargetReactionName)
+            }
+            if lastAssaultVehicleTarget {
+                parts.append(lastAssaultAntitankEquipped ? "AT assault" : "Tank nerve")
+                if lastAssaultEnclosedArmourOrderTestRequired {
+                    parts.append("Tank test \(lastAssaultEnclosedArmourOrderTestRoll)/\(lastAssaultEnclosedArmourOrderTestTarget)")
+                }
+                if lastAssaultVehicleDefensiveFireResolved {
+                    parts.append("Defensive fire")
+                }
+                if lastAssaultVehicleHits > 0 {
+                    parts.append("Vehicle hits \(lastAssaultVehicleHits)")
+                }
+                if lastAssaultVehicleDamageValue > 0 {
+                    parts.append("Assault DV \(lastAssaultVehicleDamageValue)")
+                }
             }
             if lastAssaultLoserDestroyed {
                 parts.append("Loser destroyed")

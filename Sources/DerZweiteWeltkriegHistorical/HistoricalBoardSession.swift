@@ -6,6 +6,15 @@ public enum HistoricalBoardPhase: String, Codable, Hashable, Sendable {
     case assault = "Assault"
 }
 
+public enum HistoricalBoardOrder: String, CaseIterable, Codable, Hashable, Sendable {
+    case fire = "Fire"
+    case advance = "Advance"
+    case run = "Run"
+    case ambush = "Ambush"
+    case rally = "Rally"
+    case down = "Down"
+}
+
 public enum HistoricalBoardActionStatus: String, Codable, Hashable, Sendable {
     case idle = "Idle"
     case succeeded = "Succeeded"
@@ -60,6 +69,14 @@ public struct HistoricalBoardUnitSnapshot: Identifiable, Codable, Hashable, Send
     public let canAssaultNow: Bool
     public let selected: Bool
     public let targeted: Bool
+    public let currentOrder: HistoricalBoardOrder?
+    public let availableOrders: [HistoricalBoardOrder]
+    public let orderDiceSummary: String
+    public let pinCount: Int
+    public let moraleQuality: String
+    public let retainedOrder: Bool
+    public let downOrderActive: Bool
+    public let ambushOrderActive: Bool
 
     public init(
         id: Int,
@@ -74,7 +91,15 @@ public struct HistoricalBoardUnitSnapshot: Identifiable, Codable, Hashable, Send
         canShootNow: Bool = false,
         canAssaultNow: Bool = false,
         selected: Bool = false,
-        targeted: Bool = false
+        targeted: Bool = false,
+        currentOrder: HistoricalBoardOrder? = nil,
+        availableOrders: [HistoricalBoardOrder] = [],
+        orderDiceSummary: String = "",
+        pinCount: Int = 0,
+        moraleQuality: String = "Regular",
+        retainedOrder: Bool = false,
+        downOrderActive: Bool = false,
+        ambushOrderActive: Bool = false
     ) {
         self.id = id
         self.sideID = sideID
@@ -89,6 +114,14 @@ public struct HistoricalBoardUnitSnapshot: Identifiable, Codable, Hashable, Send
         self.canAssaultNow = canAssaultNow
         self.selected = selected
         self.targeted = targeted
+        self.currentOrder = currentOrder
+        self.availableOrders = availableOrders
+        self.orderDiceSummary = orderDiceSummary
+        self.pinCount = pinCount
+        self.moraleQuality = moraleQuality
+        self.retainedOrder = retainedOrder
+        self.downOrderActive = downOrderActive
+        self.ambushOrderActive = ambushOrderActive
     }
 }
 
@@ -397,7 +430,27 @@ public protocol HistoricalBoardSession: AnyObject {
     func toggleHullDown(for id: Int, enabled: Bool) -> Bool
     func shootUnit(_ attackerID: Int, targetID: Int) -> Bool
     func assaultUnit(_ attackerID: Int, targetID: Int, advance: Bool) -> Bool
+    func issueOrder(_ order: HistoricalBoardOrder, to unitID: Int) -> Bool
+    func issueOrderToSelectedUnit(_ order: HistoricalBoardOrder) -> Bool
     func shootSelectedTarget() -> Bool
     func resolveFirstPendingChoice() -> Bool
     func advancePhase()
+}
+
+public extension HistoricalBoardSession {
+    func issueOrder(_ order: HistoricalBoardOrder, to unitID: Int) -> Bool {
+        _ = order
+        _ = unitID
+        return false
+    }
+
+    func issueOrderToSelectedUnit(_ order: HistoricalBoardOrder) -> Bool {
+        _ = order
+        return false
+    }
+
+    @available(*, deprecated, message: "Use issueOrder(_:to:) and order-dice actions instead of global phase advancement.")
+    func advanceLegacyPhase() {
+        advancePhase()
+    }
 }

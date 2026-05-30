@@ -232,6 +232,7 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         XCTAssertEqual(opening.units.count, 2)
 
         session.selectUnit(1)
+        XCTAssertTrue(session.issueOrderToSelectedUnit(.fire))
         XCTAssertTrue(session.moveSelectedUnitTowardPriorityObjective(named: ["Alam el Halfa ridge"], maxDistance: 4))
         XCTAssertTrue(session.shootSelectedTarget())
         session.advancePhase()
@@ -239,6 +240,9 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         let latest = session.snapshot()
         XCTAssertEqual(latest.lastAction.status, .succeeded)
         XCTAssertEqual(latest.phase, .shooting)
+        XCTAssertTrue(latest.units.first { $0.id == 1 }?.availableOrders.contains(.fire) == true)
+        XCTAssertEqual(latest.units.first { $0.id == 1 }?.currentOrder, .fire)
+        XCTAssertTrue(latest.units.first { $0.id == 1 }?.orderDiceSummary.contains("Fire") == true)
         XCTAssertTrue(latest.log.contains { $0.contains("advanced") })
     }
 
@@ -402,6 +406,7 @@ private final class DemoHistoricalBoardSession: HistoricalBoardSession {
     private var phase = HistoricalBoardPhase.movement
     private var lastAction = HistoricalBoardActionMessage(status: .idle, title: "Ready", detail: "Demo session ready.")
     private var log = ["Demo session opened."]
+    private var issuedOrder: HistoricalBoardOrder?
 
     init() throws {
         launch = try HistoricalBattleLaunchResolver.makeLaunch(
@@ -434,7 +439,10 @@ private final class DemoHistoricalBoardSession: HistoricalBoardSession {
                     facingDegrees: 180,
                     canMoveNow: true,
                     canShootNow: true,
-                    selected: true
+                    selected: true,
+                    currentOrder: issuedOrder,
+                    availableOrders: [.fire, .advance, .run, .ambush, .rally, .down],
+                    orderDiceSummary: issuedOrder.map { "Order \($0.rawValue) | Regular | Pins 0" } ?? "Order None | Regular | Pins 0"
                 ),
                 HistoricalBoardUnitSnapshot(
                     id: 2,
@@ -523,6 +531,17 @@ private final class DemoHistoricalBoardSession: HistoricalBoardSession {
         return false
     }
 
+    func issueOrder(_ order: HistoricalBoardOrder, to unitID: Int) -> Bool {
+        issuedOrder = order
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "\(order.rawValue) order", detail: "Issued \(order.rawValue) to unit \(unitID).")
+        log.append(lastAction.detail)
+        return true
+    }
+
+    func issueOrderToSelectedUnit(_ order: HistoricalBoardOrder) -> Bool {
+        issueOrder(order, to: 1)
+    }
+
     func shootSelectedTarget() -> Bool {
         shootUnit(1, targetID: 2)
     }
@@ -548,6 +567,7 @@ private final class AutoplayDemoHistoricalBoardSession: HistoricalBoardSession {
     private var winningSideID: String?
     private var selectedUnitID: Int?
     private var selectedTargetID: Int?
+    private var issuedOrders: [Int: HistoricalBoardOrder] = [:]
     private var lastAction = HistoricalBoardActionMessage(status: .idle, title: "Ready", detail: "Autoplay demo ready.")
     private var log = ["Autoplay demo opened."]
 
@@ -668,6 +688,21 @@ private final class AutoplayDemoHistoricalBoardSession: HistoricalBoardSession {
         return true
     }
 
+    func issueOrder(_ order: HistoricalBoardOrder, to unitID: Int) -> Bool {
+        issuedOrders[unitID] = order
+        selectedUnitID = unitID
+        lastAction = HistoricalBoardActionMessage(status: .succeeded, title: "\(order.rawValue) order", detail: "Issued \(order.rawValue) to unit \(unitID).")
+        log.append(lastAction.detail)
+        return true
+    }
+
+    func issueOrderToSelectedUnit(_ order: HistoricalBoardOrder) -> Bool {
+        guard let selectedUnitID else {
+            return false
+        }
+        return issueOrder(order, to: selectedUnitID)
+    }
+
     func shootSelectedTarget() -> Bool {
         guard let selectedUnitID, let selectedTargetID else {
             return false
@@ -719,7 +754,10 @@ private final class AutoplayDemoHistoricalBoardSession: HistoricalBoardSession {
             canShootNow: phase == .shooting && activeSideID == sideID,
             canAssaultNow: phase == .assault && activeSideID == sideID,
             selected: selectedUnitID == id,
-            targeted: selectedTargetID == id
+            targeted: selectedTargetID == id,
+            currentOrder: issuedOrders[id],
+            availableOrders: activeSideID == sideID ? HistoricalBoardOrder.allCases : [],
+            orderDiceSummary: issuedOrders[id].map { "Order \($0.rawValue) | Regular | Pins 0" } ?? "Order None | Regular | Pins 0"
         )
     }
 }

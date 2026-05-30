@@ -421,6 +421,18 @@ typedef struct {
     int last_assault_loser_id;
     bool last_assault_loser_destroyed;
     float last_assault_regroup_distance;
+    bool last_assault_vehicle_target;
+    bool last_assault_antitank_equipped;
+    bool last_assault_enclosed_armour_order_test_required;
+    int last_assault_enclosed_armour_order_test_roll;
+    int last_assault_enclosed_armour_order_test_target;
+    bool last_assault_enclosed_armour_order_test_failed;
+    bool last_assault_vehicle_defensive_fire_resolved;
+    int last_assault_vehicle_hits;
+    int last_assault_vehicle_damage_value;
+    int last_assault_vehicle_penetration_modifier;
+    int last_assault_vehicle_damage_roll;
+    dzw_vehicle_damage_class_t last_assault_vehicle_damage_class;
 } unit_view_t;
 
 float game_board_width(void);

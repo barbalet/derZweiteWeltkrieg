@@ -332,6 +332,18 @@ typedef struct {
     int last_assault_loser_id;
     bool last_assault_loser_destroyed;
     float last_assault_regroup_distance;
+    bool last_assault_vehicle_target;
+    bool last_assault_antitank_equipped;
+    bool last_assault_enclosed_armour_order_test_required;
+    int last_assault_enclosed_armour_order_test_roll;
+    int last_assault_enclosed_armour_order_test_target;
+    bool last_assault_enclosed_armour_order_test_failed;
+    bool last_assault_vehicle_defensive_fire_resolved;
+    int last_assault_vehicle_hits;
+    int last_assault_vehicle_damage_value;
+    int last_assault_vehicle_penetration_modifier;
+    int last_assault_vehicle_damage_roll;
+    dzw_vehicle_damage_class_t last_assault_vehicle_damage_class;
 } unit_t;
 
 typedef struct {
@@ -8456,6 +8468,18 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.last_assault_loser_id = unit->last_assault_loser_id;
     view.last_assault_loser_destroyed = unit->last_assault_loser_destroyed;
     view.last_assault_regroup_distance = unit->last_assault_regroup_distance;
+    view.last_assault_vehicle_target = unit->last_assault_vehicle_target;
+    view.last_assault_antitank_equipped = unit->last_assault_antitank_equipped;
+    view.last_assault_enclosed_armour_order_test_required = unit->last_assault_enclosed_armour_order_test_required;
+    view.last_assault_enclosed_armour_order_test_roll = unit->last_assault_enclosed_armour_order_test_roll;
+    view.last_assault_enclosed_armour_order_test_target = unit->last_assault_enclosed_armour_order_test_target;
+    view.last_assault_enclosed_armour_order_test_failed = unit->last_assault_enclosed_armour_order_test_failed;
+    view.last_assault_vehicle_defensive_fire_resolved = unit->last_assault_vehicle_defensive_fire_resolved;
+    view.last_assault_vehicle_hits = unit->last_assault_vehicle_hits;
+    view.last_assault_vehicle_damage_value = unit->last_assault_vehicle_damage_value;
+    view.last_assault_vehicle_penetration_modifier = unit->last_assault_vehicle_penetration_modifier;
+    view.last_assault_vehicle_damage_roll = unit->last_assault_vehicle_damage_roll;
+    view.last_assault_vehicle_damage_class = unit->last_assault_vehicle_damage_class;
     return view;
 }
 
@@ -9530,7 +9554,7 @@ static float estimated_melee_model_frontage(const unit_t *unit) {
     return fmaxf(frontage, 0.75f);
 }
 
-static int melee_engaged_model_cap(const unit_t *attacker, const unit_t *engagement_target) {
+static int legacy_fixed_phase_melee_engaged_model_cap(const unit_t *attacker, const unit_t *engagement_target) {
     if (attacker == NULL || engagement_target == NULL || attacker->destroyed || engagement_target->destroyed || attacker->models <= 0) {
         return 0;
     }
@@ -9550,6 +9574,16 @@ static int melee_engaged_model_cap(const unit_t *attacker, const unit_t *engagem
         engaged_models = attacker->models;
     }
     return engaged_models;
+}
+
+static int melee_engaged_model_cap_for_ruleset(const game_t *game, const unit_t *attacker, const unit_t *engagement_target) {
+    if (attacker == NULL || engagement_target == NULL || attacker->destroyed || engagement_target->destroyed || attacker->models <= 0) {
+        return 0;
+    }
+    if (game != NULL && game->ruleset == DZW_RULESET_ORDER_DICE && !unit_uses_vehicle_rules(attacker) && !unit_uses_vehicle_rules(engagement_target)) {
+        return attacker->models;
+    }
+    return legacy_fixed_phase_melee_engaged_model_cap(attacker, engagement_target);
 }
 
 static void log_melee_engagement_cap(game_t *game, const unit_t *attacker, const unit_t *engagement_target, int initiative, int engaged_models, int available_models) {
@@ -9676,7 +9710,7 @@ static int resolve_melee_infantry_damage_at_initiative(game_t *game, const unit_
         return 0;
     }
 
-    int engaged_models_remaining = melee_engaged_model_cap(attacker, engagement_target);
+    int engaged_models_remaining = melee_engaged_model_cap_for_ruleset(game, attacker, engagement_target);
     if (engaged_models_remaining > models_at_initiative) {
         engaged_models_remaining = models_at_initiative;
     }
@@ -10011,6 +10045,18 @@ static void reset_unit_assault_execution_details(unit_t *unit) {
     unit->last_assault_loser_id = 0;
     unit->last_assault_loser_destroyed = false;
     unit->last_assault_regroup_distance = 0.0f;
+    unit->last_assault_vehicle_target = false;
+    unit->last_assault_antitank_equipped = false;
+    unit->last_assault_enclosed_armour_order_test_required = false;
+    unit->last_assault_enclosed_armour_order_test_roll = 0;
+    unit->last_assault_enclosed_armour_order_test_target = 0;
+    unit->last_assault_enclosed_armour_order_test_failed = false;
+    unit->last_assault_vehicle_defensive_fire_resolved = false;
+    unit->last_assault_vehicle_hits = 0;
+    unit->last_assault_vehicle_damage_value = 0;
+    unit->last_assault_vehicle_penetration_modifier = 0;
+    unit->last_assault_vehicle_damage_roll = 0;
+    unit->last_assault_vehicle_damage_class = DZW_VEHICLE_DAMAGE_NONE;
 }
 
 static dzw_target_reaction_t target_reaction_for_assault(const unit_t *target) {
@@ -10038,6 +10084,225 @@ static void record_assault_outcome(unit_t *attacker, int attacker_wounds, int de
     attacker->last_assault_loser_id = loser != NULL ? loser->id : 0;
     attacker->last_assault_loser_destroyed = loser_destroyed;
     attacker->last_assault_regroup_distance = regroup_distance;
+}
+
+static bool weapon_counts_as_antitank_assault_equipment(const weapon_profile_t *weapon) {
+    if (weapon == NULL) {
+        return false;
+    }
+    int penetration_modifier = penetration_modifier_for_weapon(weapon);
+    return weapon->shaped_charge || weapon->one_shot || weapon->flame || penetration_modifier >= 2;
+}
+
+static int best_antitank_assault_penetration_modifier(const unit_t *unit) {
+    if (unit == NULL || unit->destroyed || unit->models <= 0) {
+        return 0;
+    }
+
+    int best_modifier = 0;
+    for (int index = 0; index < unit->weapon_count; index += 1) {
+        const weapon_slot_t *slot = &unit->weapons[index];
+        if (slot->destroyed || !weapon_counts_as_antitank_assault_equipment(&slot->profile)) {
+            continue;
+        }
+        int modifier = penetration_modifier_for_weapon(&slot->profile);
+        if (modifier > best_modifier) {
+            best_modifier = modifier;
+        }
+    }
+    return best_modifier;
+}
+
+static bool unit_has_antitank_assault_equipment(const unit_t *unit) {
+    return best_antitank_assault_penetration_modifier(unit) > 0;
+}
+
+static bool vehicle_is_enclosed_armoured_target(const unit_t *target) {
+    if (target == NULL || !unit_uses_vehicle_rules(target) || target->kind == DZW_UNIT_ASSAULT_GUN || target->open_topped || unit_uses_artillery_rules(target)) {
+        return false;
+    }
+    return target->front_armour > 0 || target->side_armour > 0 || target->rear_armour > 0;
+}
+
+static bool vehicle_made_run_move_this_turn(const unit_t *target) {
+    return target != NULL && target->current_order == DZW_ORDER_RUN && target->moved_distance > 0.01f;
+}
+
+static bool resolve_enclosed_armour_assault_order_test(game_t *game, unit_t *attacker, const unit_t *target) {
+    bool antitank_equipped = unit_has_antitank_assault_equipment(attacker);
+    bool required = vehicle_is_enclosed_armoured_target(target) && !antitank_equipped;
+    attacker->last_assault_vehicle_target = true;
+    attacker->last_assault_antitank_equipped = antitank_equipped;
+    attacker->last_assault_enclosed_armour_order_test_required = required;
+    if (!required) {
+        return true;
+    }
+
+    int pin_modifier = order_test_pin_modifier_for_unit(game, attacker);
+    int officer_modifier = nearby_officer_modifier_for_unit(game, attacker);
+    int morale_target = clamped_order_test_target(morale_target_for_quality(attacker->morale_quality) + pin_modifier + officer_modifier - 3);
+    int morale_roll = roll_2d6(game);
+    bool failed = morale_roll > morale_target;
+    attacker->last_assault_enclosed_armour_order_test_roll = morale_roll;
+    attacker->last_assault_enclosed_armour_order_test_target = morale_target;
+    attacker->last_assault_enclosed_armour_order_test_failed = failed;
+    dzw_log(
+        game,
+        "%s tests nerve before assaulting enclosed armour without anti-tank equipment: roll %d vs target %d.",
+        attacker->name,
+        morale_roll,
+        morale_target
+    );
+
+    if (!failed) {
+        return true;
+    }
+
+    attacker->movement_action_used_this_turn = true;
+    attacker->shot_this_turn = true;
+    attacker->assaulted_this_turn = true;
+    dzw_log(game, "%s loses nerve and the assault on %s does not go in.", attacker->name, target->name);
+    record_assault_outcome(attacker, 0, 0, 0, NULL, NULL, false, 0.0f);
+    return false;
+}
+
+static const weapon_profile_t *vehicle_defensive_fire_weapon(const unit_t *vehicle, const unit_t *attacker, float *out_range) {
+    if (vehicle == NULL || attacker == NULL || vehicle->destroyed || vehicle->crew_stunned) {
+        return NULL;
+    }
+
+    float range = edge_distance_between_units(vehicle, attacker);
+    for (int index = 0; index < vehicle->weapon_count; index += 1) {
+        const weapon_slot_t *slot = &vehicle->weapons[index];
+        if (slot->destroyed || slot->profile.shots <= 0 || slot->profile.ordnance || slot->profile.barrage || slot->profile.indirect_fire) {
+            continue;
+        }
+        if (range > (float)slot->profile.range || weapon_is_inside_minimum_range(&slot->profile, range)) {
+            continue;
+        }
+        if (!weapon_slot_can_bear_target(vehicle, attacker, slot)) {
+            continue;
+        }
+        if (out_range != NULL) {
+            *out_range = range;
+        }
+        return &slot->profile;
+    }
+    return NULL;
+}
+
+static int resolve_order_dice_vehicle_defensive_fire(game_t *game, unit_t *attacker, unit_t *vehicle) {
+    if (game == NULL || attacker == NULL || vehicle == NULL || game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return 0;
+    }
+
+    float range = 0.0f;
+    const weapon_profile_t *weapon = vehicle_defensive_fire_weapon(vehicle, attacker, &range);
+    if (weapon == NULL) {
+        return 0;
+    }
+
+    attacker->last_assault_vehicle_defensive_fire_resolved = true;
+    int hits = 0;
+    int wounds = 0;
+    int damage_value = damage_value_for_infantry_unit(attacker);
+    int penetration_modifier = penetration_modifier_for_weapon(weapon);
+    for (int shot = 0; shot < weapon->shots; shot += 1) {
+        if (roll_d6(game) < 4) {
+            continue;
+        }
+        hits += 1;
+        if (roll_d6(game) + penetration_modifier >= damage_value) {
+            wounds += 1;
+        }
+    }
+
+    dzw_log(
+        game,
+        "%s fires %s as defensive fire at %.1f\" before %s closes: %d hit%s, %d wound%s.",
+        vehicle->name,
+        weapon->name,
+        range,
+        attacker->name,
+        hits,
+        hits == 1 ? "" : "s",
+        wounds,
+        wounds == 1 ? "" : "s"
+    );
+    if (hits > 0) {
+        add_pin_markers_from_fire(game, attacker, 1, "vehicle defensive fire");
+    }
+    if (wounds > 0) {
+        apply_infantry_damage(game, attacker, wounds, weapon->strength, weapon->name, false, NULL);
+    }
+    return wounds;
+}
+
+static dzw_vehicle_damage_class_t stronger_vehicle_damage_class(dzw_vehicle_damage_class_t lhs, dzw_vehicle_damage_class_t rhs) {
+    return lhs > rhs ? lhs : rhs;
+}
+
+static int resolve_order_dice_infantry_vehicle_assault(game_t *game, unit_t *attacker, unit_t *target, bool charging, float attack_origin_x, float attack_origin_y) {
+    if (game == NULL || attacker == NULL || target == NULL) {
+        return 0;
+    }
+
+    attacker->last_assault_vehicle_target = true;
+    attacker->last_assault_antitank_equipped = unit_has_antitank_assault_equipment(attacker);
+    int best_weapon_modifier = best_antitank_assault_penetration_modifier(attacker);
+    int strength_modifier = attacker->strength > 4 ? attacker->strength - 4 : 0;
+    dzw_vehicle_armour_arc_internal_t armour_arc = vehicle_armour_arc_for_attack(target, attack_origin_x, attack_origin_y);
+    int armour_modifier = vehicle_armour_arc_penetration_modifier(armour_arc);
+    int penetration_modifier = (best_weapon_modifier > 0 ? best_weapon_modifier : strength_modifier) + armour_modifier;
+    int armour_value = vehicle_armour_for_arc(target, attack_origin_x, attack_origin_y);
+    int damage_value = damage_value_for_vehicle_armour(target, armour_value);
+    int attacks = attacker->models * (attacker->attacks + (charging ? 1 : 0));
+    int needed_to_hit = required_to_hit_vehicle_in_assault(target);
+    int hits = 0;
+    int damaging_hits = 0;
+    dzw_vehicle_damage_class_t strongest_damage_class = DZW_VEHICLE_DAMAGE_NONE;
+
+    attacker->last_assault_vehicle_damage_value = damage_value;
+    attacker->last_assault_vehicle_penetration_modifier = penetration_modifier;
+
+    for (int roll_index = 0; roll_index < attacks && !target->destroyed; roll_index += 1) {
+        bool hit = needed_to_hit <= 1 || roll_d6(game) >= needed_to_hit;
+        if (!hit) {
+            continue;
+        }
+
+        hits += 1;
+        int damage_roll = roll_d6(game);
+        int penetration_roll = damage_roll + penetration_modifier;
+        dzw_vehicle_damage_class_t damage_class = vehicle_damage_class_for_penetration(penetration_roll, damage_value);
+        attacker->last_assault_vehicle_damage_roll = damage_roll;
+        strongest_damage_class = stronger_vehicle_damage_class(strongest_damage_class, damage_class);
+        if (damage_class == DZW_VEHICLE_DAMAGE_NONE) {
+            continue;
+        }
+
+        damaging_hits += 1;
+        add_pin_markers_from_fire(game, target, 1, "close assault");
+        dzw_log(
+            game,
+            "%s scores a close-assault vehicle hit on %s: roll %d %+d vs DV %d.",
+            attacker->name,
+            target->name,
+            damage_roll,
+            penetration_modifier,
+            damage_value
+        );
+        apply_vehicle_damage_class(game, attacker, target, damage_class, 0);
+    }
+
+    attacker->last_assault_vehicle_hits = hits;
+    attacker->last_assault_vehicle_damage_class = strongest_damage_class;
+    if (hits <= 0) {
+        dzw_log(game, "%s fails to land a close-assault hit on %s.", attacker->name, target->name);
+    } else if (damaging_hits <= 0) {
+        dzw_log(game, "%s cannot damage %s in close assault.", attacker->name, target->name);
+    }
+    return damaging_hits;
 }
 
 static void resolve_order_dice_close_quarters_outcome(game_t *game, unit_t *attacker, unit_t *target, int attacker_score, int defender_score) {
@@ -10505,9 +10770,13 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
 
     bool assault_gun_combat = attacker->kind == DZW_UNIT_ASSAULT_GUN || target->kind == DZW_UNIT_ASSAULT_GUN;
     bool vehicle_target = unit_uses_vehicle_rules(target) && target->kind != DZW_UNIT_ASSAULT_GUN;
+    bool order_dice_infantry_vehicle_assault = game->ruleset == DZW_RULESET_ORDER_DICE && vehicle_target && !unit_uses_vehicle_rules(attacker);
     bool continuing_combat = assault_gun_combat && attacker->locked_in_assault && attacker->locked_with == target->id && target->locked_with == attacker->id;
     bool attacker_stunned_assault_gun = unit_is_crew_stunned_assault_gun(attacker);
     bool target_stunned_assault_gun = unit_is_crew_stunned_assault_gun(target);
+    if (order_dice_infantry_vehicle_assault && vehicle_made_run_move_this_turn(target)) {
+        return fail(game, "Infantry cannot assault %s after it made a Run move this turn.", target->name);
+    }
     if (attacker->kind == DZW_UNIT_ASSAULT_GUN && attacker->immobilized && !continuing_combat) {
         return fail(game, "%s is immobilized and cannot charge into combat.", attacker->name);
     }
@@ -10526,6 +10795,9 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
     }
     if (!continuing_combat) {
         begin_assault_procedure(attacker, target, declared_assault_range);
+        if (order_dice_infantry_vehicle_assault && !resolve_enclosed_armour_assault_order_test(game, attacker, target)) {
+            return true;
+        }
         if (attacker->last_assault_target_reaction != DZW_TARGET_REACTION_NONE) {
             dzw_log(game, "%s's assault reaction is %s.", target->name, game_target_reaction_name(attacker->last_assault_target_reaction));
         }
@@ -10566,13 +10838,26 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         attacker->movement_action_used_this_turn = true;
         attacker->moved_distance = moved;
         dzw_log(game, "%s charges into combat with %s.", attacker->name, target->name);
+
+        if (order_dice_infantry_vehicle_assault) {
+            resolve_order_dice_vehicle_defensive_fire(game, attacker, target);
+            if (attacker->destroyed || attacker->falling_back || game_has_pending_hit_allocation_choice(game) || game_has_pending_weapon_destroy_choice(game)) {
+                attacker->assaulted_this_turn = true;
+                clear_locked_state(attacker);
+                clear_locked_state(target);
+                record_assault_outcome(attacker, 0, 0, 0, target, attacker, attacker->destroyed, 0.0f);
+                return true;
+            }
+        }
     } else {
         begin_assault_procedure(attacker, target, 0.0f);
         dzw_log(game, "%s and %s continue their close combat.", attacker->name, target->name);
     }
 
     if (vehicle_target) {
-        int attacker_score = melee_vehicle_damage_results(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y);
+        int attacker_score = order_dice_infantry_vehicle_assault
+            ? resolve_order_dice_infantry_vehicle_assault(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y)
+            : melee_vehicle_damage_results(game, attacker, target, !continuing_combat, assault_origin_x, assault_origin_y);
         attacker->assaulted_this_turn = true;
         clear_locked_state(attacker);
         clear_locked_state(target);
@@ -10583,7 +10868,8 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         if (attacker_score <= 0 && !target->destroyed) {
             dzw_log(game, "%s fails to find a weak point on %s.", attacker->name, target->name);
         }
-        record_assault_outcome(attacker, attacker_score, 0, 0, target->destroyed ? attacker : NULL, target->destroyed ? target : NULL, target->destroyed, 0.0f);
+        float regroup = target->destroyed ? consolidate_after_wiping_out_enemy(game, attacker, target) : 0.0f;
+        record_assault_outcome(attacker, attacker_score, 0, 0, target->destroyed ? attacker : NULL, target->destroyed ? target : NULL, target->destroyed, regroup);
         return true;
     }
 

@@ -3728,6 +3728,122 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertTrue(defender.shot_this_turn)
     }
 
+    func testOrderDiceInfantryWithoutAntiTankMustPassEnclosedArmourOrderTest() {
+        var observedFailedTest = false
+
+        for seed in 161...260 {
+            guard let game = game_create_demo_with_forces(UInt32(seed), DZW_ARMY_BRITISH, 1, DZW_ARMY_ITALIAN, 0) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            let attacker = unitView(named: "Italian Rifle Squad", owner: DZW_PLAYER_TWO, in: game)
+            let target = unitView(named: "Sherman Firefly", owner: DZW_PLAYER_ONE, in: game)
+            XCTAssertTrue(game_deploy_unit(game, attacker.id, 38.0, 36.0))
+            XCTAssertTrue(game_deploy_unit(game, target.id, 28.0, 36.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: attacker.id, in: game, preserving: [attacker.id, target.id]))
+            XCTAssertTrue(game_assault_unit(game, attacker.id, target.id, DZW_FOLLOW_UP_CONSOLIDATE))
+
+            let assault = unitView(withID: attacker.id, in: game)
+            XCTAssertEqual(Int(assault.last_assault_target_id), Int(target.id))
+            XCTAssertTrue(assault.last_assault_vehicle_target)
+            XCTAssertFalse(assault.last_assault_antitank_equipped)
+            XCTAssertTrue(assault.last_assault_enclosed_armour_order_test_required)
+            XCTAssertGreaterThan(Int(assault.last_assault_enclosed_armour_order_test_roll), 0)
+            XCTAssertGreaterThan(Int(assault.last_assault_enclosed_armour_order_test_target), 0)
+
+            if assault.last_assault_enclosed_armour_order_test_failed {
+                observedFailedTest = true
+                XCTAssertTrue(assault.assaulted_this_turn)
+                XCTAssertEqual(Int(assault.last_assault_vehicle_hits), 0)
+                XCTAssertEqual(assault.last_assault_vehicle_damage_class, DZW_VEHICLE_DAMAGE_NONE)
+                break
+            }
+        }
+
+        XCTAssertTrue(observedFailedTest)
+    }
+
+    func testOrderDicePiatTeamAssaultsVehicleWithAntiTankTraceAndDamageTable() {
+        var observedDamageTableResult = false
+
+        for seed in 161...260 {
+            guard let game = game_create_demo_with_forces(UInt32(seed), DZW_ARMY_BRITISH, 1, DZW_ARMY_ITALIAN, 0) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            let attacker = unitView(named: "British PIAT Team", owner: DZW_PLAYER_ONE, in: game)
+            let target = unitView(named: "AB41 Armored Car", owner: DZW_PLAYER_TWO, in: game)
+            XCTAssertTrue(game_deploy_unit(game, attacker.id, 20.0, 36.0))
+            XCTAssertTrue(game_deploy_unit(game, target.id, 30.0, 36.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: attacker.id, in: game, preserving: [attacker.id, target.id]))
+            XCTAssertTrue(game_assault_unit(game, attacker.id, target.id, DZW_FOLLOW_UP_CONSOLIDATE))
+
+            let assault = unitView(withID: attacker.id, in: game)
+            XCTAssertTrue(assault.last_assault_vehicle_target)
+            XCTAssertTrue(assault.last_assault_antitank_equipped)
+            XCTAssertFalse(assault.last_assault_enclosed_armour_order_test_required)
+            XCTAssertGreaterThanOrEqual(Int(assault.last_assault_vehicle_penetration_modifier), 5)
+            XCTAssertGreaterThan(Int(assault.last_assault_vehicle_damage_value), 0)
+
+            let vehicle = unitView(withID: target.id, in: game)
+            if assault.last_assault_vehicle_damage_class != DZW_VEHICLE_DAMAGE_NONE &&
+                vehicle.last_vehicle_damage_result != DZW_VEHICLE_DAMAGE_RESULT_NONE {
+                observedDamageTableResult = true
+                XCTAssertGreaterThan(Int(assault.last_assault_vehicle_hits), 0)
+                XCTAssertGreaterThan(Int(assault.last_assault_vehicle_damage_roll), 0)
+                break
+            }
+        }
+
+        XCTAssertTrue(observedDamageTableResult)
+    }
+
+    func testOrderDiceInfantryCannotAssaultVehicleAfterRunMove() {
+        guard let game = game_create_demo_with_forces(166, DZW_ARMY_BRITISH, 1, DZW_ARMY_ITALIAN, 0) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let attacker = unitView(withID: 7, in: game)
+        let target = unitView(named: "AB41 Armored Car", owner: DZW_PLAYER_TWO, in: game)
+        XCTAssertEqual(cString(attacker.name), "British Rifle Section")
+        XCTAssertTrue(game_deploy_unit(game, attacker.id, 20.0, 36.0))
+        XCTAssertTrue(game_deploy_unit(game, target.id, 28.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: target.id, in: game, preserving: [attacker.id, target.id]))
+        XCTAssertTrue(game_move_unit(game, target.id, 31.0, 36.0))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: attacker.id, in: game, preserving: [attacker.id]))
+
+        XCTAssertFalse(game_assault_unit(game, attacker.id, target.id, DZW_FOLLOW_UP_CONSOLIDATE))
+        XCTAssertTrue(String(cString: game_last_error(game)).contains("Run move"))
+    }
+
+    func testOrderDiceVehicleDefensiveFireRecordsBeforeInfantryAssault() {
+        guard let game = game_create_demo_with_forces(170, DZW_ARMY_BRITISH, 1, DZW_ARMY_ITALIAN, 0) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let attacker = unitView(withID: 7, in: game)
+        let target = unitView(named: "AB41 Armored Car", owner: DZW_PLAYER_TWO, in: game)
+        XCTAssertEqual(cString(attacker.name), "British Rifle Section")
+        XCTAssertTrue(game_deploy_unit(game, attacker.id, 20.0, 36.0))
+        XCTAssertTrue(game_deploy_unit(game, target.id, 30.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: attacker.id, in: game, preserving: [attacker.id, target.id]))
+        XCTAssertTrue(game_assault_unit(game, attacker.id, target.id, DZW_FOLLOW_UP_CONSOLIDATE))
+
+        let assault = unitView(withID: attacker.id, in: game)
+        XCTAssertTrue(assault.last_assault_vehicle_target)
+        XCTAssertTrue(assault.last_assault_vehicle_defensive_fire_resolved)
+    }
+
     private var playableArmies: [army_list_t] {
         [
             DZW_ARMY_BRITISH,

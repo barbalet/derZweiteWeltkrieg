@@ -33,6 +33,7 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
     private let onMove: () -> Void
     private let onShoot: () -> Void
     private let onAssault: () -> Void
+    private let onIssueOrder: (HistoricalBoardOrder) -> Void
     private let onResolvePending: () -> Void
     private let onNextPhase: () -> Void
     private let onAITurn: () -> Void
@@ -53,6 +54,7 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
         onMove: @escaping () -> Void = {},
         onShoot: @escaping () -> Void = {},
         onAssault: @escaping () -> Void = {},
+        onIssueOrder: @escaping (HistoricalBoardOrder) -> Void = { _ in },
         onResolvePending: @escaping () -> Void = {},
         onNextPhase: @escaping () -> Void = {},
         onAITurn: @escaping () -> Void = {},
@@ -72,6 +74,7 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
         self.onMove = onMove
         self.onShoot = onShoot
         self.onAssault = onAssault
+        self.onIssueOrder = onIssueOrder
         self.onResolvePending = onResolvePending
         self.onNextPhase = onNextPhase
         self.onAITurn = onAITurn
@@ -350,6 +353,12 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 118, maximum: 170), spacing: 8)], alignment: .leading, spacing: 8) {
             commandButton("Select", systemImage: "scope", identifier: "battle-select-ready-unit-button", action: onSelectReadyUnit)
             commandButton("Target", systemImage: "target", identifier: "battle-nearest-enemy-button", disabled: selectedUnit == nil, action: onSelectNearestEnemy)
+            orderButton(.fire, systemImage: "scope")
+            orderButton(.advance, systemImage: "arrow.up.right")
+            orderButton(.run, systemImage: "figure.run")
+            orderButton(.ambush, systemImage: "eye")
+            orderButton(.rally, systemImage: "flag.2.crossed")
+            orderButton(.down, systemImage: "arrow.down.circle")
             commandButton("Move", systemImage: "arrow.up.right", identifier: "battle-move-button", disabled: selectedUnit?.canMoveNow != true, action: onMove)
             commandButton("Shoot", systemImage: "scope", identifier: "battle-shoot-button", disabled: selectedUnit?.canShootNow != true || targetedUnit == nil, action: onShoot)
             commandButton("Assault", systemImage: "figure.run", identifier: "battle-assault-button", disabled: selectedUnit?.canAssaultNow != true || targetedUnit == nil, action: onAssault)
@@ -358,6 +367,18 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
             commandButton("AI Phase", systemImage: "cpu", identifier: "battle-ai-turn-button", disabled: debrief != nil, action: onAITurn)
             commandButton("Restart", systemImage: "arrow.clockwise", identifier: "battle-restart-button", action: onRestart)
             commandButton("Debrief", systemImage: "checkmark.seal", identifier: "battle-run-to-debrief-button", prominent: true, disabled: debrief != nil, action: onRunToDebrief)
+        }
+    }
+
+    private func orderButton(_ order: HistoricalBoardOrder, systemImage: String) -> some View {
+        let disabled = selectedUnit.map { !$0.availableOrders.contains(order) } ?? true
+        return commandButton(
+            order.rawValue,
+            systemImage: systemImage,
+            identifier: "battle-order-\(order.rawValue.lowercased())-button",
+            disabled: disabled
+        ) {
+            onIssueOrder(order)
         }
     }
 
@@ -596,6 +617,8 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
         let status: String
         if unit.destroyed {
             status = "destroyed"
+        } else if let currentOrder = unit.currentOrder {
+            status = "order \(currentOrder.rawValue.lowercased())"
         } else if unit.selected {
             status = "selected"
         } else if unit.targeted {
@@ -605,7 +628,8 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
         } else {
             status = "opposing"
         }
-        return "\(unit.sideID) | \(unit.role) | \(status)"
+        let pins = unit.pinCount > 0 ? " | pins \(unit.pinCount)" : ""
+        return "\(unit.sideID) | \(unit.role) | \(status)\(pins)"
     }
 
     private func handleUnitTap(_ unit: HistoricalBoardUnitSnapshot) {
