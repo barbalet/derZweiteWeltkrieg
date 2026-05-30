@@ -66,7 +66,11 @@ typedef enum {
 typedef enum {
     DZW_TERRAIN_OPEN = 0,
     DZW_TERRAIN_DIFFICULT = 1,
-    DZW_TERRAIN_IMPASSABLE = 2
+    DZW_TERRAIN_ROUGH = 1,
+    DZW_TERRAIN_IMPASSABLE = 2,
+    DZW_TERRAIN_OBSTACLE = 3,
+    DZW_TERRAIN_BUILDING = 4,
+    DZW_TERRAIN_ROAD = 5
 } terrain_kind_t;
 
 typedef enum {
@@ -293,6 +297,7 @@ typedef struct {
     bool smoke_available;
     bool smoke_active;
     bool moved_this_turn;
+    float moved_distance;
     bool can_move_now;
     bool shot_this_turn;
     bool assaulted_this_turn;
@@ -313,6 +318,14 @@ typedef struct {
     int last_order_test_officer_modifier;
     dzw_fubar_result_t last_fubar_result;
     int last_fubar_target_id;
+    bool down_order_active;
+    bool ambush_order_active;
+    int defensive_to_hit_modifier;
+    int last_rally_roll;
+    int last_rally_pins_removed;
+    float advance_move_allowance;
+    float run_move_allowance;
+    float current_order_move_allowance;
     bool embarked;
     int embarked_unit_id;
     int embarked_in_transport_id;
@@ -371,8 +384,12 @@ unit_order_eligibility_view_t game_unit_order_eligibility_view(const game_t *gam
 bool game_draw_order_die(game_t *game);
 bool game_assign_order(game_t *game, int unit_id, dzw_order_t order);
 bool game_resolve_order_test(game_t *game, int unit_id);
+bool game_resolve_rally_order(game_t *game, int unit_id);
+bool game_trigger_ambush_order(game_t *game, int unit_id);
+bool game_cancel_ambush_order(game_t *game, int unit_id);
 bool game_order_dice_turn_complete(const game_t *game);
 bool game_end_order_dice_turn(game_t *game);
+float game_unit_order_movement_allowance(const game_t *game, int unit_id, dzw_order_t order);
 int game_fubar_friendly_fire_target_count(const game_t *game, int unit_id);
 unit_view_t game_fubar_friendly_fire_target_view(const game_t *game, int unit_id, int index);
 

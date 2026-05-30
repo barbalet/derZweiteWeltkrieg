@@ -452,6 +452,324 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         }
     }
 
+    func testRallyOrderRemovesPinMarkersAfterPassingOrderTest() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_RALLY) else {
+            XCTFail("Failed to prepare pinned Rally order")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let pinned = unitView(withID: 5, in: game)
+        XCTAssertGreaterThan(Int(pinned.pin_count), 0)
+
+        game_seed(game, 1)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+        let afterTest = unitView(withID: 5, in: game)
+        XCTAssertEqual(afterTest.last_order_test_result, DZW_ORDER_TEST_PASSED)
+        XCTAssertEqual(Int(afterTest.pin_count), Int(pinned.pin_count))
+
+        XCTAssertTrue(game_resolve_rally_order(game, 5))
+        let rallied = unitView(withID: 5, in: game)
+        XCTAssertEqual(Int(rallied.last_rally_roll), 4)
+        XCTAssertEqual(Int(rallied.last_rally_pins_removed), Int(pinned.pin_count))
+        XCTAssertEqual(Int(rallied.pin_count), 0)
+        XCTAssertFalse(rallied.pinned)
+    }
+
+    func testOrderDiceTurnEndRequiresRallyActionResolution() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_RALLY) else {
+            XCTFail("Failed to prepare pinned Rally order")
+            return
+        }
+        defer { game_destroy(game) }
+
+        game_seed(game, 1)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+        while game_order_dice_remaining_count(game) > 0 {
+            XCTAssertTrue(game_draw_order_die(game))
+            let owner = game_current_order_die_view(game).owner
+            let unit = firstOrderAssignableUnit(owner: owner, in: game)
+            XCTAssertTrue(game_assign_order(game, unit.id, DZW_ORDER_FIRE))
+        }
+
+        XCTAssertFalse(game_order_dice_turn_complete(game))
+        XCTAssertFalse(game_end_order_dice_turn(game))
+        XCTAssertTrue(String(cString: game_last_error(game)).contains("Resolve required order actions"))
+    }
+
+    func testDownOrderExposesDefensiveModifierAndRetainedState() {
+        guard let game = game_create_demo(66) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_DOWN, to: 1, in: game))
+
+        let down = unitView(withID: 1, in: game)
+        XCTAssertTrue(down.down_order_active)
+        XCTAssertTrue(down.retained_order)
+        XCTAssertEqual(Int(down.defensive_to_hit_modifier), 1)
+        XCTAssertFalse(down.can_move_now)
+        XCTAssertFalse(down.can_shoot_now)
+
+        XCTAssertTrue(assignOrder(DZW_ORDER_DOWN, to: 8, in: game))
+        let artilleryDown = unitView(withID: 8, in: game)
+        XCTAssertTrue(artilleryDown.down_order_active)
+        XCTAssertEqual(Int(artilleryDown.defensive_to_hit_modifier), 1)
+    }
+
+    func testAmbushCanTriggerIntoFireOrder() {
+        guard let game = game_create_demo(67) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_AMBUSH, to: 1, in: game))
+        let retainedBefore = Int(game_order_dice_retained_count(game))
+        let spentBefore = Int(game_order_dice_spent_count(game))
+
+        XCTAssertTrue(game_trigger_ambush_order(game, 1))
+        let triggered = unitView(withID: 1, in: game)
+        XCTAssertEqual(triggered.current_order, DZW_ORDER_FIRE)
+        XCTAssertFalse(triggered.ambush_order_active)
+        XCTAssertFalse(triggered.retained_order)
+        XCTAssertTrue(triggered.can_shoot_now)
+        XCTAssertEqual(Int(game_order_dice_retained_count(game)), retainedBefore - 1)
+        XCTAssertEqual(Int(game_order_dice_spent_count(game)), spentBefore + 1)
+    }
+
+    func testAmbushCanCancelToDown() {
+        guard let game = game_create_demo(68) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_AMBUSH, to: 1, in: game))
+        let retainedBefore = Int(game_order_dice_retained_count(game))
+
+        XCTAssertTrue(game_cancel_ambush_order(game, 1))
+        let cancelled = unitView(withID: 1, in: game)
+        XCTAssertEqual(cancelled.current_order, DZW_ORDER_DOWN)
+        XCTAssertTrue(cancelled.down_order_active)
+        XCTAssertFalse(cancelled.ambush_order_active)
+        XCTAssertTrue(cancelled.retained_order)
+        XCTAssertEqual(Int(game_order_dice_retained_count(game)), retainedBefore)
+    }
+
+    func testOrderDiceInfantryAdvanceAndRunMovementAllowances() {
+        guard let advanceGame = game_create_demo(71),
+              let runGame = game_create_demo(72) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(advanceGame)
+            game_destroy(runGame)
+        }
+
+        XCTAssertTrue(game_set_ruleset(advanceGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 1, in: advanceGame))
+        XCTAssertEqual(game_unit_order_movement_allowance(advanceGame, 1, DZW_ORDER_ADVANCE), 6.0, accuracy: 0.01)
+        XCTAssertFalse(game_move_unit(advanceGame, 1, 17.5, 36.0))
+        XCTAssertTrue(game_move_unit(advanceGame, 1, 17.0, 36.0))
+
+        XCTAssertTrue(game_set_ruleset(runGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 1, in: runGame))
+        XCTAssertEqual(game_unit_order_movement_allowance(runGame, 1, DZW_ORDER_RUN), 12.0, accuracy: 0.01)
+        XCTAssertFalse(game_move_unit(runGame, 1, 23.5, 36.0))
+        XCTAssertTrue(game_move_unit(runGame, 1, 23.0, 36.0))
+    }
+
+    func testOrderDiceTrackedAndWheeledMovementAllowances() {
+        guard let trackedGame = game_create_demo(73),
+              let wheeledGame = game_create_demo(74) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(trackedGame)
+            game_destroy(wheeledGame)
+        }
+
+        XCTAssertTrue(game_deploy_unit(trackedGame, 3, 5.0, 5.0))
+        XCTAssertTrue(game_set_ruleset(trackedGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 3, in: trackedGame))
+        XCTAssertEqual(game_unit_order_movement_allowance(trackedGame, 3, DZW_ORDER_ADVANCE), 9.0, accuracy: 0.01)
+        XCTAssertFalse(game_move_unit(trackedGame, 3, 14.5, 5.0))
+        XCTAssertTrue(game_move_unit(trackedGame, 3, 14.0, 5.0))
+
+        XCTAssertTrue(game_deploy_unit(wheeledGame, 6, 5.0, 44.0))
+        XCTAssertTrue(game_set_ruleset(wheeledGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 6, in: wheeledGame))
+        XCTAssertEqual(game_unit_order_movement_allowance(wheeledGame, 6, DZW_ORDER_ADVANCE), 12.0, accuracy: 0.01)
+        XCTAssertFalse(game_move_unit(wheeledGame, 6, 17.5, 44.0))
+        XCTAssertTrue(game_move_unit(wheeledGame, 6, 17.0, 44.0))
+    }
+
+    func testTerrainTableBlocksInfantryRunThroughRoughButAllowsAdvance() {
+        guard let runGame = game_create_demo(76),
+              let advanceGame = game_create_demo(77) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(runGame)
+            game_destroy(advanceGame)
+        }
+
+        XCTAssertTrue(game_set_ruleset(runGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 12, in: runGame))
+        XCTAssertFalse(game_move_unit(runGame, 12, 28.0, 18.0))
+        XCTAssertTrue(String(cString: game_last_error(runGame)).contains("Infantry cannot Run through rough"))
+
+        XCTAssertTrue(game_set_ruleset(advanceGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 12, in: advanceGame))
+        XCTAssertTrue(game_move_unit(advanceGame, 12, 28.0, 18.0))
+    }
+
+    func testTerrainTableBlocksWheeledVehiclesFromRoughGround() {
+        guard let game = game_create_demo(78) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 6, 44.0, 14.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 6, in: game))
+        XCTAssertFalse(game_move_unit(game, 6, 48.0, 14.0))
+        XCTAssertTrue(String(cString: game_last_error(game)).contains("Wheeled vehicles cannot enter rough"))
+    }
+
+    func testTerrainTableAllowsTrackedAdvanceButNotRunThroughRoughGround() {
+        guard let runGame = game_create_demo(79),
+              let advanceGame = game_create_demo(80) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(runGame)
+            game_destroy(advanceGame)
+        }
+
+        XCTAssertTrue(game_deploy_unit(runGame, 3, 44.0, 14.0))
+        XCTAssertTrue(game_set_ruleset(runGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 3, in: runGame))
+        XCTAssertFalse(game_move_unit(runGame, 3, 48.0, 14.0))
+        XCTAssertTrue(String(cString: game_last_error(runGame)).contains("Tracked vehicles cannot Run through rough"))
+
+        XCTAssertTrue(game_deploy_unit(advanceGame, 3, 44.0, 14.0))
+        XCTAssertTrue(game_set_ruleset(advanceGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 3, in: advanceGame))
+        XCTAssertTrue(game_move_unit(advanceGame, 3, 48.0, 14.0))
+    }
+
+    func testRoadMovementDoublesVehicleMovementWhenPathStaysOnRoad() {
+        guard let game = game_create_demo(81) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let roadName = "Road"
+        let missionName = "Road Test"
+        let appliedRoad = roadName.withCString { roadPointer in
+            missionName.withCString { missionPointer in
+                var roadZone = guderian_scenario_zone_t(
+                    id: 1,
+                    name: roadPointer,
+                    kind: DZW_TERRAIN_ROAD,
+                    rect: rect_t(x: 4.0, y: 3.0, width: 40.0, height: 4.0),
+                    cover_save: 0,
+                    blocks_line_of_sight: false,
+                    hull_down: false
+                )
+                return game_apply_guderian_scenario_board(game, missionPointer, 1, &roadZone, 1, nil, 0)
+            }
+        }
+        XCTAssertTrue(appliedRoad)
+        XCTAssertTrue(game_deploy_unit(game, 3, 5.0, 5.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 3, in: game))
+        XCTAssertTrue(game_move_unit(game, 3, 35.0, 5.0))
+
+        let moved = unitView(withID: 3, in: game)
+        XCTAssertEqual(moved.moved_distance, 30.0, accuracy: 0.01)
+    }
+
+    func testTerrainTableAppliesArtilleryExceptionsWithoutRoadDoubling() {
+        guard let roughGame = game_create_demo(82),
+              let obstacleGame = game_create_demo(83),
+              let roadGame = game_create_demo(84) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(roughGame)
+            game_destroy(obstacleGame)
+            game_destroy(roadGame)
+        }
+
+        XCTAssertTrue(game_deploy_unit(roughGame, 8, 44.0, 14.0))
+        XCTAssertTrue(game_set_ruleset(roughGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 8, in: roughGame))
+        XCTAssertFalse(game_move_unit(roughGame, 8, 48.0, 14.0))
+        XCTAssertTrue(String(cString: game_last_error(roughGame)).contains("Artillery cannot enter rough"))
+
+        let obstacleName = "Tank Trap"
+        let obstacleMission = "Obstacle Test"
+        let appliedObstacle = obstacleName.withCString { obstaclePointer in
+            obstacleMission.withCString { missionPointer in
+                var obstacleZone = guderian_scenario_zone_t(
+                    id: 1,
+                    name: obstaclePointer,
+                    kind: DZW_TERRAIN_OBSTACLE,
+                    rect: rect_t(x: 4.0, y: 3.0, width: 40.0, height: 4.0),
+                    cover_save: 0,
+                    blocks_line_of_sight: false,
+                    hull_down: false
+                )
+                return game_apply_guderian_scenario_board(obstacleGame, missionPointer, 1, &obstacleZone, 1, nil, 0)
+            }
+        }
+        XCTAssertTrue(appliedObstacle)
+        XCTAssertTrue(game_deploy_unit(obstacleGame, 8, 5.0, 5.0))
+        XCTAssertTrue(game_set_ruleset(obstacleGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 8, in: obstacleGame))
+        XCTAssertFalse(game_move_unit(obstacleGame, 8, 8.0, 5.0))
+        XCTAssertTrue(String(cString: game_last_error(obstacleGame)).contains("Artillery cannot cross obstacles"))
+
+        let roadName = "Road"
+        let roadMission = "Artillery Road Test"
+        let appliedRoad = roadName.withCString { roadPointer in
+            roadMission.withCString { missionPointer in
+                var roadZone = guderian_scenario_zone_t(
+                    id: 1,
+                    name: roadPointer,
+                    kind: DZW_TERRAIN_ROAD,
+                    rect: rect_t(x: 4.0, y: 3.0, width: 40.0, height: 4.0),
+                    cover_save: 0,
+                    blocks_line_of_sight: false,
+                    hull_down: false
+                )
+                return game_apply_guderian_scenario_board(roadGame, missionPointer, 1, &roadZone, 1, nil, 0)
+            }
+        }
+        XCTAssertTrue(appliedRoad)
+        XCTAssertTrue(game_deploy_unit(roadGame, 8, 5.0, 5.0))
+        XCTAssertTrue(game_set_ruleset(roadGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 8, in: roadGame))
+        XCTAssertEqual(game_unit_order_movement_allowance(roadGame, 8, DZW_ORDER_RUN), 12.0, accuracy: 0.01)
+        XCTAssertFalse(game_move_unit(roadGame, 8, 18.0, 5.0))
+        XCTAssertTrue(String(cString: game_last_error(roadGame)).contains("can move up to 12"))
+    }
+
     func testArmyPresetDemoLoadsSelectedMatchup() {
         guard let game = game_create_demo_with_armies(500, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
             XCTFail("Failed to create army preset demo")
@@ -2998,6 +3316,14 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
         }
         return false
+    }
+
+    private func assignOrder(_ order: dzw_order_t, to unitID: Int32, in game: OpaquePointer) -> Bool {
+        let unit = unitView(withID: unitID, in: game)
+        guard drawUntilCurrentDie(owner: unit.owner, in: game) else {
+            return false
+        }
+        return game_assign_order(game, unitID, order)
     }
 
     private func preparePinnedOrderDiceGame(order: dzw_order_t, unitID: Int32 = 5) -> OpaquePointer? {

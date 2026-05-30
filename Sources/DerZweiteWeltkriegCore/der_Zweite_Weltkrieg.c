@@ -227,6 +227,8 @@ typedef struct {
     int last_order_test_officer_modifier;
     dzw_fubar_result_t last_fubar_result;
     int last_fubar_target_id;
+    int last_rally_roll;
+    int last_rally_pins_removed;
     bool destroyed;
     bool manual_in_cover;
     bool manual_hull_down;
@@ -360,6 +362,7 @@ static void destroy_unit(game_t *game, unit_t *unit, const char *reason);
 static void destroy_unit_with_passenger_outcome(game_t *game, unit_t *unit, const char *reason, bool annihilate_embarked_units);
 static bool find_disembark_position(const game_t *game, const unit_t *transport, const unit_t *unit, float *out_x, float *out_y);
 static bool unit_uses_vehicle_rules(const unit_t *unit);
+static bool unit_uses_artillery_rules(const unit_t *unit);
 static int cover_save_for_unit(const game_t *game, const unit_t *unit);
 static player_t mission_winner(const game_t *game);
 static const char *player_name(player_t player);
@@ -2141,6 +2144,33 @@ static bool order_is_retained(dzw_order_t order) {
     return order == DZW_ORDER_AMBUSH || order == DZW_ORDER_DOWN;
 }
 
+static bool unit_down_order_active(const unit_t *unit) {
+    return unit != NULL && unit->current_order == DZW_ORDER_DOWN && unit->retained_order;
+}
+
+static bool unit_ambush_order_active(const unit_t *unit) {
+    return unit != NULL && unit->current_order == DZW_ORDER_AMBUSH && unit->retained_order;
+}
+
+static int defensive_to_hit_modifier_for_unit(const game_t *game, const unit_t *unit) {
+    if (game == NULL || game->ruleset != DZW_RULESET_ORDER_DICE || unit == NULL) {
+        return 0;
+    }
+    if (unit_uses_vehicle_rules(unit) && !unit_uses_artillery_rules(unit)) {
+        return 0;
+    }
+    return unit_down_order_active(unit) ? 1 : 0;
+}
+
+static int apply_shooting_to_hit_modifiers(const game_t *game, const unit_t *attacker, const unit_t *target, int needed_to_hit) {
+    (void)attacker;
+    needed_to_hit += defensive_to_hit_modifier_for_unit(game, target);
+    if (needed_to_hit < 2) {
+        return 2;
+    }
+    return needed_to_hit;
+}
+
 static order_die_view_t order_die_view_from(order_die_t die, bool available) {
     order_die_view_t view;
     memset(&view, 0, sizeof(view));
@@ -2317,6 +2347,13 @@ static bool unit_name_mentions(const unit_t *unit, const char *needle) {
     return unit != NULL && unit->name != NULL && needle != NULL && strstr(unit->name, needle) != NULL;
 }
 
+static bool unit_uses_artillery_rules(const unit_t *unit) {
+    return unit_name_mentions(unit, "Mortar Battery") ||
+        unit_name_mentions(unit, "Howitzer") ||
+        unit_name_mentions(unit, "Anti-Tank Gun") ||
+        unit_name_mentions(unit, "Field Gun");
+}
+
 static bool unit_is_officer_like(const unit_t *unit) {
     if (unit == NULL || unit->destroyed || unit_is_embarked(unit) || unit_uses_vehicle_rules(unit)) {
         return false;
@@ -2400,6 +2437,8 @@ static void reset_unit_order_test_details(unit_t *unit) {
     unit->last_order_test_officer_modifier = 0;
     unit->last_fubar_result = DZW_FUBAR_NONE;
     unit->last_fubar_target_id = 0;
+    unit->last_rally_roll = 0;
+    unit->last_rally_pins_removed = 0;
 }
 
 static void reduce_order_test_pin(unit_t *unit) {
@@ -2557,7 +2596,13 @@ static float fubar_panic_run_distance_for_unit(const unit_t *unit) {
     if (!unit_uses_vehicle_rules(unit)) {
         return 12.0f;
     }
-    return unit->fast || unit->recon ? 24.0f : 18.0f;
+    if (unit_name_mentions(unit, "Truck") ||
+        unit_name_mentions(unit, "Jeep") ||
+        unit_name_mentions(unit, "Dingo") ||
+        unit_name_mentions(unit, "AB41")) {
+        return 24.0f;
+    }
+    return 18.0f;
 }
 
 static void resolve_fubar_order_result(game_t *game, unit_t *unit) {
@@ -2963,7 +3008,9 @@ bool game_resolve_order_test(game_t *game, int unit_id) {
 
     if (first_die == 1 && second_die == 1) {
         unit->last_order_test_result = DZW_ORDER_TEST_PASSED;
-        reduce_order_test_pin(unit);
+        if (unit->current_order != DZW_ORDER_RALLY) {
+            reduce_order_test_pin(unit);
+        }
         dzw_log(game, "%s passes its order test with double-one on %d against target %d.", unit->name, roll, target);
         return true;
     }
@@ -2977,7 +3024,9 @@ bool game_resolve_order_test(game_t *game, int unit_id) {
 
     if (roll <= target) {
         unit->last_order_test_result = DZW_ORDER_TEST_PASSED;
-        reduce_order_test_pin(unit);
+        if (unit->current_order != DZW_ORDER_RALLY) {
+            reduce_order_test_pin(unit);
+        }
         dzw_log(game, "%s passes its order test on %d against target %d.", unit->name, roll, target);
         return true;
     }
@@ -2985,6 +3034,111 @@ bool game_resolve_order_test(game_t *game, int unit_id) {
     unit->last_order_test_result = DZW_ORDER_TEST_FAILED;
     set_unit_down_from_failed_order(game, unit, DZW_FUBAR_NONE);
     dzw_log(game, "%s fails its order test on %d against target %d and goes Down.", unit->name, roll, target);
+    return true;
+}
+
+bool game_resolve_rally_order(game_t *game, int unit_id) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Rally orders are only available in the Order Dice ruleset.");
+    }
+
+    unit_t *unit = find_unit(game, unit_id);
+    if (unit == NULL || unit->destroyed || unit->models <= 0) {
+        return fail(game, "Unit not found.");
+    }
+    if (unit->current_order != DZW_ORDER_RALLY || !unit->acted_this_turn_order_dice) {
+        return fail(game, "%s does not have a Rally order to resolve.", unit->name);
+    }
+    if (order_requires_test_for_unit(game, unit) &&
+        unit->last_order_test_roll == 0 &&
+        unit->last_order_test_result == DZW_ORDER_TEST_NOT_REQUIRED) {
+        return fail(game, "Resolve %s's required order test before Rally.", unit->name);
+    }
+    if (unit->last_order_test_result == DZW_ORDER_TEST_FAILED || unit->last_order_test_result == DZW_ORDER_TEST_FUBAR) {
+        return fail(game, "%s cannot Rally because the order test did not produce a Rally action.", unit->name);
+    }
+    if (unit->last_rally_roll > 0) {
+        return true;
+    }
+
+    int pins_before = unit->pin_count;
+    int rally_roll = roll_d6(game);
+    int removed = pins_before < rally_roll ? pins_before : rally_roll;
+    unit->pin_count -= removed;
+    if (unit->pin_count <= 0) {
+        unit->pin_count = 0;
+        unit->pinned_until_turn = 0;
+    }
+    unit->last_rally_roll = rally_roll;
+    unit->last_rally_pins_removed = removed;
+    dzw_log(game, "%s rallies on a %d and removes %d pin marker%s.", unit->name, rally_roll, removed, removed == 1 ? "" : "s");
+    return true;
+}
+
+bool game_trigger_ambush_order(game_t *game, int unit_id) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Ambush triggers are only available in the Order Dice ruleset.");
+    }
+
+    unit_t *unit = find_unit(game, unit_id);
+    if (unit == NULL || unit->destroyed || unit->models <= 0) {
+        return fail(game, "Unit not found.");
+    }
+    if (!unit_ambush_order_active(unit)) {
+        return fail(game, "%s is not retaining an Ambush order.", unit->name);
+    }
+
+    move_last_retained_die_to_spent(game, unit->owner);
+    unit->current_order = DZW_ORDER_FIRE;
+    unit->retained_order = false;
+    unit->movement_action_used_this_turn = true;
+    unit->shot_this_turn = false;
+    unit->assaulted_this_turn = true;
+    game->active_player = unit->owner;
+    dzw_log(game, "%s triggers Ambush and changes its retained die to Fire.", unit->name);
+    return true;
+}
+
+bool game_cancel_ambush_order(game_t *game, int unit_id) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Ambush cancellation is only available in the Order Dice ruleset.");
+    }
+
+    unit_t *unit = find_unit(game, unit_id);
+    if (unit == NULL || unit->destroyed || unit->models <= 0) {
+        return fail(game, "Unit not found.");
+    }
+    if (!unit_ambush_order_active(unit)) {
+        return fail(game, "%s is not retaining an Ambush order.", unit->name);
+    }
+
+    unit->current_order = DZW_ORDER_DOWN;
+    unit->retained_order = true;
+    unit->movement_action_used_this_turn = true;
+    unit->shot_this_turn = true;
+    unit->assaulted_this_turn = true;
+    dzw_log(game, "%s cancels Ambush and goes Down.", unit->name);
     return true;
 }
 
@@ -3047,11 +3201,33 @@ static bool game_has_unresolved_order_tests(const game_t *game) {
     return false;
 }
 
+static bool game_has_unresolved_order_actions(const game_t *game) {
+    if (game == NULL) {
+        return false;
+    }
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *unit = &game->units[index];
+        if (!unit->acted_this_turn_order_dice || unit->current_order != DZW_ORDER_RALLY) {
+            continue;
+        }
+        if (unit->last_order_test_result == DZW_ORDER_TEST_FAILED || unit->last_order_test_result == DZW_ORDER_TEST_FUBAR) {
+            continue;
+        }
+        if (unit->last_rally_roll == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool game_order_dice_turn_complete(const game_t *game) {
     if (game == NULL || game->ruleset != DZW_RULESET_ORDER_DICE) {
         return false;
     }
-    return !game->current_order_die_available && game->order_dice_remaining_count == 0 && !game_has_unresolved_order_tests(game);
+    return !game->current_order_die_available &&
+        game->order_dice_remaining_count == 0 &&
+        !game_has_unresolved_order_tests(game) &&
+        !game_has_unresolved_order_actions(game);
 }
 
 bool game_end_order_dice_turn(game_t *game) {
@@ -3073,6 +3249,9 @@ bool game_end_order_dice_turn(game_t *game) {
     }
     if (game_has_unresolved_order_tests(game)) {
         return fail(game, "Resolve required order tests before ending the turn.");
+    }
+    if (game_has_unresolved_order_actions(game)) {
+        return fail(game, "Resolve required order actions before ending the turn.");
     }
 
     reset_order_dice_pools_for_next_turn(game);
@@ -3405,6 +3584,151 @@ static bool path_touches_terrain(const game_t *game, float x1, float y1, float x
         }
     }
     return false;
+}
+
+static bool path_is_fully_on_road(const game_t *game, float x1, float y1, float x2, float y2) {
+    if (game == NULL) {
+        return false;
+    }
+    for (int index = 0; index < game->zone_count; index += 1) {
+        const zone_t *zone = &game->zones[index];
+        if (zone->kind != DZW_TERRAIN_ROAD) {
+            continue;
+        }
+        if (point_in_rect(x1, y1, zone->rect) && point_in_rect(x2, y2, zone->rect)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+typedef enum {
+    DZW_MOBILITY_INFANTRY_INTERNAL = 0,
+    DZW_MOBILITY_TRACKED_INTERNAL = 1,
+    DZW_MOBILITY_HALF_TRACKED_INTERNAL = 2,
+    DZW_MOBILITY_WHEELED_INTERNAL = 3,
+    DZW_MOBILITY_ARTILLERY_INTERNAL = 4
+} dzw_mobility_internal_t;
+
+static dzw_mobility_internal_t mobility_for_unit(const unit_t *unit) {
+    if (unit == NULL) {
+        return DZW_MOBILITY_INFANTRY_INTERNAL;
+    }
+    if (unit_uses_artillery_rules(unit)) {
+        return DZW_MOBILITY_ARTILLERY_INTERNAL;
+    }
+    if (!unit_uses_vehicle_rules(unit)) {
+        return DZW_MOBILITY_INFANTRY_INTERNAL;
+    }
+    if (unit_name_mentions(unit, "Half-track") || unit_name_mentions(unit, "Sd.Kfz. 251")) {
+        return DZW_MOBILITY_HALF_TRACKED_INTERNAL;
+    }
+    if (unit_name_mentions(unit, "Truck") ||
+        unit_name_mentions(unit, "Jeep") ||
+        unit_name_mentions(unit, "Dingo") ||
+        unit_name_mentions(unit, "AB41")) {
+        return DZW_MOBILITY_WHEELED_INTERNAL;
+    }
+    return DZW_MOBILITY_TRACKED_INTERNAL;
+}
+
+static float order_movement_allowance_for_unit(const unit_t *unit, dzw_order_t order) {
+    if (unit == NULL) {
+        return 0.0f;
+    }
+
+    dzw_mobility_internal_t mobility = mobility_for_unit(unit);
+    switch (order) {
+        case DZW_ORDER_ADVANCE:
+            if (mobility == DZW_MOBILITY_INFANTRY_INTERNAL || mobility == DZW_MOBILITY_ARTILLERY_INTERNAL) {
+                return 6.0f;
+            }
+            if (mobility == DZW_MOBILITY_WHEELED_INTERNAL) {
+                return 12.0f;
+            }
+            return 9.0f;
+        case DZW_ORDER_RUN:
+            if (mobility == DZW_MOBILITY_INFANTRY_INTERNAL || mobility == DZW_MOBILITY_ARTILLERY_INTERNAL) {
+                return 12.0f;
+            }
+            if (mobility == DZW_MOBILITY_WHEELED_INTERNAL) {
+                return 24.0f;
+            }
+            return 18.0f;
+        default:
+            return 0.0f;
+    }
+}
+
+static float order_movement_allowance_for_path(const game_t *game, const unit_t *unit, dzw_order_t order, float x, float y) {
+    float allowance = order_movement_allowance_for_unit(unit, order);
+    if (allowance <= 0.0f || game == NULL || unit == NULL || !unit_uses_vehicle_rules(unit)) {
+        return allowance;
+    }
+    dzw_mobility_internal_t mobility = mobility_for_unit(unit);
+    if (mobility != DZW_MOBILITY_ARTILLERY_INTERNAL && path_is_fully_on_road(game, unit->x, unit->y, x, y)) {
+        return allowance * 2.0f;
+    }
+    return allowance;
+}
+
+float game_unit_order_movement_allowance(const game_t *game, int unit_id, dzw_order_t order) {
+    const unit_t *unit = find_unit_const(game, unit_id);
+    if (unit == NULL) {
+        return 0.0f;
+    }
+    return order_movement_allowance_for_unit(unit, order);
+}
+
+static const char *order_dice_path_restriction_reason(const game_t *game, const unit_t *unit, dzw_order_t order, float x, float y) {
+    if (game == NULL || unit == NULL || game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return NULL;
+    }
+
+    bool touches_rough = path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_DIFFICULT);
+    bool touches_obstacle = path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_OBSTACLE);
+    bool touches_building = path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_BUILDING);
+    bool is_run = order == DZW_ORDER_RUN;
+    dzw_mobility_internal_t mobility = mobility_for_unit(unit);
+
+    if (mobility == DZW_MOBILITY_ARTILLERY_INTERNAL) {
+        if (touches_rough) {
+            return "Artillery cannot enter rough ground.";
+        }
+        if (touches_obstacle) {
+            return "Artillery cannot cross obstacles.";
+        }
+        if (touches_building) {
+            return "Artillery cannot enter buildings.";
+        }
+        return NULL;
+    }
+
+    if (mobility == DZW_MOBILITY_INFANTRY_INTERNAL) {
+        if (is_run && touches_rough) {
+            return "Infantry cannot Run through rough ground.";
+        }
+        if (is_run && touches_obstacle) {
+            return "Infantry cannot Run through obstacles.";
+        }
+        return NULL;
+    }
+
+    if (touches_building) {
+        return "Vehicles cannot enter buildings.";
+    }
+    if (touches_rough) {
+        if (mobility == DZW_MOBILITY_WHEELED_INTERNAL) {
+            return "Wheeled vehicles cannot enter rough ground.";
+        }
+        if (is_run) {
+            return "Tracked vehicles cannot Run through rough ground.";
+        }
+    }
+    if (touches_obstacle && mobility != DZW_MOBILITY_TRACKED_INTERNAL) {
+        return "Only tracked vehicles can cross obstacles.";
+    }
+    return NULL;
 }
 
 static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, float y, int ignore_unit_id) {
@@ -4551,7 +4875,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         if (weapon->ordnance || weapon->barrage) {
             direct_hit = scatter_marker(game, target->x, target->y, &marker_x, &marker_y, &scatter_distance);
         } else {
-            int needed_to_hit = required_to_hit_ballistic(attacker->ballistic_skill);
+            int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, required_to_hit_ballistic(attacker->ballistic_skill));
             if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
                 dzw_log(game, "%s's %s misses cleanly.", attacker->name, weapon->name);
                 return;
@@ -4596,7 +4920,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         return;
     }
 
-    int needed_to_hit = required_to_hit_ballistic(attacker->ballistic_skill);
+    int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, required_to_hit_ballistic(attacker->ballistic_skill));
     for (int shot = 0; shot < shots; shot += 1) {
         if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
             continue;
@@ -5079,6 +5403,12 @@ static void initialize_order_dice_primitives(unit_t *unit) {
     }
     if (unit->last_fubar_target_id < 0) {
         unit->last_fubar_target_id = 0;
+    }
+    if (unit->last_rally_roll < 0) {
+        unit->last_rally_roll = 0;
+    }
+    if (unit->last_rally_pins_removed < 0) {
+        unit->last_rally_pins_removed = 0;
     }
 }
 
@@ -6998,6 +7328,7 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.smoke_available = unit->smoke_available;
     view.smoke_active = unit->smoke_active;
     view.moved_this_turn = unit->moved_this_turn;
+    view.moved_distance = unit->moved_distance;
     view.can_move_now = unit_can_move_now(game, unit);
     view.shot_this_turn = unit->shot_this_turn;
     view.assaulted_this_turn = unit->assaulted_this_turn;
@@ -7018,6 +7349,14 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.last_order_test_officer_modifier = unit->last_order_test_officer_modifier;
     view.last_fubar_result = unit->last_fubar_result;
     view.last_fubar_target_id = unit->last_fubar_target_id;
+    view.down_order_active = unit_down_order_active(unit);
+    view.ambush_order_active = unit_ambush_order_active(unit);
+    view.defensive_to_hit_modifier = defensive_to_hit_modifier_for_unit(game, unit);
+    view.last_rally_roll = unit->last_rally_roll;
+    view.last_rally_pins_removed = unit->last_rally_pins_removed;
+    view.advance_move_allowance = order_movement_allowance_for_unit(unit, DZW_ORDER_ADVANCE);
+    view.run_move_allowance = order_movement_allowance_for_unit(unit, DZW_ORDER_RUN);
+    view.current_order_move_allowance = order_movement_allowance_for_unit(unit, unit->current_order);
     view.embarked = unit_is_embarked(unit);
     view.embarked_unit_id = unit->embarked_unit_id;
     view.embarked_in_transport_id = unit->embarked_in_transport_id;
@@ -7246,7 +7585,12 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         return fail(game, "%s cannot cross impassable terrain.", unit->name);
     }
 
-    if (unit->kind == DZW_UNIT_VEHICLE && !unit->recon && touches_difficult) {
+    const char *order_dice_restriction = order_dice_path_restriction_reason(game, unit, unit->current_order, x, y);
+    if (order_dice_restriction != NULL) {
+        return fail(game, "%s", order_dice_restriction);
+    }
+
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->kind == DZW_UNIT_VEHICLE && !unit->recon && touches_difficult) {
         int terrain_roll = roll_d6(game);
         if (terrain_roll == 1) {
             unit->immobilized = true;
@@ -7256,7 +7600,7 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         dzw_log(game, "%s passes a difficult terrain test on a %d.", unit->name, terrain_roll);
     }
 
-    if (unit->recon && touches_difficult) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->recon && touches_difficult) {
         int terrain_roll = roll_d6(game);
         if (terrain_roll == 1) {
             unit->immobilized = true;
@@ -7267,9 +7611,11 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
     }
 
     float distance = dzw_distance(unit->x, unit->y, x, y);
-    int allowance = best_movement_allowance(game, unit, touches_difficult && (unit->kind != DZW_UNIT_VEHICLE || unit->kind == DZW_UNIT_ASSAULT_GUN));
-    if (distance > (float)allowance + 0.01f) {
-        return fail(game, "%s can move up to %d\" this phase, not %.1f\".", unit->name, allowance, distance);
+    float allowance = game->ruleset == DZW_RULESET_ORDER_DICE
+        ? order_movement_allowance_for_path(game, unit, unit->current_order, x, y)
+        : (float)best_movement_allowance(game, unit, touches_difficult && (unit->kind != DZW_UNIT_VEHICLE || unit->kind == DZW_UNIT_ASSAULT_GUN));
+    if (distance > allowance + 0.01f) {
+        return fail(game, "%s can move up to %.0f\" with %s, not %.1f\".", unit->name, allowance, game->ruleset == DZW_RULESET_ORDER_DICE ? game_order_name(unit->current_order) : "this phase", distance);
     }
 
     for (int index = 0; index < game->unit_count; index += 1) {

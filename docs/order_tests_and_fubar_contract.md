@@ -53,7 +53,7 @@ The result is recorded on `unit_view_t`:
 - `last_order_test_pin_modifier`
 - `last_order_test_officer_modifier`
 
-The target uses the unit's morale baseline, subtracts one point per pin, adds the best nearby officer-style modifier currently represented by HQ/command units, and clamps the resulting target to the useful 2D6 range. Double-one always passes and removes one pin. A normal pass removes one pin. A normal failure changes the unit's resulting order to Down and retains its die.
+The target uses the unit's morale baseline, subtracts one point per pin, adds the best nearby officer-style modifier currently represented by HQ/command units, and clamps the resulting target to the useful 2D6 range. Double-one always passes and removes one pin. A normal pass removes one pin except for Rally, where pin removal is resolved by the Rally action itself. A normal failure changes the unit's resulting order to Down and retains its die.
 
 ## FUBAR
 

@@ -478,6 +478,7 @@ struct UnitSnapshot: Identifiable {
     let smokeAvailable: Bool
     let smokeActive: Bool
     let movedThisTurn: Bool
+    let movedDistance: CGFloat
     let canMoveNow: Bool
     let shotThisTurn: Bool
     let assaultedThisTurn: Bool
@@ -498,6 +499,14 @@ struct UnitSnapshot: Identifiable {
     let lastOrderTestOfficerModifier: Int
     let lastFubarResult: dzw_fubar_result_t
     let lastFubarTargetID: Int
+    let downOrderActive: Bool
+    let ambushOrderActive: Bool
+    let defensiveToHitModifier: Int
+    let lastRallyRoll: Int
+    let lastRallyPinsRemoved: Int
+    let advanceMoveAllowance: CGFloat
+    let runMoveAllowance: CGFloat
+    let currentOrderMoveAllowance: CGFloat
     let embarked: Bool
     let embarkedUnitID: Int
     let embarkedInTransportID: Int
@@ -538,6 +547,7 @@ struct UnitSnapshot: Identifiable {
         smokeAvailable = raw.smoke_available
         smokeActive = raw.smoke_active
         movedThisTurn = raw.moved_this_turn
+        movedDistance = CGFloat(raw.moved_distance)
         canMoveNow = raw.can_move_now
         shotThisTurn = raw.shot_this_turn
         assaultedThisTurn = raw.assaulted_this_turn
@@ -558,6 +568,14 @@ struct UnitSnapshot: Identifiable {
         lastOrderTestOfficerModifier = Int(raw.last_order_test_officer_modifier)
         lastFubarResult = raw.last_fubar_result
         lastFubarTargetID = Int(raw.last_fubar_target_id)
+        downOrderActive = raw.down_order_active
+        ambushOrderActive = raw.ambush_order_active
+        defensiveToHitModifier = Int(raw.defensive_to_hit_modifier)
+        lastRallyRoll = Int(raw.last_rally_roll)
+        lastRallyPinsRemoved = Int(raw.last_rally_pins_removed)
+        advanceMoveAllowance = CGFloat(raw.advance_move_allowance)
+        runMoveAllowance = CGFloat(raw.run_move_allowance)
+        currentOrderMoveAllowance = CGFloat(raw.current_order_move_allowance)
         embarked = raw.embarked
         embarkedUnitID = Int(raw.embarked_unit_id)
         embarkedInTransportID = Int(raw.embarked_in_transport_id)
@@ -592,6 +610,15 @@ struct UnitSnapshot: Identifiable {
         }
         if retainedOrder {
             parts.append("Retained")
+        }
+        if downOrderActive {
+            parts.append("Down \(defensiveToHitModifier > 0 ? "-\(defensiveToHitModifier) to hit" : "active")")
+        }
+        if ambushOrderActive {
+            parts.append("Ambush waiting")
+        }
+        if lastRallyRoll > 0 {
+            parts.append("Rally -\(lastRallyPinsRemoved)")
         }
         if lastOrderTestResult != DZW_ORDER_TEST_NOT_REQUIRED {
             parts.append(lastOrderTestResultName)
