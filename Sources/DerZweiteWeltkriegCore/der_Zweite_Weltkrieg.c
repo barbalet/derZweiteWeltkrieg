@@ -215,6 +215,12 @@ typedef struct {
     int locked_with;
     int pinned_until_turn;
     bool falling_back;
+    dzw_order_t current_order;
+    bool acted_this_turn_order_dice;
+    bool retained_order;
+    int pin_count;
+    dzw_morale_quality_t morale_quality;
+    dzw_order_test_result_t last_order_test_result;
     bool destroyed;
     bool manual_in_cover;
     bool manual_hull_down;
@@ -241,6 +247,7 @@ struct dzw_game {
     int turn_number;
     player_t active_player;
     phase_t phase;
+    dzw_ruleset_t ruleset;
     army_list_t player_one_army;
     int player_one_force;
     army_list_t player_two_army;
@@ -2018,6 +2025,102 @@ static const char *phase_name(phase_t phase) {
     }
 }
 
+const char *game_ruleset_name(dzw_ruleset_t ruleset) {
+    switch (ruleset) {
+        case DZW_RULESET_FIXED_PHASES:
+            return "Fixed Phases";
+        case DZW_RULESET_ORDER_DICE:
+            return "Order Dice";
+        default:
+            return "Unknown";
+    }
+}
+
+const char *game_order_name(dzw_order_t order) {
+    switch (order) {
+        case DZW_ORDER_NONE:
+            return "None";
+        case DZW_ORDER_FIRE:
+            return "Fire";
+        case DZW_ORDER_ADVANCE:
+            return "Advance";
+        case DZW_ORDER_RUN:
+            return "Run";
+        case DZW_ORDER_AMBUSH:
+            return "Ambush";
+        case DZW_ORDER_RALLY:
+            return "Rally";
+        case DZW_ORDER_DOWN:
+            return "Down";
+        default:
+            return "Unknown";
+    }
+}
+
+const char *game_morale_quality_name(dzw_morale_quality_t quality) {
+    switch (quality) {
+        case DZW_MORALE_REGULAR:
+            return "Regular";
+        case DZW_MORALE_INEXPERIENCED:
+            return "Inexperienced";
+        case DZW_MORALE_VETERAN:
+            return "Veteran";
+        default:
+            return "Unknown";
+    }
+}
+
+const char *game_order_test_result_name(dzw_order_test_result_t result) {
+    switch (result) {
+        case DZW_ORDER_TEST_NOT_REQUIRED:
+            return "Not Required";
+        case DZW_ORDER_TEST_PASSED:
+            return "Passed";
+        case DZW_ORDER_TEST_FAILED:
+            return "Failed";
+        case DZW_ORDER_TEST_FUBAR:
+            return "FUBAR";
+        default:
+            return "Unknown";
+    }
+}
+
+static const char *legacy_phase_flow_migration_blockers[] = {
+    "game_view exposes one global phase for the active player.",
+    "game_advance_phase advances Movement, Shooting, and Assault for a whole side.",
+    "game_move_unit requires the active player to be in the Movement phase.",
+    "game_shoot_unit requires the active player to be in the Shooting phase.",
+    "game_assault_unit requires the active player to be in the Assault phase.",
+    "unit_view_t exposes can_move_now, can_shoot_now, and can_assault_now from the global phase.",
+    "Swift GameController still routes commands through phase-specific actions."
+};
+
+dzw_ruleset_t game_ruleset(const game_t *game) {
+    if (game == NULL) {
+        return DZW_RULESET_FIXED_PHASES;
+    }
+    return game->ruleset;
+}
+
+bool game_uses_legacy_phase_flow(const game_t *game) {
+    return game_ruleset(game) == DZW_RULESET_FIXED_PHASES;
+}
+
+int game_phase_flow_migration_blocker_count(const game_t *game) {
+    if (!game_uses_legacy_phase_flow(game)) {
+        return 0;
+    }
+    return (int)(sizeof(legacy_phase_flow_migration_blockers) / sizeof(legacy_phase_flow_migration_blockers[0]));
+}
+
+const char *game_phase_flow_migration_blocker(const game_t *game, int index) {
+    int count = game_phase_flow_migration_blocker_count(game);
+    if (index < 0 || index >= count) {
+        return "";
+    }
+    return legacy_phase_flow_migration_blockers[index];
+}
+
 static player_t mission_winner(const game_t *game) {
     if (game == NULL) {
         return DZW_PLAYER_NONE;
@@ -2125,6 +2228,9 @@ static void pin_unit_until_next_turn(const game_t *game, unit_t *unit) {
     if (unit->pinned_until_turn < next_turn) {
         unit->pinned_until_turn = next_turn;
     }
+    if (unit->pin_count < 1) {
+        unit->pin_count = 1;
+    }
 }
 
 static void resolve_destroyed_transport_passengers(game_t *game, unit_t *transport, bool annihilate_passengers) {
@@ -2198,6 +2304,11 @@ static void destroy_unit_with_passenger_outcome(game_t *game, unit_t *unit, cons
     unit->models = 0;
     unit->lead_model_wounds = 0;
     unit->falling_back = false;
+    unit->pin_count = 0;
+    unit->current_order = DZW_ORDER_NONE;
+    unit->acted_this_turn_order_dice = false;
+    unit->retained_order = false;
+    unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
     unit->transport_capacity = 0;
     unit->embarked_unit_id = 0;
     unit->embarked_in_transport_id = 0;
@@ -2571,6 +2682,7 @@ static void finish_turn(game_t *game, player_t player) {
         }
         if (unit->pinned_until_turn == game->turn_number) {
             unit->pinned_until_turn = 0;
+            unit->pin_count = 0;
             dzw_log(game, "%s is no longer pinned.", unit->name);
         }
     }
@@ -3845,8 +3957,41 @@ static void setup_bocage_breakout_mission(game_t *game) {
     game->mission_target_score = 8;
 }
 
+static bool is_valid_order(dzw_order_t order) {
+    return order >= DZW_ORDER_NONE && order <= DZW_ORDER_DOWN;
+}
+
+static bool is_valid_morale_quality(dzw_morale_quality_t quality) {
+    return quality == DZW_MORALE_REGULAR || quality == DZW_MORALE_INEXPERIENCED || quality == DZW_MORALE_VETERAN;
+}
+
+static bool is_valid_order_test_result(dzw_order_test_result_t result) {
+    return result >= DZW_ORDER_TEST_NOT_REQUIRED && result <= DZW_ORDER_TEST_FUBAR;
+}
+
+static void initialize_order_dice_primitives(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    if (!is_valid_order(unit->current_order)) {
+        unit->current_order = DZW_ORDER_NONE;
+    }
+    unit->acted_this_turn_order_dice = false;
+    unit->retained_order = false;
+    if (unit->pin_count < 0) {
+        unit->pin_count = 0;
+    }
+    if (!is_valid_morale_quality(unit->morale_quality)) {
+        unit->morale_quality = DZW_MORALE_REGULAR;
+    }
+    if (!is_valid_order_test_result(unit->last_order_test_result)) {
+        unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+    }
+}
+
 static void add_unit(game_t *game, unit_t unit) {
     unit.preferred_casualty_group_index = -1;
+    initialize_order_dice_primitives(&unit);
     normalize_unit_wounds(&unit);
     game->units[game->unit_count] = unit;
     game->unit_count += 1;
@@ -4234,6 +4379,7 @@ static void setup_demo(game_t *game) {
     game->turn_number = 1;
     game->active_player = DZW_PLAYER_ONE;
     game->phase = DZW_PHASE_MOVEMENT;
+    game->ruleset = DZW_RULESET_FIXED_PHASES;
 }
 
 static army_list_t sanitize_army(army_list_t army) {
@@ -5390,6 +5536,7 @@ static void setup_selected_army_demo(game_t *game, army_list_t player_one_army, 
     game->turn_number = 1;
     game->active_player = DZW_PLAYER_ONE;
     game->phase = DZW_PHASE_MOVEMENT;
+    game->ruleset = DZW_RULESET_FIXED_PHASES;
 }
 
 static void setup_skirmish(game_t *game, army_list_t player_one_army, const army_list_entry_t *player_one_entries, int player_one_entry_count, army_list_t player_two_army, const army_list_entry_t *player_two_entries, int player_two_entry_count) {
@@ -5415,6 +5562,7 @@ static void setup_skirmish(game_t *game, army_list_t player_one_army, const army
     game->turn_number = 1;
     game->active_player = DZW_PLAYER_ONE;
     game->phase = DZW_PHASE_MOVEMENT;
+    game->ruleset = DZW_RULESET_FIXED_PHASES;
 }
 
 game_t *game_create_demo(uint32_t seed) {
@@ -5694,6 +5842,7 @@ game_view_t game_view(const game_t *game) {
     view.turn_number = game->turn_number;
     view.active_player = game->active_player;
     view.phase = game->phase;
+    view.ruleset = game->ruleset;
     return view;
 }
 
@@ -5764,6 +5913,12 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.locked_in_assault = unit->locked_in_assault;
     view.pinned = unit->pinned_until_turn > 0;
     view.falling_back = unit->falling_back;
+    view.current_order = unit->current_order;
+    view.acted_this_turn = unit->acted_this_turn_order_dice;
+    view.retained_order = unit->retained_order;
+    view.pin_count = unit->pin_count;
+    view.morale_quality = unit->morale_quality;
+    view.last_order_test_result = unit->last_order_test_result;
     view.embarked = unit_is_embarked(unit);
     view.embarked_unit_id = unit->embarked_unit_id;
     view.embarked_in_transport_id = unit->embarked_in_transport_id;

@@ -23,6 +23,34 @@ typedef enum {
 } phase_t;
 
 typedef enum {
+    DZW_RULESET_FIXED_PHASES = 0,
+    DZW_RULESET_ORDER_DICE = 1
+} dzw_ruleset_t;
+
+typedef enum {
+    DZW_ORDER_NONE = 0,
+    DZW_ORDER_FIRE = 1,
+    DZW_ORDER_ADVANCE = 2,
+    DZW_ORDER_RUN = 3,
+    DZW_ORDER_AMBUSH = 4,
+    DZW_ORDER_RALLY = 5,
+    DZW_ORDER_DOWN = 6
+} dzw_order_t;
+
+typedef enum {
+    DZW_MORALE_REGULAR = 0,
+    DZW_MORALE_INEXPERIENCED = 1,
+    DZW_MORALE_VETERAN = 2
+} dzw_morale_quality_t;
+
+typedef enum {
+    DZW_ORDER_TEST_NOT_REQUIRED = 0,
+    DZW_ORDER_TEST_PASSED = 1,
+    DZW_ORDER_TEST_FAILED = 2,
+    DZW_ORDER_TEST_FUBAR = 3
+} dzw_order_test_result_t;
+
+typedef enum {
     DZW_UNIT_INFANTRY = 0,
     DZW_UNIT_VEHICLE = 1,
     DZW_UNIT_ASSAULT_GUN = 2
@@ -207,6 +235,7 @@ typedef struct {
     int turn_number;
     player_t active_player;
     phase_t phase;
+    dzw_ruleset_t ruleset;
 } game_view_t;
 
 typedef struct {
@@ -251,6 +280,12 @@ typedef struct {
     bool locked_in_assault;
     bool pinned;
     bool falling_back;
+    dzw_order_t current_order;
+    bool acted_this_turn;
+    bool retained_order;
+    int pin_count;
+    dzw_morale_quality_t morale_quality;
+    dzw_order_test_result_t last_order_test_result;
     bool embarked;
     int embarked_unit_id;
     int embarked_in_transport_id;
@@ -285,6 +320,15 @@ army_catalog_unit_view_t army_catalog_unit_view(army_list_t army, int index);
 int army_list_total_points(army_list_t army, const army_list_entry_t *entries, int entry_count);
 int wwii_weapon_profile_count(void);
 weapon_profile_view_t wwii_weapon_profile_view(int index);
+
+dzw_ruleset_t game_ruleset(const game_t *game);
+const char *game_ruleset_name(dzw_ruleset_t ruleset);
+const char *game_order_name(dzw_order_t order);
+const char *game_morale_quality_name(dzw_morale_quality_t quality);
+const char *game_order_test_result_name(dzw_order_test_result_t result);
+bool game_uses_legacy_phase_flow(const game_t *game);
+int game_phase_flow_migration_blocker_count(const game_t *game);
+const char *game_phase_flow_migration_blocker(const game_t *game, int index);
 
 game_view_t game_view(const game_t *game);
 mission_view_t game_mission_view(const game_t *game);

@@ -20,6 +20,8 @@ The demo opens on `Bocage Breakout`, an Allies-vs-Axis objective battle where th
 - WWII unit profile ledger: `docs/wwii_unit_profiles.md`
 - WWII armor and artillery ledger: `docs/wwii_armor_profiles.md`
 - WWII battlefield profile ledger: `docs/wwii_battlefield_profiles.md`
+- Order-dice baseline audit: `docs/order_dice_baseline_audit.md`
+- Order-dice rules model: `docs/order_dice_rules_model.md`
 
 ## Game Systems
 
@@ -49,4 +51,4 @@ swift run DerZweiteWeltkriegApp
 
 ## Development Status
 
-The World War II demo is playable. The app supports Allies and Axis nation setup for British, American, Australian, Soviet, German, and Italian forces. The current build includes a ready-to-deploy default operation, nation-appropriate demo weapon mappings, a World War II command-line battle report, run-guide documentation, and the demo completion checklist.
+The World War II demo is playable. The app supports Allies and Axis nation setup for British, American, Australian, Soviet, German, and Italian forces. The current build includes a ready-to-deploy default operation, nation-appropriate demo weapon mappings, a World War II command-line battle report, run-guide documentation, the demo completion checklist, and staged order-dice migration primitives.

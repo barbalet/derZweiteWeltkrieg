@@ -78,6 +78,10 @@ The old all-units movement -> shooting -> assault phase flow becomes compatibili
 | 191-195 | Migration docs | Add migration notes for Guderian and Monty, listing renamed APIs, deprecated phase commands, new snapshot fields, and minimum downstream acceptance tests. |
 | 196-200 | Acceptance closeout | Require full DZW test pass, deterministic replay signatures, rules-reference conformance tests, docs build/readability pass, and explicit downstream handoff notes. Mark old fixed phase loop as legacy-only. |
 
+## Cycle Progress
+
+- **Cycles 1-20 complete:** Added the baseline audit, target rules model, fixed-phase compatibility diagnostics, staged ruleset enum, typed public order values, and public unit primitives for order, acted state, retained order, pin count, morale quality, and order-test result. The playable loop still uses fixed phases until cycles 21+ replace activation with the order-dice cup.
+
 ## Acceptance Gates
 
 - The default ruleset uses order-dice activation, not side-wide movement/shooting/assault phases.

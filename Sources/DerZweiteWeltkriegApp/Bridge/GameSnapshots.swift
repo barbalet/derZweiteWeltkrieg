@@ -24,6 +24,7 @@ struct GameSnapshot {
     let turnNumber: Int
     let activePlayer: player_t
     let phase: phase_t
+    let ruleset: dzw_ruleset_t
 
     var phaseName: String {
         switch phase {
@@ -36,6 +37,14 @@ struct GameSnapshot {
         default:
             return "Unknown"
         }
+    }
+
+    var rulesetName: String {
+        String(cString: game_ruleset_name(ruleset))
+    }
+
+    var usesLegacyPhaseFlow: Bool {
+        ruleset == DZW_RULESET_FIXED_PHASES
     }
 
     var activePlayerName: String {
@@ -477,6 +486,12 @@ struct UnitSnapshot: Identifiable {
     let lockedInAssault: Bool
     let pinned: Bool
     let fallingBack: Bool
+    let currentOrder: dzw_order_t
+    let actedThisTurn: Bool
+    let retainedOrder: Bool
+    let pinCount: Int
+    let moraleQuality: dzw_morale_quality_t
+    let lastOrderTestResult: dzw_order_test_result_t
     let embarked: Bool
     let embarkedUnitID: Int
     let embarkedInTransportID: Int
@@ -525,6 +540,12 @@ struct UnitSnapshot: Identifiable {
         lockedInAssault = raw.locked_in_assault
         pinned = raw.pinned
         fallingBack = raw.falling_back
+        currentOrder = raw.current_order
+        actedThisTurn = raw.acted_this_turn
+        retainedOrder = raw.retained_order
+        pinCount = Int(raw.pin_count)
+        moraleQuality = raw.morale_quality
+        lastOrderTestResult = raw.last_order_test_result
         embarked = raw.embarked
         embarkedUnitID = Int(raw.embarked_unit_id)
         embarkedInTransportID = Int(raw.embarked_in_transport_id)
@@ -534,6 +555,32 @@ struct UnitSnapshot: Identifiable {
 
     var ownerName: String {
         owner == DZW_PLAYER_ONE ? "Player 1" : "Player 2"
+    }
+
+    var currentOrderName: String {
+        String(cString: game_order_name(currentOrder))
+    }
+
+    var moraleQualityName: String {
+        String(cString: game_morale_quality_name(moraleQuality))
+    }
+
+    var lastOrderTestResultName: String {
+        String(cString: game_order_test_result_name(lastOrderTestResult))
+    }
+
+    var orderDiceSummary: String {
+        var parts = ["Order \(currentOrderName)", "\(moraleQualityName)", "Pins \(pinCount)"]
+        if actedThisTurn {
+            parts.append("Acted")
+        }
+        if retainedOrder {
+            parts.append("Retained")
+        }
+        if lastOrderTestResult != DZW_ORDER_TEST_NOT_REQUIRED {
+            parts.append(lastOrderTestResultName)
+        }
+        return parts.joined(separator: " • ")
     }
 
     var usesVehicleRules: Bool {

@@ -59,7 +59,7 @@ final class GameController: ObservableObject, @unchecked Sendable {
 
     @Published var appMode: AppMode = .setup
     @Published private(set) var armyReferences: [ArmyReference] = ArmyReferenceCatalog.load()
-    @Published private(set) var game = GameSnapshot(turnNumber: 0, activePlayer: DZW_PLAYER_ONE, phase: DZW_PHASE_MOVEMENT)
+    @Published private(set) var game = GameSnapshot(turnNumber: 0, activePlayer: DZW_PLAYER_ONE, phase: DZW_PHASE_MOVEMENT, ruleset: DZW_RULESET_FIXED_PHASES)
     @Published private(set) var mission = MissionSnapshot()
     @Published private(set) var units: [UnitSnapshot] = []
     @Published private(set) var zones: [ZoneSnapshot] = []
@@ -139,7 +139,8 @@ final class GameController: ObservableObject, @unchecked Sendable {
         game = GameSnapshot(
             turnNumber: Int(gameView.turn_number),
             activePlayer: gameView.active_player,
-            phase: gameView.phase
+            phase: gameView.phase,
+            ruleset: gameView.ruleset
         )
         mission = MissionSnapshot(raw: game_mission_view(handle))
         loadedForces = GameControllerLoadedForceState(

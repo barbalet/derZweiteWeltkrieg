@@ -28,6 +28,73 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertEqual(Int(bersaglieri.total_wounds_remaining), 4)
     }
 
+    func testOrderDiceRulesetMigrationGateReportsFixedPhaseBlockers() {
+        guard let game = game_create_demo(1) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let view = game_view(game)
+        XCTAssertEqual(view.ruleset, DZW_RULESET_FIXED_PHASES)
+        XCTAssertEqual(game_ruleset(game), DZW_RULESET_FIXED_PHASES)
+        XCTAssertEqual(String(cString: game_ruleset_name(view.ruleset)), "Fixed Phases")
+        XCTAssertTrue(game_uses_legacy_phase_flow(game))
+
+        let blockerCount = Int(game_phase_flow_migration_blocker_count(game))
+        XCTAssertGreaterThanOrEqual(blockerCount, 5)
+
+        let blockers = (0..<blockerCount).map { index in
+            String(cString: game_phase_flow_migration_blocker(game, Int32(index)))
+        }
+        XCTAssertTrue(blockers.contains { $0.contains("game_advance_phase") })
+        XCTAssertTrue(blockers.contains { $0.contains("game_move_unit") })
+        XCTAssertTrue(blockers.contains { $0.contains("game_shoot_unit") })
+        XCTAssertTrue(blockers.contains { $0.contains("game_assault_unit") })
+        XCTAssertEqual(String(cString: game_phase_flow_migration_blocker(game, Int32(blockerCount))), "")
+    }
+
+    func testOrderDicePublicUnitPrimitivesDefaultToReadyRegularState() {
+        guard let game = game_create_demo(1) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let unit = game_unit_view(game, 0)
+        XCTAssertEqual(unit.current_order, DZW_ORDER_NONE)
+        XCTAssertFalse(unit.acted_this_turn)
+        XCTAssertFalse(unit.retained_order)
+        XCTAssertEqual(Int(unit.pin_count), 0)
+        XCTAssertEqual(unit.morale_quality, DZW_MORALE_REGULAR)
+        XCTAssertEqual(unit.last_order_test_result, DZW_ORDER_TEST_NOT_REQUIRED)
+        XCTAssertEqual(String(cString: game_order_name(unit.current_order)), "None")
+        XCTAssertEqual(String(cString: game_morale_quality_name(unit.morale_quality)), "Regular")
+        XCTAssertEqual(String(cString: game_order_test_result_name(unit.last_order_test_result)), "Not Required")
+    }
+
+    func testOrderDicePublicNamesFollowReferenceOrderList() {
+        let orders: [(dzw_order_t, String)] = [
+            (DZW_ORDER_FIRE, "Fire"),
+            (DZW_ORDER_ADVANCE, "Advance"),
+            (DZW_ORDER_RUN, "Run"),
+            (DZW_ORDER_AMBUSH, "Ambush"),
+            (DZW_ORDER_RALLY, "Rally"),
+            (DZW_ORDER_DOWN, "Down"),
+        ]
+
+        XCTAssertEqual(String(cString: game_ruleset_name(DZW_RULESET_ORDER_DICE)), "Order Dice")
+        for (order, name) in orders {
+            XCTAssertEqual(String(cString: game_order_name(order)), name)
+        }
+        XCTAssertEqual(String(cString: game_morale_quality_name(DZW_MORALE_INEXPERIENCED)), "Inexperienced")
+        XCTAssertEqual(String(cString: game_morale_quality_name(DZW_MORALE_REGULAR)), "Regular")
+        XCTAssertEqual(String(cString: game_morale_quality_name(DZW_MORALE_VETERAN)), "Veteran")
+        XCTAssertEqual(String(cString: game_order_test_result_name(DZW_ORDER_TEST_PASSED)), "Passed")
+        XCTAssertEqual(String(cString: game_order_test_result_name(DZW_ORDER_TEST_FAILED)), "Failed")
+        XCTAssertEqual(String(cString: game_order_test_result_name(DZW_ORDER_TEST_FUBAR)), "FUBAR")
+    }
+
     func testArmyPresetDemoLoadsSelectedMatchup() {
         guard let game = game_create_demo_with_armies(500, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
             XCTFail("Failed to create army preset demo")
