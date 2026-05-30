@@ -1,6 +1,6 @@
 # Order Dice Shooting and Damage Contract
 
-Status: cycles 101-120 complete.
+Status: cycles 101-140 complete.
 
 This contract describes the current Bolt Action-inspired shooting layer used by
 the order-dice ruleset. It is intentionally inspectable from `unit_view_t` and
@@ -34,7 +34,7 @@ The engine exposes:
 Fixed-phase shooting keeps its legacy behavior, while the order-dice ruleset
 uses these modifiers for infantry, vehicle, and non-indirect blast hit rolls.
 
-## Damage Values
+## Damage Values And Penetration
 
 Order-dice damage resolution now uses damage values rather than the legacy
 strength-versus-toughness wound table:
@@ -45,9 +45,13 @@ strength-versus-toughness wound table:
 - open-topped soft-skin/light vehicle: DV 6
 - light armour through heavier armour maps upward from DV 7 to DV 11
 
-Weapon penetration is derived from weapon strength as `strength - 4`, clamped
-at zero. This keeps current weapon profiles usable until the weapon chart model
-cycle normalizes every weapon directly into range, shots, and penetration.
+Weapon penetration now comes from the normalized weapon chart fields for
+weapons that have been converted to the order-dice profile model. Legacy
+strength-derived penetration remains only as a compatibility fallback for
+profiles that have not yet been charted. This keeps the public arithmetic
+inspectable while allowing small arms, anti-tank weapons, heavy weapons,
+flamethrowers, mortars, and vehicle weapons to express their own penetration
+values directly.
 
 The engine exposes:
 
@@ -55,6 +59,59 @@ The engine exposes:
 - `last_shooting_penetration_modifier`
 - `last_shooting_damage_roll`
 - `last_shooting_damage_success`
+
+## Weapon Chart Fields
+
+`weapon_profile_view_t` now exposes the order-dice chart data needed by UI,
+AI, and test tooling:
+
+- `min_range`
+- `penetration`
+- `he_hits_dice_count`
+- `he_hits_die_sides`
+- `he_pins_dice_count`
+- `he_pins_die_sides`
+- `he_penetration`
+- `indirect_fire`
+- `team`
+- `fixed`
+- `shaped_charge`
+- `one_shot`
+
+The initial charted profiles cover the demo's small arms, light/heavy machine
+guns, anti-tank gun, tank guns, mortars, flamethrower, bazooka, PIAT,
+panzerfaust, and autocannon profiles.
+
+## HE And Indirect Fire
+
+Converted HE weapons use explicit hit dice, pin dice, and fixed HE penetration
+instead of reusing the old blast strength. Indirect weapons can also define a
+minimum range. A target inside that range is rejected in the order-dice ruleset
+with a minimum-range error before the shot is resolved.
+
+The current converted demo profiles include:
+
+- 81mm mortar: 18-60 inch range, D6 HE hits, D2 pins, +2 HE penetration
+- 120mm mortar: 18-72 inch range, 2D6 HE hits, D3 pins, +3 HE penetration
+- 17-pounder and tank-gun HE: small HE hit dice with fixed low HE penetration
+
+## Vehicle Penetration Detail
+
+Order-dice vehicle shooting now records the extra vehicle arithmetic needed to
+explain anti-armour attacks:
+
+- side armour attacks add `+1` penetration
+- rear armour attacks add `+2` penetration
+- long-range anti-armour fire applies `-1` beyond half range
+- indirect HE against open-topped vehicles applies the open-topped modifier
+- penetration outcomes are classified as none, superficial, full, or massive
+
+The engine exposes:
+
+- `last_shooting_vehicle_armour_modifier`
+- `last_shooting_vehicle_long_range_penalty`
+- `last_shooting_vehicle_open_topped_indirect_modifier`
+- `last_shooting_vehicle_damage_class`
 
 ## Pins From Fire
 
@@ -88,4 +145,5 @@ The engine exposes:
 
 The cycle tests cover point blank fire, stacked defensive modifiers, moving
 inexperienced fire, pins from small-arms hits, casualty morale detail recording,
-and vehicle damage-value/penetration arithmetic.
+Fire/Advance shooting compatibility, weapon chart exposure, indirect HE minimum
+range and pins, and vehicle armour-arc/long-range penetration arithmetic.

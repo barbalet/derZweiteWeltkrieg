@@ -111,9 +111,11 @@ typedef enum {
 
 typedef struct {
     const char *name;
+    int min_range;
     int range;
     int strength;
     int ap;
+    int penetration;
     int shots;
     weapon_mode_internal_t mode;
     weapon_mount_internal_t mount;
@@ -124,6 +126,16 @@ typedef struct {
     bool ordnance;
     bool barrage;
     bool linked;
+    int he_hits_dice_count;
+    int he_hits_die_sides;
+    int he_pins_dice_count;
+    int he_pins_die_sides;
+    int he_penetration;
+    bool indirect_fire;
+    bool team;
+    bool fixed;
+    bool shaped_charge;
+    bool one_shot;
 } weapon_profile_t;
 
 typedef struct {
@@ -148,6 +160,12 @@ typedef struct {
     int total_modifier;
     int needed_to_hit;
 } shooting_hit_modifiers_t;
+
+typedef enum {
+    DZW_VEHICLE_ARMOUR_ARC_FRONT_INTERNAL = 0,
+    DZW_VEHICLE_ARMOUR_ARC_SIDE_INTERNAL = 1,
+    DZW_VEHICLE_ARMOUR_ARC_REAR_INTERNAL = 2
+} dzw_vehicle_armour_arc_internal_t;
 
 typedef struct {
     int id;
@@ -267,6 +285,10 @@ typedef struct {
     int last_shooting_penetration_modifier;
     int last_shooting_damage_roll;
     bool last_shooting_damage_success;
+    int last_shooting_vehicle_armour_modifier;
+    int last_shooting_vehicle_long_range_penalty;
+    int last_shooting_vehicle_open_topped_indirect_modifier;
+    dzw_vehicle_damage_class_t last_shooting_vehicle_damage_class;
     int last_shooting_models_removed;
     int last_shooting_pins_added;
     bool last_shooting_morale_checked;
@@ -495,38 +517,57 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 36,
         .strength = 5,
         .ap = 4,
+        .penetration = 0,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_17_POUNDER_AT_GUN] = {
         .name = "17-pounder Anti-Tank Gun",
         .range = 48,
         .strength = 9,
         .ap = 2,
+        .penetration = 6,
         .shots = 1,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .he_hits_dice_count = 1,
+        .he_hits_die_sides = 3,
+        .he_pins_dice_count = 1,
+        .he_pins_die_sides = 1,
+        .he_penetration = 1,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_75MM_TANK_GUN] = {
         .name = "75mm Tank Gun",
         .range = 72,
         .strength = 8,
         .ap = 3,
+        .penetration = 5,
         .shots = 1,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .blast_diameter = 5,
         .ordnance = true,
+        .he_hits_dice_count = 1,
+        .he_hits_die_sides = 2,
+        .he_pins_dice_count = 1,
+        .he_pins_die_sides = 1,
+        .he_penetration = 1,
     },
     [DZWK_WEAPON_81MM_MORTAR_BATTERY] = {
         .name = "81mm Mortar Battery",
-        .range = 48,
+        .min_range = 18,
+        .range = 60,
         .strength = 5,
         .ap = 4,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -534,34 +575,47 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .blast_diameter = 5,
         .ordnance = true,
         .barrage = true,
+        .he_hits_dice_count = 1,
+        .he_hits_die_sides = 6,
+        .he_pins_dice_count = 1,
+        .he_pins_die_sides = 2,
+        .he_penetration = 2,
+        .indirect_fire = true,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_FLAMETHROWER] = {
         .name = "Flamethrower",
         .range = 8,
         .strength = 4,
         .ap = 5,
+        .penetration = 2,
         .shots = 1,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .flame = true,
         .ignores_cover = true,
+        .team = true,
     },
     [DZWK_WEAPON_BREN_LMG] = {
         .name = "Bren LMG",
         .range = 24,
         .strength = 4,
         .ap = 5,
+        .penetration = 0,
         .shots = 2,
         .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
     },
     [DZWK_WEAPON_PPSH_41_SMG] = {
         .name = "PPSh-41 SMG",
         .range = 18,
         .strength = 5,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -582,6 +636,7 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 24,
         .strength = 3,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -592,10 +647,12 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 36,
         .strength = 5,
         .ap = 5,
+        .penetration = 0,
         .shots = 3,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
     },
     [DZWK_WEAPON_MOSIN_NAGANT_1891_30] = {
         .name = "Mosin-Nagant M91/30",
@@ -622,26 +679,33 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 24,
         .strength = 7,
         .ap = 2,
+        .penetration = 5,
         .shots = 1,
         .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .shaped_charge = true,
     },
     [DZWK_WEAPON_M2_BROWNING_HMG] = {
         .name = "M2 Browning HMG",
         .range = 36,
         .strength = 6,
         .ap = 6,
+        .penetration = 1,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_HULL_BROWNING_M1919A4] = {
         .name = "Hull Browning M1919A4",
         .range = 36,
         .strength = 5,
         .ap = 4,
+        .penetration = 0,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -652,30 +716,39 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 36,
         .strength = 5,
         .ap = 4,
+        .penetration = 0,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_TWIN_MG42] = {
         .name = "Twin MG42",
         .range = 36,
         .strength = 5,
         .ap = 4,
+        .penetration = 0,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_PANZERFAUST] = {
         .name = "Panzerfaust",
         .range = 12,
         .strength = 4,
         .ap = 5,
+        .penetration = 6,
         .shots = 1,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .shaped_charge = true,
+        .one_shot = true,
     },
     [DZWK_WEAPON_M3_GREASE_GUN] = {
         .name = "M3 Grease Gun",
@@ -689,20 +762,33 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
     },
     [DZWK_WEAPON_120MM_MORTAR] = {
         .name = "120mm Mortar",
-        .range = 36,
+        .min_range = 18,
+        .range = 72,
         .strength = 8,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
         .blast_diameter = 3,
+        .ordnance = true,
+        .barrage = true,
+        .he_hits_dice_count = 2,
+        .he_hits_die_sides = 6,
+        .he_pins_dice_count = 1,
+        .he_pins_die_sides = 3,
+        .he_penetration = 3,
+        .indirect_fire = true,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_BERETTA_M38] = {
         .name = "Beretta M38 SMG",
         .range = 12,
         .strength = 4,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -713,26 +799,38 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 24,
         .strength = 6,
         .ap = 4,
+        .penetration = 2,
         .shots = 4,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .he_hits_dice_count = 1,
+        .he_hits_die_sides = 2,
+        .he_pins_dice_count = 1,
+        .he_pins_die_sides = 1,
+        .he_penetration = 1,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_PIAT] = {
         .name = "PIAT",
         .range = 24,
         .strength = 7,
         .ap = 2,
+        .penetration = 5,
         .shots = 1,
         .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .shaped_charge = true,
     },
     [DZWK_WEAPON_THOMPSON_SMG] = {
         .name = "Thompson SMG",
         .range = 12,
         .strength = 4,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -743,6 +841,7 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 24,
         .strength = 4,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -753,6 +852,7 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 12,
         .strength = 4,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_ASSAULT_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -763,16 +863,19 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 36,
         .strength = 5,
         .ap = 5,
+        .penetration = 0,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
     },
     [DZWK_WEAPON_M1_GARAND] = {
         .name = "M1 Garand",
         .range = 24,
         .strength = 4,
         .ap = 5,
+        .penetration = 0,
         .shots = 1,
         .mode = DZW_WEAPON_RAPID_FIRE_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
@@ -783,10 +886,13 @@ static const weapon_profile_t wwii_weapon_profiles[DZWK_WEAPON_COUNT] = {
         .range = 36,
         .strength = 5,
         .ap = 4,
+        .penetration = 1,
         .shots = 3,
         .mode = DZW_WEAPON_HEAVY_INTERNAL,
         .mount = DZW_WEAPON_MOUNT_FIXED_INTERNAL,
         .fire_arc_degrees = 360,
+        .team = true,
+        .fixed = true,
     },
     [DZWK_WEAPON_WEBLEY_REVOLVER] = {
         .name = "Webley Revolver",
@@ -821,15 +927,27 @@ weapon_profile_view_t wwii_weapon_profile_view(int index) {
 
     weapon_profile_t profile = wwii_weapon_profiles[index];
     view.name = profile.name;
+    view.min_range = profile.min_range;
     view.range = profile.range;
     view.strength = profile.strength;
     view.ap = profile.ap;
+    view.penetration = profile.penetration;
     view.shots = profile.shots;
     view.flame = profile.flame;
     view.ignores_cover = profile.ignores_cover;
     view.ordnance = profile.ordnance;
     view.barrage = profile.barrage;
     view.blast_diameter = profile.blast_diameter;
+    view.he_hits_dice_count = profile.he_hits_dice_count;
+    view.he_hits_die_sides = profile.he_hits_die_sides;
+    view.he_pins_dice_count = profile.he_pins_dice_count;
+    view.he_pins_die_sides = profile.he_pins_die_sides;
+    view.he_penetration = profile.he_penetration;
+    view.indirect_fire = profile.indirect_fire;
+    view.team = profile.team;
+    view.fixed = profile.fixed;
+    view.shaped_charge = profile.shaped_charge;
+    view.one_shot = profile.one_shot;
 
     switch (profile.mode) {
         case DZW_WEAPON_RAPID_FIRE_INTERNAL:
@@ -2360,11 +2478,81 @@ static int penetration_modifier_for_weapon(const weapon_profile_t *weapon) {
     if (weapon == NULL) {
         return 0;
     }
+    if (weapon->penetration > 0 || weapon->ap > 0 || weapon->he_penetration > 0 || weapon->shaped_charge || weapon->one_shot) {
+        return weapon->penetration;
+    }
     int modifier = weapon->strength - 4;
     if (weapon->flame && modifier < 1) {
         modifier = 1;
     }
     return modifier > 0 ? modifier : 0;
+}
+
+static bool weapon_has_he_profile(const weapon_profile_t *weapon) {
+    return weapon != NULL && weapon->he_hits_dice_count > 0 && weapon->he_hits_die_sides > 0;
+}
+
+static int he_penetration_modifier_for_weapon(const weapon_profile_t *weapon) {
+    if (weapon == NULL) {
+        return 0;
+    }
+    if (weapon->he_penetration > 0) {
+        return weapon->he_penetration;
+    }
+    return penetration_modifier_for_weapon(weapon);
+}
+
+static int roll_die_sides(game_t *game, int sides) {
+    if (sides <= 1) {
+        return 1;
+    }
+    if (sides == 2) {
+        return roll_d6(game) <= 3 ? 1 : 2;
+    }
+    if (sides == 3) {
+        return (roll_d6(game) + 1) / 2;
+    }
+    return roll_d6(game);
+}
+
+static int roll_dice_profile(game_t *game, int dice_count, int die_sides) {
+    if (dice_count <= 0 || die_sides <= 0) {
+        return 0;
+    }
+    int total = 0;
+    for (int die = 0; die < dice_count; die += 1) {
+        total += roll_die_sides(game, die_sides);
+    }
+    return total;
+}
+
+static int roll_he_hits_for_weapon(game_t *game, const weapon_profile_t *weapon, const unit_t *target) {
+    int hits = roll_dice_profile(game, weapon->he_hits_dice_count, weapon->he_hits_die_sides);
+    if (target != NULL && !unit_uses_vehicle_rules(target) && hits > target->models) {
+        hits = target->models;
+    }
+    return hits;
+}
+
+static int roll_he_pin_markers_for_weapon(game_t *game, const weapon_profile_t *weapon) {
+    if (weapon == NULL) {
+        return 1;
+    }
+    if (weapon->he_pins_dice_count > 0 && weapon->he_pins_die_sides > 0) {
+        return roll_dice_profile(game, weapon->he_pins_dice_count, weapon->he_pins_die_sides);
+    }
+    return weapon_has_he_profile(weapon) ? 1 : 0;
+}
+
+static bool weapon_is_inside_minimum_range(const weapon_profile_t *weapon, float range) {
+    return weapon != NULL && weapon->min_range > 0 && range + 0.01f < (float)weapon->min_range;
+}
+
+static bool weapon_is_in_effective_range_for_ruleset(const game_t *game, const weapon_profile_t *weapon, float range) {
+    if (weapon == NULL || range > (float)weapon->range) {
+        return false;
+    }
+    return game == NULL || game->ruleset != DZW_RULESET_ORDER_DICE || !weapon_is_inside_minimum_range(weapon, range);
 }
 
 static void record_shooting_damage_attempt(unit_t *attacker, int damage_value, int penetration_modifier, int damage_roll, bool success) {
@@ -2386,6 +2574,56 @@ static bool roll_order_dice_damage(game_t *game, unit_t *attacker, int damage_va
     bool success = roll + penetration_modifier >= damage_value;
     record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, roll, success);
     return success;
+}
+
+static int vehicle_armour_arc_penetration_modifier(dzw_vehicle_armour_arc_internal_t arc) {
+    switch (arc) {
+        case DZW_VEHICLE_ARMOUR_ARC_REAR_INTERNAL:
+            return 2;
+        case DZW_VEHICLE_ARMOUR_ARC_SIDE_INTERNAL:
+            return 1;
+        case DZW_VEHICLE_ARMOUR_ARC_FRONT_INTERNAL:
+        default:
+            return 0;
+    }
+}
+
+static int vehicle_long_range_penalty_for_weapon(const weapon_profile_t *weapon, float range) {
+    if (weapon == NULL || weapon->penetration <= 0 || !weapon_counts_long_range(weapon, range)) {
+        return 0;
+    }
+    return -1;
+}
+
+static dzw_vehicle_damage_class_t vehicle_damage_class_for_penetration(int penetration_roll, int damage_value) {
+    if (penetration_roll < damage_value) {
+        return DZW_VEHICLE_DAMAGE_NONE;
+    }
+    if (penetration_roll == damage_value) {
+        return DZW_VEHICLE_DAMAGE_SUPERFICIAL;
+    }
+    if (penetration_roll >= damage_value + 3) {
+        return DZW_VEHICLE_DAMAGE_MASSIVE;
+    }
+    return DZW_VEHICLE_DAMAGE_FULL;
+}
+
+static void record_vehicle_penetration_details(
+    unit_t *attacker,
+    int armour_modifier,
+    int long_range_penalty,
+    int open_topped_indirect_modifier,
+    dzw_vehicle_damage_class_t damage_class
+) {
+    if (attacker == NULL) {
+        return;
+    }
+    attacker->last_shooting_vehicle_armour_modifier = armour_modifier;
+    attacker->last_shooting_vehicle_long_range_penalty = long_range_penalty;
+    attacker->last_shooting_vehicle_open_topped_indirect_modifier = open_topped_indirect_modifier;
+    if (damage_class > attacker->last_shooting_vehicle_damage_class) {
+        attacker->last_shooting_vehicle_damage_class = damage_class;
+    }
 }
 
 static order_die_view_t order_die_view_from(order_die_t die, bool available) {
@@ -2691,6 +2929,10 @@ static void reset_unit_shooting_execution_details(unit_t *unit) {
     unit->last_shooting_penetration_modifier = 0;
     unit->last_shooting_damage_roll = 0;
     unit->last_shooting_damage_success = false;
+    unit->last_shooting_vehicle_armour_modifier = 0;
+    unit->last_shooting_vehicle_long_range_penalty = 0;
+    unit->last_shooting_vehicle_open_topped_indirect_modifier = 0;
+    unit->last_shooting_vehicle_damage_class = DZW_VEHICLE_DAMAGE_NONE;
     unit->last_shooting_models_removed = 0;
     unit->last_shooting_pins_added = 0;
     unit->last_shooting_morale_checked = false;
@@ -4902,17 +5144,29 @@ static void apply_vehicle_blast_radius(game_t *game, const unit_t *source, int r
     }
 }
 
-static int vehicle_armour_for_arc(const unit_t *vehicle, float attacker_x, float attacker_y) {
+static dzw_vehicle_armour_arc_internal_t vehicle_armour_arc_for_attack(const unit_t *vehicle, float attacker_x, float attacker_y) {
     float angle_from_vehicle = angle_to(vehicle->x, vehicle->y, attacker_x, attacker_y);
     float difference = smallest_angle_between(vehicle->facing_degrees, angle_from_vehicle);
 
     if (difference <= 45.0f) {
-        return vehicle->front_armour;
+        return DZW_VEHICLE_ARMOUR_ARC_FRONT_INTERNAL;
     }
     if (difference >= 135.0f) {
-        return vehicle->rear_armour;
+        return DZW_VEHICLE_ARMOUR_ARC_REAR_INTERNAL;
     }
-    return vehicle->side_armour;
+    return DZW_VEHICLE_ARMOUR_ARC_SIDE_INTERNAL;
+}
+
+static int vehicle_armour_for_arc(const unit_t *vehicle, float attacker_x, float attacker_y) {
+    switch (vehicle_armour_arc_for_attack(vehicle, attacker_x, attacker_y)) {
+        case DZW_VEHICLE_ARMOUR_ARC_REAR_INTERNAL:
+            return vehicle->rear_armour;
+        case DZW_VEHICLE_ARMOUR_ARC_SIDE_INTERNAL:
+            return vehicle->side_armour;
+        case DZW_VEHICLE_ARMOUR_ARC_FRONT_INTERNAL:
+        default:
+            return vehicle->front_armour;
+    }
 }
 
 static void record_weapon_fire_angle(const unit_t *attacker, const unit_t *target, weapon_slot_t *slot) {
@@ -5013,10 +5267,14 @@ static void apply_ordnance_vehicle_damage(game_t *game, const unit_t *attacker, 
     }
 }
 
-static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *vehicle, bool glancing_hit) {
+static void apply_vehicle_damage_with_modifier(game_t *game, const unit_t *attacker, unit_t *vehicle, bool glancing_hit, int damage_roll_modifier, bool legacy_open_topped_modifier) {
     int damage_roll = roll_d6(game);
-    if (vehicle->open_topped) {
+    damage_roll += damage_roll_modifier;
+    if (legacy_open_topped_modifier && vehicle->open_topped) {
         damage_roll += 1;
+    }
+    if (damage_roll < 1) {
+        damage_roll = 1;
     }
     if (damage_roll > 6) {
         damage_roll = 6;
@@ -5078,6 +5336,28 @@ static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *v
         default:
             break;
     }
+}
+
+static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *vehicle, bool glancing_hit) {
+    apply_vehicle_damage_with_modifier(game, attacker, vehicle, glancing_hit, 0, true);
+}
+
+static void apply_vehicle_damage_class(game_t *game, const unit_t *attacker, unit_t *vehicle, dzw_vehicle_damage_class_t damage_class, int damage_roll_modifier) {
+    if (damage_class == DZW_VEHICLE_DAMAGE_NONE || vehicle == NULL || vehicle->destroyed) {
+        return;
+    }
+    if (damage_class == DZW_VEHICLE_DAMAGE_SUPERFICIAL) {
+        apply_vehicle_damage_with_modifier(game, attacker, vehicle, true, damage_roll_modifier - 3, false);
+        return;
+    }
+    if (damage_class == DZW_VEHICLE_DAMAGE_MASSIVE) {
+        apply_vehicle_damage_with_modifier(game, attacker, vehicle, false, damage_roll_modifier, false);
+        if (!vehicle->destroyed && !game_has_pending_weapon_destroy_choice(game)) {
+            apply_vehicle_damage_with_modifier(game, attacker, vehicle, false, damage_roll_modifier, false);
+        }
+        return;
+    }
+    apply_vehicle_damage_with_modifier(game, attacker, vehicle, false, damage_roll_modifier, false);
 }
 
 static void log_profile_group_allocation(game_t *game, const unit_t *target, const int *allocated_hits) {
@@ -5356,7 +5636,11 @@ static void resolve_weapon_against_infantry(game_t *game, unit_t *attacker, unit
             }
         }
 
-        hits = estimate_template_hits(game, target, marker_x, marker_y, weapon->blast_diameter);
+        int template_overlap_hits = estimate_template_hits(game, target, marker_x, marker_y, weapon->blast_diameter);
+        hits = template_overlap_hits;
+        if (game->ruleset == DZW_RULESET_ORDER_DICE && weapon_has_he_profile(weapon) && template_overlap_hits > 0) {
+            hits = roll_he_hits_for_weapon(game, weapon, target);
+        }
         if (hits <= 0) {
             dzw_log(game, "%s's %s scatters clear of %s.", attacker->name, weapon->name, target->name);
             return;
@@ -5369,7 +5653,8 @@ static void resolve_weapon_against_infantry(game_t *game, unit_t *attacker, unit
         }
 
         if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-            add_pin_markers_from_fire(game, target, weapon->ordnance || weapon->barrage ? 2 : 1, weapon->name);
+            int he_pins = roll_he_pin_markers_for_weapon(game, weapon);
+            add_pin_markers_from_fire(game, target, he_pins > 0 ? he_pins : 1, weapon->name);
         }
         if (unit_has_mixed_profiles(target)) {
             resolve_mixed_infantry_hits(game, attacker, target, weapon, hits);
@@ -5377,7 +5662,7 @@ static void resolve_weapon_against_infantry(game_t *game, unit_t *attacker, unit
         }
         if (game->ruleset == DZW_RULESET_ORDER_DICE) {
             int damage_value = damage_value_for_infantry_unit(target);
-            int penetration_modifier = penetration_modifier_for_weapon(weapon);
+            int penetration_modifier = weapon_has_he_profile(weapon) ? he_penetration_modifier_for_weapon(weapon) : penetration_modifier_for_weapon(weapon);
             for (int hit = 0; hit < hits; hit += 1) {
                 if (!roll_order_dice_damage(game, attacker, damage_value, penetration_modifier)) {
                     continue;
@@ -5526,14 +5811,19 @@ static bool finalize_pending_hit_allocation_choice(game_t *game, bool apply_shoo
 }
 
 static void resolve_weapon_against_vehicle(game_t *game, unit_t *attacker, unit_t *target, const weapon_profile_t *weapon, int shots) {
+    dzw_vehicle_armour_arc_internal_t armour_arc = vehicle_armour_arc_for_attack(target, attacker->x, attacker->y);
     int armour_value = vehicle_armour_for_arc(target, attacker->x, attacker->y);
     int damage_value = game->ruleset == DZW_RULESET_ORDER_DICE ? damage_value_for_vehicle_armour(target, armour_value) : armour_value;
-    int penetration_modifier = game->ruleset == DZW_RULESET_ORDER_DICE ? penetration_modifier_for_weapon(weapon) : weapon->strength;
     const char *damage_label = game->ruleset == DZW_RULESET_ORDER_DICE ? "DV" : "AV";
     float range = edge_distance_between_units(attacker, target);
     if (range < 0.0f) {
         range = 0.0f;
     }
+    int armour_modifier = game->ruleset == DZW_RULESET_ORDER_DICE ? vehicle_armour_arc_penetration_modifier(armour_arc) : 0;
+    int long_range_penalty = game->ruleset == DZW_RULESET_ORDER_DICE ? vehicle_long_range_penalty_for_weapon(weapon, range) : 0;
+    int base_penetration_modifier = game->ruleset == DZW_RULESET_ORDER_DICE ? penetration_modifier_for_weapon(weapon) : weapon->strength;
+    int penetration_modifier = base_penetration_modifier + armour_modifier + long_range_penalty;
+    int open_topped_indirect_modifier = game->ruleset == DZW_RULESET_ORDER_DICE && target->open_topped && (weapon->indirect_fire || weapon->barrage) ? 1 : 0;
     bool protective_glancing_only = target->smoke_active || hull_down_for_unit(game, target) || (target->recon && target->moved_distance > 6.0f);
 
     if (weapon->flame) {
@@ -5547,20 +5837,33 @@ static void resolve_weapon_against_vehicle(game_t *game, unit_t *attacker, unit_
         for (int hit = 0; hit < hits; hit += 1) {
             int raw_damage_roll = roll_d6(game);
             int penetration_roll = raw_damage_roll + penetration_modifier;
+            dzw_vehicle_damage_class_t damage_class = vehicle_damage_class_for_penetration(penetration_roll, damage_value);
             if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-                record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, penetration_roll >= damage_value);
+                record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, damage_class != DZW_VEHICLE_DAMAGE_NONE);
+                record_vehicle_penetration_details(attacker, armour_modifier, long_range_penalty, open_topped_indirect_modifier, damage_class);
             }
-            if (penetration_roll < damage_value) {
+            if (damage_class == DZW_VEHICLE_DAMAGE_NONE) {
                 dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs %s %d).", attacker->name, weapon->name, target->name, penetration_roll, damage_label, damage_value);
+                continue;
+            }
+
+            if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+                if (protective_glancing_only && damage_class > DZW_VEHICLE_DAMAGE_SUPERFICIAL) {
+                    damage_class = DZW_VEHICLE_DAMAGE_SUPERFICIAL;
+                    record_vehicle_penetration_details(attacker, armour_modifier, long_range_penalty, open_topped_indirect_modifier, damage_class);
+                }
+                add_pin_markers_from_fire(game, target, 1, weapon->name);
+                dzw_log(game, "%s scores %s damage on %s with %s.", attacker->name, damage_class == DZW_VEHICLE_DAMAGE_SUPERFICIAL ? "superficial" : (damage_class == DZW_VEHICLE_DAMAGE_MASSIVE ? "massive" : "full"), target->name, weapon->name);
+                apply_vehicle_damage_class(game, attacker, target, damage_class, open_topped_indirect_modifier);
+                if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
+                    return;
+                }
                 continue;
             }
 
             bool glancing_hit = penetration_roll == damage_value;
             if (!glancing_hit && protective_glancing_only) {
                 glancing_hit = true;
-            }
-            if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-                add_pin_markers_from_fire(game, target, 1, weapon->name);
             }
 
             if (glancing_hit) {
@@ -5600,21 +5903,39 @@ static void resolve_weapon_against_vehicle(game_t *game, unit_t *attacker, unit_
         }
 
         dzw_log(game, "%s lands %d blast hit%s on %s with %s (%s).", attacker->name, hits, hits == 1 ? "" : "s", target->name, weapon->name, direct_hit ? "direct hit" : "scatter");
+        int blast_penetration_modifier = penetration_modifier;
+        if (game->ruleset == DZW_RULESET_ORDER_DICE && (weapon->indirect_fire || weapon->barrage)) {
+            blast_penetration_modifier = he_penetration_modifier_for_weapon(weapon) + armour_modifier + long_range_penalty;
+        }
         for (int hit = 0; hit < hits; hit += 1) {
             int raw_damage_roll = roll_d6(game);
-            int penetration_roll = raw_damage_roll + penetration_modifier;
+            int penetration_roll = raw_damage_roll + blast_penetration_modifier;
+            dzw_vehicle_damage_class_t damage_class = vehicle_damage_class_for_penetration(penetration_roll, damage_value);
             if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-                record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, penetration_roll >= damage_value);
+                record_shooting_damage_attempt(attacker, damage_value, blast_penetration_modifier, raw_damage_roll, damage_class != DZW_VEHICLE_DAMAGE_NONE);
+                record_vehicle_penetration_details(attacker, armour_modifier, long_range_penalty, open_topped_indirect_modifier, damage_class);
             }
-            if (penetration_roll < damage_value) {
+            if (damage_class == DZW_VEHICLE_DAMAGE_NONE) {
                 dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs %s %d).", attacker->name, weapon->name, target->name, penetration_roll, damage_label, damage_value);
                 continue;
             }
 
-            bool glancing_hit = penetration_roll == damage_value || protective_glancing_only;
             if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-                add_pin_markers_from_fire(game, target, weapon->ordnance || weapon->barrage ? 2 : 1, weapon->name);
+                if (protective_glancing_only && damage_class > DZW_VEHICLE_DAMAGE_SUPERFICIAL) {
+                    damage_class = DZW_VEHICLE_DAMAGE_SUPERFICIAL;
+                    record_vehicle_penetration_details(attacker, armour_modifier, long_range_penalty, open_topped_indirect_modifier, damage_class);
+                }
+                int he_pins = roll_he_pin_markers_for_weapon(game, weapon);
+                add_pin_markers_from_fire(game, target, he_pins > 0 ? he_pins : 1, weapon->name);
+                dzw_log(game, "%s scores %s damage on %s with %s.", attacker->name, damage_class == DZW_VEHICLE_DAMAGE_SUPERFICIAL ? "superficial" : (damage_class == DZW_VEHICLE_DAMAGE_MASSIVE ? "massive" : "full"), target->name, weapon->name);
+                apply_vehicle_damage_class(game, attacker, target, damage_class, open_topped_indirect_modifier);
+                if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
+                    return;
+                }
+                continue;
             }
+
+            bool glancing_hit = penetration_roll == damage_value || protective_glancing_only;
             if (glancing_hit) {
                 dzw_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_vehicle_damage(game, attacker, target, true);
@@ -5641,20 +5962,33 @@ static void resolve_weapon_against_vehicle(game_t *game, unit_t *attacker, unit_
 
         int raw_damage_roll = roll_d6(game);
         int penetration_roll = raw_damage_roll + penetration_modifier;
+        dzw_vehicle_damage_class_t damage_class = vehicle_damage_class_for_penetration(penetration_roll, damage_value);
         if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-            record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, penetration_roll >= damage_value);
+            record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, damage_class != DZW_VEHICLE_DAMAGE_NONE);
+            record_vehicle_penetration_details(attacker, armour_modifier, long_range_penalty, open_topped_indirect_modifier, damage_class);
         }
-        if (penetration_roll < damage_value) {
+        if (damage_class == DZW_VEHICLE_DAMAGE_NONE) {
             dzw_log(game, "%s's %s bounces off %s (penetration %d vs %s %d).", attacker->name, weapon->name, target->name, penetration_roll, damage_label, damage_value);
+            continue;
+        }
+
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            if (protective_glancing_only && damage_class > DZW_VEHICLE_DAMAGE_SUPERFICIAL) {
+                damage_class = DZW_VEHICLE_DAMAGE_SUPERFICIAL;
+                record_vehicle_penetration_details(attacker, armour_modifier, long_range_penalty, open_topped_indirect_modifier, damage_class);
+            }
+            add_pin_markers_from_fire(game, target, 1, weapon->name);
+            dzw_log(game, "%s scores %s damage on %s with %s.", attacker->name, damage_class == DZW_VEHICLE_DAMAGE_SUPERFICIAL ? "superficial" : (damage_class == DZW_VEHICLE_DAMAGE_MASSIVE ? "massive" : "full"), target->name, weapon->name);
+            apply_vehicle_damage_class(game, attacker, target, damage_class, open_topped_indirect_modifier);
+            if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
+                return;
+            }
             continue;
         }
 
         bool glancing_hit = penetration_roll == damage_value;
         if (!glancing_hit && protective_glancing_only) {
             glancing_hit = true;
-        }
-        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
-            add_pin_markers_from_fire(game, target, 1, weapon->name);
         }
 
         if (glancing_hit) {
@@ -5683,7 +6017,7 @@ static bool resolve_vehicle_follow_on_fire(game_t *game, unit_t *attacker, unit_
         if (slot->profile.ordnance && attacker->moved_distance > 0.01f) {
             continue;
         }
-        if (range > (float)slot->profile.range) {
+        if (!weapon_is_in_effective_range_for_ruleset(game, &slot->profile, range)) {
             continue;
         }
         if (out_weapon_in_range != NULL) {
@@ -7924,6 +8258,10 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.last_shooting_penetration_modifier = unit->last_shooting_penetration_modifier;
     view.last_shooting_damage_roll = unit->last_shooting_damage_roll;
     view.last_shooting_damage_success = unit->last_shooting_damage_success;
+    view.last_shooting_vehicle_armour_modifier = unit->last_shooting_vehicle_armour_modifier;
+    view.last_shooting_vehicle_long_range_penalty = unit->last_shooting_vehicle_long_range_penalty;
+    view.last_shooting_vehicle_open_topped_indirect_modifier = unit->last_shooting_vehicle_open_topped_indirect_modifier;
+    view.last_shooting_vehicle_damage_class = unit->last_shooting_vehicle_damage_class;
     view.last_shooting_models_removed = unit->last_shooting_models_removed;
     view.last_shooting_pins_added = unit->last_shooting_pins_added;
     view.last_shooting_morale_checked = unit->last_shooting_morale_checked;
@@ -8606,6 +8944,9 @@ bool game_fire_passenger(game_t *game, int transport_id, int target_id) {
     if (range > (float)slot->profile.range) {
         return fail(game, "%s is out of range for embarked fire.", target->name);
     }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && weapon_is_inside_minimum_range(&slot->profile, range)) {
+        return fail(game, "%s is inside %s's %.0f\" minimum range.", target->name, slot->profile.name, (double)slot->profile.min_range);
+    }
     if (!transport_passenger_has_arc(transport, target)) {
         return fail(game, "%s cannot bring its firing points to bear on %s.", transport->name, target->name);
     }
@@ -8803,6 +9144,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     bool arc_blocked = false;
     bool line_blocked = false;
     bool weapon_in_range = false;
+    bool minimum_range_blocked = false;
 
     if (unit_uses_vehicle_rules(attacker)) {
         weapon_slot_t *ordnance_slot = NULL;
@@ -8817,7 +9159,12 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
                 if (candidate->destroyed || !candidate->profile.ordnance) {
                     continue;
                 }
-                if (range > (float)candidate->profile.range) {
+                if (range <= (float)candidate->profile.range && weapon_is_inside_minimum_range(&candidate->profile, range)) {
+                    minimum_range_blocked = true;
+                    weapon_in_range = true;
+                    continue;
+                }
+                if (!weapon_is_in_effective_range_for_ruleset(game, &candidate->profile, range)) {
                     continue;
                 }
                 weapon_in_range = true;
@@ -8865,7 +9212,10 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
         if (slot->destroyed) {
             return fail(game, "%s has no operational ranged weapon.", attacker->name);
         }
-        weapon_in_range = range <= (float)slot->profile.range;
+        weapon_in_range = weapon_is_in_effective_range_for_ruleset(game, &slot->profile, range);
+        if (game->ruleset == DZW_RULESET_ORDER_DICE && weapon_is_inside_minimum_range(&slot->profile, range)) {
+            return fail(game, "%s is inside %s's %.0f\" minimum range.", target->name, slot->profile.name, (double)slot->profile.min_range);
+        }
         if (!slot->profile.barrage && line_of_sight_blocked(game, attacker, target)) {
             return fail(game, "%s does not have line of sight to %s.", attacker->name, target->name);
         }
@@ -8896,6 +9246,9 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     }
 
     if (!resolved_any_weapon) {
+        if (minimum_range_blocked) {
+            return fail(game, "%s is inside the minimum range of %s's available weapon.", target->name, attacker->name);
+        }
         if (arc_blocked && !line_blocked) {
             return fail(game, "%s has no vehicle weapon with an arc to %s.", attacker->name, target->name);
         }

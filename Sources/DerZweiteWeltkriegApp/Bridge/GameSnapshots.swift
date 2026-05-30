@@ -535,6 +535,10 @@ struct UnitSnapshot: Identifiable {
     let lastShootingPenetrationModifier: Int
     let lastShootingDamageRoll: Int
     let lastShootingDamageSuccess: Bool
+    let lastShootingVehicleArmourModifier: Int
+    let lastShootingVehicleLongRangePenalty: Int
+    let lastShootingVehicleOpenToppedIndirectModifier: Int
+    let lastShootingVehicleDamageClass: dzw_vehicle_damage_class_t
     let lastShootingModelsRemoved: Int
     let lastShootingPinsAdded: Int
     let lastShootingMoraleChecked: Bool
@@ -640,6 +644,10 @@ struct UnitSnapshot: Identifiable {
         lastShootingPenetrationModifier = Int(raw.last_shooting_penetration_modifier)
         lastShootingDamageRoll = Int(raw.last_shooting_damage_roll)
         lastShootingDamageSuccess = raw.last_shooting_damage_success
+        lastShootingVehicleArmourModifier = Int(raw.last_shooting_vehicle_armour_modifier)
+        lastShootingVehicleLongRangePenalty = Int(raw.last_shooting_vehicle_long_range_penalty)
+        lastShootingVehicleOpenToppedIndirectModifier = Int(raw.last_shooting_vehicle_open_topped_indirect_modifier)
+        lastShootingVehicleDamageClass = raw.last_shooting_vehicle_damage_class
         lastShootingModelsRemoved = Int(raw.last_shooting_models_removed)
         lastShootingPinsAdded = Int(raw.last_shooting_pins_added)
         lastShootingMoraleChecked = raw.last_shooting_morale_checked

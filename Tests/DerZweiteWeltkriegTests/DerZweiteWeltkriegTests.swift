@@ -144,6 +144,7 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         }
         defer { game_destroy(game) }
 
+        XCTAssertTrue(game_deploy_unit(game, 4, 25.0, 36.0))
         XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
         let startingDice = Int(game_order_dice_remaining_count(game))
         let firstUnit = firstOrderAssignableUnit(owner: DZW_PLAYER_ONE, in: game)
@@ -1033,9 +1034,9 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             XCTAssertTrue(game_shoot_unit(game, 7, 6))
 
             let shooter = unitView(withID: 7, in: game)
-            if shooter.last_shooting_penetration_modifier == 5 {
+            if shooter.last_shooting_penetration_modifier == 6 {
                 XCTAssertEqual(Int(shooter.last_shooting_damage_value), 6)
-                XCTAssertEqual(Int(shooter.last_shooting_penetration_modifier), 5)
+                XCTAssertEqual(Int(shooter.last_shooting_penetration_modifier), 6)
                 XCTAssertGreaterThan(Int(shooter.last_shooting_damage_roll), 0)
                 XCTAssertTrue(shooter.last_shooting_damage_success)
                 recordedVehicleDamage = true
@@ -1044,6 +1045,145 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         }
 
         XCTAssertTrue(recordedVehicleDamage)
+    }
+
+    func testOrderDiceRejectsLegacySideWideShootingWithoutFireOrAdvanceOrder() {
+        guard let rejectionGame = game_create_demo(121) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(rejectionGame) }
+
+        XCTAssertTrue(game_deploy_unit(rejectionGame, 4, 25.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(rejectionGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertFalse(game_shoot_unit(rejectionGame, 1, 4))
+        XCTAssertTrue(String(cString: game_last_error(rejectionGame)).contains("Fire or Advance order"))
+
+        guard let fireGame = game_create_demo(122) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(fireGame) }
+
+        XCTAssertTrue(game_deploy_unit(fireGame, 4, 25.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(fireGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 1, in: fireGame))
+        XCTAssertTrue(game_shoot_unit(fireGame, 1, 4), String(cString: game_last_error(fireGame)))
+    }
+
+    func testWeaponChartReferenceFieldsExposePenHeAndSpecialRules() {
+        let bazooka = weaponProfile(named: "M1 Bazooka")
+        XCTAssertEqual(Int(bazooka.penetration), 5)
+        XCTAssertTrue(bazooka.shaped_charge)
+        XCTAssertTrue(bazooka.team)
+
+        let panzerfaust = weaponProfile(named: "Panzerfaust")
+        XCTAssertEqual(Int(panzerfaust.penetration), 6)
+        XCTAssertTrue(panzerfaust.one_shot)
+        XCTAssertTrue(panzerfaust.shaped_charge)
+
+        let mortar = weaponProfile(named: "81mm Mortar Battery")
+        XCTAssertEqual(Int(mortar.min_range), 18)
+        XCTAssertEqual(Int(mortar.range), 60)
+        XCTAssertEqual(Int(mortar.he_hits_dice_count), 1)
+        XCTAssertEqual(Int(mortar.he_hits_die_sides), 6)
+        XCTAssertEqual(Int(mortar.he_pins_die_sides), 2)
+        XCTAssertEqual(Int(mortar.he_penetration), 2)
+        XCTAssertTrue(mortar.indirect_fire)
+        XCTAssertTrue(mortar.fixed)
+
+        let antiTankGun = weaponProfile(named: "17-pounder Anti-Tank Gun")
+        XCTAssertEqual(Int(antiTankGun.penetration), 6)
+        XCTAssertEqual(Int(antiTankGun.he_hits_die_sides), 3)
+    }
+
+    func testOrderDiceIndirectHeEnforcesMinimumRangeAndRecordsHePenetrationAndPins() {
+        guard let tooClose = game_create_demo(131) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(tooClose) }
+
+        XCTAssertTrue(game_deploy_unit(tooClose, 5, 20.0, 42.0))
+        XCTAssertTrue(game_set_ruleset(tooClose, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 8, in: tooClose))
+        XCTAssertFalse(game_shoot_unit(tooClose, 8, 5))
+        XCTAssertTrue(String(cString: game_last_error(tooClose)).contains("minimum range"))
+
+        var observedHeHit = false
+        for seed in 132...220 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 8, in: game))
+            XCTAssertTrue(game_shoot_unit(game, 8, 5))
+
+            let mortar = unitView(withID: 8, in: game)
+            if mortar.last_shooting_pins_added > 0 {
+                XCTAssertEqual(Int(mortar.last_shooting_penetration_modifier), 2)
+                XCTAssertGreaterThanOrEqual(Int(mortar.last_shooting_pins_added), 1)
+                XCTAssertLessThanOrEqual(Int(mortar.last_shooting_pins_added), 2)
+                observedHeHit = true
+                break
+            }
+        }
+
+        XCTAssertTrue(observedHeHit)
+    }
+
+    func testOrderDiceVehiclePenetrationRecordsArmourArcRangeAndDamageClass() {
+        var observedSideShot = false
+        for seed in 136...220 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_deploy_unit(game, 6, 30.0, 10.0))
+            XCTAssertTrue(game_deploy_rotate_unit(game, 6, 90.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 7, in: game))
+            XCTAssertTrue(game_shoot_unit(game, 7, 6))
+
+            let firefly = unitView(withID: 7, in: game)
+            if firefly.last_shooting_penetration_modifier == 7 {
+                XCTAssertEqual(Int(firefly.last_shooting_vehicle_armour_modifier), 1)
+                XCTAssertEqual(Int(firefly.last_shooting_vehicle_long_range_penalty), 0)
+                XCTAssertGreaterThan(Int(firefly.last_shooting_damage_roll), 0)
+                XCTAssertNotEqual(firefly.last_shooting_vehicle_damage_class, DZW_VEHICLE_DAMAGE_NONE)
+                observedSideShot = true
+                break
+            }
+        }
+
+        XCTAssertTrue(observedSideShot)
+
+        var observedLongRangeShot = false
+        for seed in 221...300 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_deploy_unit(game, 6, 63.0, 10.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 7, in: game))
+            XCTAssertTrue(game_shoot_unit(game, 7, 6))
+
+            let firefly = unitView(withID: 7, in: game)
+            if firefly.last_shooting_penetration_modifier == 5 {
+                XCTAssertEqual(Int(firefly.last_shooting_vehicle_armour_modifier), 0)
+                XCTAssertEqual(Int(firefly.last_shooting_vehicle_long_range_penalty), -1)
+                XCTAssertGreaterThan(Int(firefly.last_shooting_damage_roll), 0)
+                observedLongRangeShot = true
+                break
+            }
+        }
+
+        XCTAssertTrue(observedLongRangeShot)
     }
 
     func testArmyPresetDemoLoadsSelectedMatchup() {

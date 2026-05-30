@@ -64,6 +64,13 @@ typedef enum {
 } dzw_target_reaction_t;
 
 typedef enum {
+    DZW_VEHICLE_DAMAGE_NONE = 0,
+    DZW_VEHICLE_DAMAGE_SUPERFICIAL = 1,
+    DZW_VEHICLE_DAMAGE_FULL = 2,
+    DZW_VEHICLE_DAMAGE_MASSIVE = 3
+} dzw_vehicle_damage_class_t;
+
+typedef enum {
     DZW_UNIT_INFANTRY = 0,
     DZW_UNIT_VEHICLE = 1,
     DZW_UNIT_ASSAULT_GUN = 2
@@ -166,9 +173,11 @@ typedef struct {
 
 typedef struct {
     const char *name;
+    int min_range;
     int range;
     int strength;
     int ap;
+    int penetration;
     int shots;
     bool rapid_fire;
     bool pistol;
@@ -179,6 +188,16 @@ typedef struct {
     bool ordnance;
     bool barrage;
     int blast_diameter;
+    int he_hits_dice_count;
+    int he_hits_die_sides;
+    int he_pins_dice_count;
+    int he_pins_die_sides;
+    int he_penetration;
+    bool indirect_fire;
+    bool team;
+    bool fixed;
+    bool shaped_charge;
+    bool one_shot;
 } weapon_profile_view_t;
 
 typedef struct {
@@ -360,6 +379,10 @@ typedef struct {
     int last_shooting_penetration_modifier;
     int last_shooting_damage_roll;
     bool last_shooting_damage_success;
+    int last_shooting_vehicle_armour_modifier;
+    int last_shooting_vehicle_long_range_penalty;
+    int last_shooting_vehicle_open_topped_indirect_modifier;
+    dzw_vehicle_damage_class_t last_shooting_vehicle_damage_class;
     int last_shooting_models_removed;
     int last_shooting_pins_added;
     bool last_shooting_morale_checked;
