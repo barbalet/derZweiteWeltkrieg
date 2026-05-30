@@ -232,6 +232,20 @@ typedef struct {
 } profile_group_view_t;
 
 typedef struct {
+    bool available;
+    int sequence;
+    player_t owner;
+} order_die_view_t;
+
+typedef struct {
+    int unit_id;
+    dzw_order_t order;
+    bool eligible;
+    bool requires_order_test;
+    const char *reason;
+} unit_order_eligibility_view_t;
+
+typedef struct {
     int turn_number;
     player_t active_player;
     phase_t phase;
@@ -322,6 +336,7 @@ int wwii_weapon_profile_count(void);
 weapon_profile_view_t wwii_weapon_profile_view(int index);
 
 dzw_ruleset_t game_ruleset(const game_t *game);
+bool game_set_ruleset(game_t *game, dzw_ruleset_t ruleset);
 const char *game_ruleset_name(dzw_ruleset_t ruleset);
 const char *game_order_name(dzw_order_t order);
 const char *game_morale_quality_name(dzw_morale_quality_t quality);
@@ -329,6 +344,18 @@ const char *game_order_test_result_name(dzw_order_test_result_t result);
 bool game_uses_legacy_phase_flow(const game_t *game);
 int game_phase_flow_migration_blocker_count(const game_t *game);
 const char *game_phase_flow_migration_blocker(const game_t *game, int index);
+bool game_rebuild_order_dice_cup(game_t *game);
+int game_order_dice_remaining_count(const game_t *game);
+order_die_view_t game_order_dice_remaining_view(const game_t *game, int index);
+int game_order_dice_spent_count(const game_t *game);
+order_die_view_t game_order_dice_spent_view(const game_t *game, int index);
+int game_order_dice_retained_count(const game_t *game);
+order_die_view_t game_order_dice_retained_view(const game_t *game, int index);
+order_die_view_t game_current_order_die_view(const game_t *game);
+uint32_t game_order_dice_replay_signature(const game_t *game);
+unit_order_eligibility_view_t game_unit_order_eligibility_view(const game_t *game, int unit_id, dzw_order_t order);
+bool game_draw_order_die(game_t *game);
+bool game_assign_order(game_t *game, int unit_id, dzw_order_t order);
 
 game_view_t game_view(const game_t *game);
 mission_view_t game_mission_view(const game_t *game);

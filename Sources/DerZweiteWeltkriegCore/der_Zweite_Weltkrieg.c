@@ -242,6 +242,11 @@ typedef struct {
     profile_group_t profile_groups[DZW_MAX_PROFILE_GROUPS];
 } unit_t;
 
+typedef struct {
+    int sequence;
+    player_t owner;
+} order_die_t;
+
 struct dzw_game {
     uint32_t rng_state;
     int turn_number;
@@ -254,6 +259,15 @@ struct dzw_game {
     int player_two_force;
     int unit_count;
     unit_t units[DZW_MAX_UNITS];
+    int order_dice_remaining_count;
+    order_die_t order_dice_remaining[DZW_MAX_UNITS];
+    int order_dice_spent_count;
+    order_die_t order_dice_spent[DZW_MAX_UNITS];
+    int order_dice_retained_count;
+    order_die_t order_dice_retained[DZW_MAX_UNITS];
+    bool current_order_die_available;
+    order_die_t current_order_die;
+    int next_order_die_sequence;
     int zone_count;
     zone_t zones[DZW_MAX_ZONES];
     const char *mission_name;
@@ -2085,6 +2099,217 @@ const char *game_order_test_result_name(dzw_order_test_result_t result) {
     }
 }
 
+static bool order_value_can_be_assigned(dzw_order_t order) {
+    return order >= DZW_ORDER_FIRE && order <= DZW_ORDER_DOWN;
+}
+
+static bool order_permits_movement(dzw_order_t order) {
+    return order == DZW_ORDER_ADVANCE || order == DZW_ORDER_RUN;
+}
+
+static bool order_permits_shooting(dzw_order_t order) {
+    return order == DZW_ORDER_FIRE || order == DZW_ORDER_ADVANCE;
+}
+
+static bool order_permits_assault(dzw_order_t order) {
+    return order == DZW_ORDER_RUN;
+}
+
+static bool order_is_retained(dzw_order_t order) {
+    return order == DZW_ORDER_AMBUSH || order == DZW_ORDER_DOWN;
+}
+
+static order_die_view_t order_die_view_from(order_die_t die, bool available) {
+    order_die_view_t view;
+    memset(&view, 0, sizeof(view));
+    view.available = available;
+    view.sequence = die.sequence;
+    view.owner = die.owner;
+    return view;
+}
+
+static void clear_order_dice_lifecycle(game_t *game) {
+    if (game == NULL) {
+        return;
+    }
+    game->order_dice_remaining_count = 0;
+    game->order_dice_spent_count = 0;
+    game->order_dice_retained_count = 0;
+    game->current_order_die_available = false;
+    game->next_order_die_sequence = 1;
+    memset(game->order_dice_remaining, 0, sizeof(game->order_dice_remaining));
+    memset(game->order_dice_spent, 0, sizeof(game->order_dice_spent));
+    memset(game->order_dice_retained, 0, sizeof(game->order_dice_retained));
+    memset(&game->current_order_die, 0, sizeof(game->current_order_die));
+}
+
+static bool unit_can_receive_order_die(const unit_t *unit) {
+    if (unit == NULL || unit->destroyed || unit->models <= 0 || unit->owner == DZW_PLAYER_NONE) {
+        return false;
+    }
+    if (unit_is_embarked(unit) || unit->falling_back || unit->locked_in_assault) {
+        return false;
+    }
+    if (unit->acted_this_turn_order_dice || unit->retained_order || unit->current_order != DZW_ORDER_NONE) {
+        return false;
+    }
+    return true;
+}
+
+static int order_assignable_unit_count_for_owner(const game_t *game, player_t owner) {
+    if (game == NULL || owner == DZW_PLAYER_NONE) {
+        return 0;
+    }
+
+    int count = 0;
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *unit = &game->units[index];
+        if (unit->owner == owner && unit_can_receive_order_die(unit)) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+static void append_order_die(order_die_t *dice, int *count, order_die_t die) {
+    if (dice == NULL || count == NULL || *count >= DZW_MAX_UNITS) {
+        return;
+    }
+    dice[*count] = die;
+    *count += 1;
+}
+
+static void shuffle_order_dice_remaining(game_t *game) {
+    if (game == NULL) {
+        return;
+    }
+    for (int index = game->order_dice_remaining_count - 1; index > 0; index -= 1) {
+        int swap_index = (int)(next_random(game) % (uint32_t)(index + 1));
+        order_die_t swap = game->order_dice_remaining[index];
+        game->order_dice_remaining[index] = game->order_dice_remaining[swap_index];
+        game->order_dice_remaining[swap_index] = swap;
+    }
+}
+
+static void rebuild_order_dice_cup_internal(game_t *game, bool log_event) {
+    if (game == NULL) {
+        return;
+    }
+
+    clear_order_dice_lifecycle(game);
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *unit = &game->units[index];
+        if (!unit_can_receive_order_die(unit)) {
+            continue;
+        }
+        order_die_t die = {
+            .sequence = game->next_order_die_sequence,
+            .owner = unit->owner,
+        };
+        game->next_order_die_sequence += 1;
+        append_order_die(game->order_dice_remaining, &game->order_dice_remaining_count, die);
+    }
+    shuffle_order_dice_remaining(game);
+    if (log_event) {
+        dzw_log(game, "Order dice cup rebuilt with %d eligible dice.", game->order_dice_remaining_count);
+    }
+}
+
+static int order_dice_remaining_count_for_owner(const game_t *game, player_t owner) {
+    if (game == NULL) {
+        return 0;
+    }
+    int count = 0;
+    for (int index = 0; index < game->order_dice_remaining_count; index += 1) {
+        if (game->order_dice_remaining[index].owner == owner) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+static void remove_order_dice_remaining_at(game_t *game, int index) {
+    if (game == NULL || index < 0 || index >= game->order_dice_remaining_count) {
+        return;
+    }
+    for (int shift = index; shift < game->order_dice_remaining_count - 1; shift += 1) {
+        game->order_dice_remaining[shift] = game->order_dice_remaining[shift + 1];
+    }
+    game->order_dice_remaining_count -= 1;
+    memset(&game->order_dice_remaining[game->order_dice_remaining_count], 0, sizeof(game->order_dice_remaining[game->order_dice_remaining_count]));
+}
+
+static void trim_order_dice_remaining_for_owner(game_t *game, player_t owner, int desired_count) {
+    if (game == NULL || owner == DZW_PLAYER_NONE) {
+        return;
+    }
+
+    int count = order_dice_remaining_count_for_owner(game, owner);
+    for (int index = game->order_dice_remaining_count - 1; index >= 0 && count > desired_count; index -= 1) {
+        if (game->order_dice_remaining[index].owner != owner) {
+            continue;
+        }
+        remove_order_dice_remaining_at(game, index);
+        count -= 1;
+    }
+}
+
+static void cleanup_destroyed_order_dice(game_t *game) {
+    if (game == NULL || game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return;
+    }
+
+    int player_one_desired = order_assignable_unit_count_for_owner(game, DZW_PLAYER_ONE);
+    int player_two_desired = order_assignable_unit_count_for_owner(game, DZW_PLAYER_TWO);
+    if (game->current_order_die_available) {
+        if (game->current_order_die.owner == DZW_PLAYER_ONE && player_one_desired > 0) {
+            player_one_desired -= 1;
+        } else if (game->current_order_die.owner == DZW_PLAYER_TWO && player_two_desired > 0) {
+            player_two_desired -= 1;
+        }
+    }
+    trim_order_dice_remaining_for_owner(game, DZW_PLAYER_ONE, player_one_desired);
+    trim_order_dice_remaining_for_owner(game, DZW_PLAYER_TWO, player_two_desired);
+}
+
+static bool order_requires_test_for_unit(const game_t *game, const unit_t *unit) {
+    if (game == NULL || unit == NULL) {
+        return false;
+    }
+    return unit->pin_count > 0 || unit->pinned_until_turn == game->turn_number;
+}
+
+static unit_order_eligibility_view_t make_order_eligibility_view(int unit_id, dzw_order_t order, bool eligible, bool requires_order_test, const char *reason) {
+    unit_order_eligibility_view_t view;
+    memset(&view, 0, sizeof(view));
+    view.unit_id = unit_id;
+    view.order = order;
+    view.eligible = eligible;
+    view.requires_order_test = requires_order_test;
+    view.reason = reason;
+    return view;
+}
+
+bool game_set_ruleset(game_t *game, dzw_ruleset_t ruleset) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (ruleset != DZW_RULESET_FIXED_PHASES && ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Unknown ruleset.");
+    }
+
+    game->ruleset = ruleset;
+    if (ruleset == DZW_RULESET_ORDER_DICE) {
+        rebuild_order_dice_cup_internal(game, true);
+        dzw_log(game, "Ruleset changed to %s.", game_ruleset_name(ruleset));
+    } else {
+        clear_order_dice_lifecycle(game);
+        dzw_log(game, "Ruleset changed to %s.", game_ruleset_name(ruleset));
+    }
+    return true;
+}
+
 static const char *legacy_phase_flow_migration_blockers[] = {
     "game_view exposes one global phase for the active player.",
     "game_advance_phase advances Movement, Shooting, and Assault for a whole side.",
@@ -2119,6 +2344,232 @@ const char *game_phase_flow_migration_blocker(const game_t *game, int index) {
         return "";
     }
     return legacy_phase_flow_migration_blockers[index];
+}
+
+bool game_rebuild_order_dice_cup(game_t *game) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Order dice cup is only available in the Order Dice ruleset.");
+    }
+    rebuild_order_dice_cup_internal(game, true);
+    return true;
+}
+
+int game_order_dice_remaining_count(const game_t *game) {
+    return game == NULL ? 0 : game->order_dice_remaining_count;
+}
+
+order_die_view_t game_order_dice_remaining_view(const game_t *game, int index) {
+    order_die_view_t view;
+    memset(&view, 0, sizeof(view));
+    if (game == NULL || index < 0 || index >= game->order_dice_remaining_count) {
+        return view;
+    }
+    return order_die_view_from(game->order_dice_remaining[index], true);
+}
+
+int game_order_dice_spent_count(const game_t *game) {
+    return game == NULL ? 0 : game->order_dice_spent_count;
+}
+
+order_die_view_t game_order_dice_spent_view(const game_t *game, int index) {
+    order_die_view_t view;
+    memset(&view, 0, sizeof(view));
+    if (game == NULL || index < 0 || index >= game->order_dice_spent_count) {
+        return view;
+    }
+    return order_die_view_from(game->order_dice_spent[index], true);
+}
+
+int game_order_dice_retained_count(const game_t *game) {
+    return game == NULL ? 0 : game->order_dice_retained_count;
+}
+
+order_die_view_t game_order_dice_retained_view(const game_t *game, int index) {
+    order_die_view_t view;
+    memset(&view, 0, sizeof(view));
+    if (game == NULL || index < 0 || index >= game->order_dice_retained_count) {
+        return view;
+    }
+    return order_die_view_from(game->order_dice_retained[index], true);
+}
+
+order_die_view_t game_current_order_die_view(const game_t *game) {
+    order_die_view_t view;
+    memset(&view, 0, sizeof(view));
+    if (game == NULL || !game->current_order_die_available) {
+        return view;
+    }
+    return order_die_view_from(game->current_order_die, true);
+}
+
+static uint32_t replay_hash_mix(uint32_t hash, uint32_t value) {
+    hash ^= value;
+    hash *= 16777619u;
+    return hash;
+}
+
+uint32_t game_order_dice_replay_signature(const game_t *game) {
+    if (game == NULL) {
+        return 0;
+    }
+
+    uint32_t hash = 2166136261u;
+    hash = replay_hash_mix(hash, (uint32_t)game->ruleset);
+    hash = replay_hash_mix(hash, (uint32_t)game->turn_number);
+    hash = replay_hash_mix(hash, (uint32_t)game->active_player);
+    hash = replay_hash_mix(hash, (uint32_t)game->order_dice_remaining_count);
+    hash = replay_hash_mix(hash, (uint32_t)game->order_dice_spent_count);
+    hash = replay_hash_mix(hash, (uint32_t)game->order_dice_retained_count);
+    hash = replay_hash_mix(hash, game->current_order_die_available ? 1u : 0u);
+    if (game->current_order_die_available) {
+        hash = replay_hash_mix(hash, (uint32_t)game->current_order_die.sequence);
+        hash = replay_hash_mix(hash, (uint32_t)game->current_order_die.owner);
+    }
+    for (int index = 0; index < game->order_dice_remaining_count; index += 1) {
+        hash = replay_hash_mix(hash, (uint32_t)game->order_dice_remaining[index].sequence);
+        hash = replay_hash_mix(hash, (uint32_t)game->order_dice_remaining[index].owner);
+    }
+    for (int index = 0; index < game->order_dice_spent_count; index += 1) {
+        hash = replay_hash_mix(hash, (uint32_t)game->order_dice_spent[index].sequence);
+        hash = replay_hash_mix(hash, (uint32_t)game->order_dice_spent[index].owner);
+    }
+    for (int index = 0; index < game->order_dice_retained_count; index += 1) {
+        hash = replay_hash_mix(hash, (uint32_t)game->order_dice_retained[index].sequence);
+        hash = replay_hash_mix(hash, (uint32_t)game->order_dice_retained[index].owner);
+    }
+    return hash == 0 ? 1u : hash;
+}
+
+unit_order_eligibility_view_t game_unit_order_eligibility_view(const game_t *game, int unit_id, dzw_order_t order) {
+    if (game == NULL) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Game is not available.");
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Order assignment requires the Order Dice ruleset.");
+    }
+    if (!order_value_can_be_assigned(order)) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Choose Fire, Advance, Run, Ambush, Rally, or Down.");
+    }
+    if (!game->current_order_die_available) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Draw an order die before assigning an order.");
+    }
+
+    const unit_t *unit = find_unit_const(game, unit_id);
+    if (unit == NULL) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Unit not found.");
+    }
+    if (unit->owner != game->current_order_die.owner) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Current order die belongs to the opposing side.");
+    }
+    if (unit->destroyed || unit->models <= 0) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Destroyed units cannot receive orders.");
+    }
+    if (unit_is_embarked(unit)) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Embarked units cannot receive orders directly.");
+    }
+    if (unit->falling_back) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Falling back units cannot receive normal orders.");
+    }
+    if (unit->locked_in_assault) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Locked units need close-quarters resolution before normal orders.");
+    }
+    if (unit->retained_order) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Unit is retaining an order.");
+    }
+    if (unit->acted_this_turn_order_dice || unit->current_order != DZW_ORDER_NONE) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Unit has already received an order this turn.");
+    }
+    if (unit_uses_vehicle_rules(unit) && unit->immobilized && order_permits_movement(order)) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Immobilized vehicles cannot receive movement orders.");
+    }
+    if (unit_uses_vehicle_rules(unit) && unit->crew_stunned && (order == DZW_ORDER_FIRE || order == DZW_ORDER_ADVANCE || order == DZW_ORDER_RUN || order == DZW_ORDER_AMBUSH)) {
+        return make_order_eligibility_view(unit_id, order, false, false, "Crew stunned vehicles can only Rally or go Down.");
+    }
+
+    bool requires_order_test = order_requires_test_for_unit(game, unit);
+    return make_order_eligibility_view(unit_id, order, true, requires_order_test, requires_order_test ? "Pin markers require an order test." : "Eligible.");
+}
+
+bool game_draw_order_die(game_t *game) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Order dice can only be drawn in the Order Dice ruleset.");
+    }
+    if (game->current_order_die_available) {
+        return fail(game, "Assign the current order die before drawing another.");
+    }
+
+    cleanup_destroyed_order_dice(game);
+    if (game->order_dice_remaining_count <= 0) {
+        return fail(game, "No order dice remain to draw.");
+    }
+
+    game->order_dice_remaining_count -= 1;
+    game->current_order_die = game->order_dice_remaining[game->order_dice_remaining_count];
+    memset(&game->order_dice_remaining[game->order_dice_remaining_count], 0, sizeof(game->order_dice_remaining[game->order_dice_remaining_count]));
+    game->current_order_die_available = true;
+    game->active_player = game->current_order_die.owner;
+    dzw_log(game, "Order die drawn for %s.", player_name(game->current_order_die.owner));
+    return true;
+}
+
+bool game_assign_order(game_t *game, int unit_id, dzw_order_t order) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+
+    unit_order_eligibility_view_t eligibility = game_unit_order_eligibility_view(game, unit_id, order);
+    if (!eligibility.eligible) {
+        return fail(game, "%s", eligibility.reason != NULL ? eligibility.reason : "Order cannot be assigned.");
+    }
+
+    unit_t *unit = find_unit(game, unit_id);
+    if (unit == NULL) {
+        return fail(game, "Unit not found.");
+    }
+
+    unit->current_order = order;
+    unit->acted_this_turn_order_dice = true;
+    unit->retained_order = order_is_retained(order);
+    unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+    if (!order_permits_movement(order)) {
+        unit->movement_action_used_this_turn = true;
+    }
+    if (!order_permits_shooting(order)) {
+        unit->shot_this_turn = true;
+    }
+    if (!order_permits_assault(order)) {
+        unit->assaulted_this_turn = true;
+    }
+
+    order_die_t assigned_die = game->current_order_die;
+    game->current_order_die_available = false;
+    memset(&game->current_order_die, 0, sizeof(game->current_order_die));
+    if (unit->retained_order) {
+        append_order_die(game->order_dice_retained, &game->order_dice_retained_count, assigned_die);
+    } else {
+        append_order_die(game->order_dice_spent, &game->order_dice_spent_count, assigned_die);
+    }
+
+    dzw_log(game, "%s assigns %s to %s.", player_name(unit->owner), game_order_name(order), unit->name);
+    if (eligibility.requires_order_test) {
+        dzw_log(game, "%s will need an order test before resolving %s.", unit->name, game_order_name(order));
+    }
+    return true;
 }
 
 static player_t mission_winner(const game_t *game) {
@@ -2543,10 +2994,19 @@ static void resolve_wreck_overlap_displacement(game_t *game, unit_t *wreck, floa
 }
 
 static bool unit_can_move_now(const game_t *game, const unit_t *unit) {
-    if (unit->destroyed || unit->owner != game->active_player || game->phase != DZW_PHASE_MOVEMENT) {
+    if (unit->destroyed || unit->owner != game->active_player) {
         return false;
     }
-    if (unit->falling_back || unit->locked_in_assault || unit->pinned_until_turn == game->turn_number || unit_is_embarked(unit)) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_MOVEMENT) {
+        return false;
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_movement(unit->current_order)) {
+        return false;
+    }
+    if (unit->falling_back || unit->locked_in_assault || unit_is_embarked(unit)) {
+        return false;
+    }
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->pinned_until_turn == game->turn_number) {
         return false;
     }
     if (unit->movement_action_used_this_turn) {
@@ -2602,10 +3062,19 @@ static void resolve_stunned_recon_coast(game_t *game, unit_t *unit) {
 }
 
 static bool unit_can_shoot_now(const game_t *game, const unit_t *unit) {
-    if (unit->destroyed || unit->owner != game->active_player || game->phase != DZW_PHASE_SHOOTING) {
+    if (unit->destroyed || unit->owner != game->active_player) {
         return false;
     }
-    if (unit->shot_this_turn || unit->falling_back || unit->locked_in_assault || unit->pinned_until_turn == game->turn_number || unit_is_embarked(unit)) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_SHOOTING) {
+        return false;
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_shooting(unit->current_order)) {
+        return false;
+    }
+    if (unit->shot_this_turn || unit->falling_back || unit->locked_in_assault || unit_is_embarked(unit)) {
+        return false;
+    }
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->pinned_until_turn == game->turn_number) {
         return false;
     }
     if (unit_uses_vehicle_rules(unit) && (unit->crew_shaken || unit->crew_stunned)) {
@@ -2618,10 +3087,19 @@ static bool unit_can_shoot_now(const game_t *game, const unit_t *unit) {
 }
 
 static bool unit_can_assault_now(const game_t *game, const unit_t *unit) {
-    if (unit->destroyed || unit->owner != game->active_player || game->phase != DZW_PHASE_ASSAULT) {
+    if (unit->destroyed || unit->owner != game->active_player) {
         return false;
     }
-    if (unit->assaulted_this_turn || unit->falling_back || unit->pinned_until_turn == game->turn_number || unit_is_embarked(unit)) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_ASSAULT) {
+        return false;
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_assault(unit->current_order)) {
+        return false;
+    }
+    if (unit->assaulted_this_turn || unit->falling_back || unit_is_embarked(unit)) {
+        return false;
+    }
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->pinned_until_turn == game->turn_number) {
         return false;
     }
     if (unit->kind == DZW_UNIT_VEHICLE) {
@@ -6109,13 +6587,16 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         return false;
     }
     if (!unit_can_move_now(game, unit)) {
-        if (game->phase != DZW_PHASE_MOVEMENT) {
+        if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_movement(unit->current_order)) {
+            return fail(game, "%s needs an Advance or Run order to move.", unit->name);
+        }
+        if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_MOVEMENT) {
             return fail(game, "Units can only move in the movement phase.");
         }
         if (unit->falling_back) {
             return fail(game, "%s is falling back and cannot be given a normal move.", unit->name);
         }
-        if (unit->pinned_until_turn == game->turn_number) {
+        if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->pinned_until_turn == game->turn_number) {
             return fail(game, "%s is pinned and cannot move this turn.", unit->name);
         }
         if (unit->locked_in_assault) {
@@ -6620,8 +7101,11 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     if (unit_is_embarked(target)) {
         return fail(game, "Embarked units cannot be targeted directly.");
     }
-    if (game->phase != DZW_PHASE_SHOOTING) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_SHOOTING) {
         return fail(game, "Units can only shoot in the shooting phase.");
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_shooting(attacker->current_order)) {
+        return fail(game, "%s needs a Fire or Advance order to shoot.", attacker->name);
     }
     if (target->owner == attacker->owner) {
         return fail(game, "Units cannot target their own side.");
@@ -7657,8 +8141,11 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
     if (target == NULL || target->destroyed) {
         return fail(game, "Target is not available.");
     }
-    if (game->phase != DZW_PHASE_ASSAULT) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_ASSAULT) {
         return fail(game, "Assaults can only be resolved in the assault phase.");
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_assault(attacker->current_order)) {
+        return fail(game, "%s needs a Run order to assault.", attacker->name);
     }
     if (attacker->kind == DZW_UNIT_VEHICLE) {
         return fail(game, "Only assault guns and tank destroyers can launch vehicle assaults.");

@@ -22,6 +22,7 @@ The demo opens on `Bocage Breakout`, an Allies-vs-Axis objective battle where th
 - WWII battlefield profile ledger: `docs/wwii_battlefield_profiles.md`
 - Order-dice baseline audit: `docs/order_dice_baseline_audit.md`
 - Order-dice rules model: `docs/order_dice_rules_model.md`
+- Order-dice activation contract: `docs/order_dice_activation_contract.md`
 
 ## Game Systems
 
