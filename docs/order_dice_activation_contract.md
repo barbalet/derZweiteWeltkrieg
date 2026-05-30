@@ -1,6 +1,6 @@
 # Order-Dice Activation Contract
 
-Status: cycles 21-40 complete.
+Status: cycles 21-60 complete.
 
 Rules reference: Warlord Games Bolt Action reference sheet, `https://warlordgames.com/downloads/pdf/bolt_action_reference.pdf`.
 
@@ -43,7 +43,7 @@ Current lifecycle views:
 - `game_order_dice_retained_count`
 - `game_order_dice_retained_view`
 
-Cycles 41-45 will add full turn-end return of spent dice, retained Ambush/Down handling across turns, and destroyed-unit cleanup at the turn boundary.
+Turn end is now available through `game_order_dice_turn_complete` and `game_end_order_dice_turn`. Spent dice return to the next cup, destroyed-unit dice are removed from future activation, and retained Ambush/Down orders keep their dice out of the cup.
 
 ## Eligibility
 
@@ -78,4 +78,4 @@ The old public movement, shooting, and assault commands remain available for the
 - Fire or Advance enables `game_shoot_unit`
 - Run enables `game_assault_unit`
 
-Later cycles will add the full order-specific action payloads and turn-end cleanup. For now this creates a compileable, tested bridge from fixed phases to order assignment without removing the playable fixed-phase demo.
+Cycles 41-60 add the first post-assignment resolution layer: retained turn-end cleanup, morale quality baselines, pinned-unit order tests, and FUBAR result reporting. Later cycles will add the full order-specific movement, shooting, Rally, Down, and Ambush action payloads.

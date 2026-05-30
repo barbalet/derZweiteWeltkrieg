@@ -492,6 +492,12 @@ struct UnitSnapshot: Identifiable {
     let pinCount: Int
     let moraleQuality: dzw_morale_quality_t
     let lastOrderTestResult: dzw_order_test_result_t
+    let lastOrderTestRoll: Int
+    let lastOrderTestTarget: Int
+    let lastOrderTestPinModifier: Int
+    let lastOrderTestOfficerModifier: Int
+    let lastFubarResult: dzw_fubar_result_t
+    let lastFubarTargetID: Int
     let embarked: Bool
     let embarkedUnitID: Int
     let embarkedInTransportID: Int
@@ -546,6 +552,12 @@ struct UnitSnapshot: Identifiable {
         pinCount = Int(raw.pin_count)
         moraleQuality = raw.morale_quality
         lastOrderTestResult = raw.last_order_test_result
+        lastOrderTestRoll = Int(raw.last_order_test_roll)
+        lastOrderTestTarget = Int(raw.last_order_test_target)
+        lastOrderTestPinModifier = Int(raw.last_order_test_pin_modifier)
+        lastOrderTestOfficerModifier = Int(raw.last_order_test_officer_modifier)
+        lastFubarResult = raw.last_fubar_result
+        lastFubarTargetID = Int(raw.last_fubar_target_id)
         embarked = raw.embarked
         embarkedUnitID = Int(raw.embarked_unit_id)
         embarkedInTransportID = Int(raw.embarked_in_transport_id)
@@ -569,6 +581,10 @@ struct UnitSnapshot: Identifiable {
         String(cString: game_order_test_result_name(lastOrderTestResult))
     }
 
+    var lastFubarResultName: String {
+        String(cString: game_fubar_result_name(lastFubarResult))
+    }
+
     var orderDiceSummary: String {
         var parts = ["Order \(currentOrderName)", "\(moraleQualityName)", "Pins \(pinCount)"]
         if actedThisTurn {
@@ -579,6 +595,9 @@ struct UnitSnapshot: Identifiable {
         }
         if lastOrderTestResult != DZW_ORDER_TEST_NOT_REQUIRED {
             parts.append(lastOrderTestResultName)
+        }
+        if lastFubarResult != DZW_FUBAR_NONE {
+            parts.append(lastFubarResultName)
         }
         return parts.joined(separator: " • ")
     }

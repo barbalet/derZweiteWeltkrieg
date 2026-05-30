@@ -51,6 +51,13 @@ typedef enum {
 } dzw_order_test_result_t;
 
 typedef enum {
+    DZW_FUBAR_NONE = 0,
+    DZW_FUBAR_FRIENDLY_FIRE = 1,
+    DZW_FUBAR_PANIC = 2,
+    DZW_FUBAR_DOWN = 3
+} dzw_fubar_result_t;
+
+typedef enum {
     DZW_UNIT_INFANTRY = 0,
     DZW_UNIT_VEHICLE = 1,
     DZW_UNIT_ASSAULT_GUN = 2
@@ -300,6 +307,12 @@ typedef struct {
     int pin_count;
     dzw_morale_quality_t morale_quality;
     dzw_order_test_result_t last_order_test_result;
+    int last_order_test_roll;
+    int last_order_test_target;
+    int last_order_test_pin_modifier;
+    int last_order_test_officer_modifier;
+    dzw_fubar_result_t last_fubar_result;
+    int last_fubar_target_id;
     bool embarked;
     int embarked_unit_id;
     int embarked_in_transport_id;
@@ -341,6 +354,7 @@ const char *game_ruleset_name(dzw_ruleset_t ruleset);
 const char *game_order_name(dzw_order_t order);
 const char *game_morale_quality_name(dzw_morale_quality_t quality);
 const char *game_order_test_result_name(dzw_order_test_result_t result);
+const char *game_fubar_result_name(dzw_fubar_result_t result);
 bool game_uses_legacy_phase_flow(const game_t *game);
 int game_phase_flow_migration_blocker_count(const game_t *game);
 const char *game_phase_flow_migration_blocker(const game_t *game, int index);
@@ -356,6 +370,11 @@ uint32_t game_order_dice_replay_signature(const game_t *game);
 unit_order_eligibility_view_t game_unit_order_eligibility_view(const game_t *game, int unit_id, dzw_order_t order);
 bool game_draw_order_die(game_t *game);
 bool game_assign_order(game_t *game, int unit_id, dzw_order_t order);
+bool game_resolve_order_test(game_t *game, int unit_id);
+bool game_order_dice_turn_complete(const game_t *game);
+bool game_end_order_dice_turn(game_t *game);
+int game_fubar_friendly_fire_target_count(const game_t *game, int unit_id);
+unit_view_t game_fubar_friendly_fire_target_view(const game_t *game, int unit_id, int index);
 
 game_view_t game_view(const game_t *game);
 mission_view_t game_mission_view(const game_t *game);

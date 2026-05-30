@@ -68,9 +68,16 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertEqual(Int(unit.pin_count), 0)
         XCTAssertEqual(unit.morale_quality, DZW_MORALE_REGULAR)
         XCTAssertEqual(unit.last_order_test_result, DZW_ORDER_TEST_NOT_REQUIRED)
+        XCTAssertEqual(Int(unit.last_order_test_roll), 0)
+        XCTAssertEqual(Int(unit.last_order_test_target), 0)
+        XCTAssertEqual(Int(unit.last_order_test_pin_modifier), 0)
+        XCTAssertEqual(Int(unit.last_order_test_officer_modifier), 0)
+        XCTAssertEqual(unit.last_fubar_result, DZW_FUBAR_NONE)
+        XCTAssertEqual(Int(unit.last_fubar_target_id), 0)
         XCTAssertEqual(String(cString: game_order_name(unit.current_order)), "None")
         XCTAssertEqual(String(cString: game_morale_quality_name(unit.morale_quality)), "Regular")
         XCTAssertEqual(String(cString: game_order_test_result_name(unit.last_order_test_result)), "Not Required")
+        XCTAssertEqual(String(cString: game_fubar_result_name(unit.last_fubar_result)), "None")
     }
 
     func testOrderDicePublicNamesFollowReferenceOrderList() {
@@ -93,6 +100,9 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertEqual(String(cString: game_order_test_result_name(DZW_ORDER_TEST_PASSED)), "Passed")
         XCTAssertEqual(String(cString: game_order_test_result_name(DZW_ORDER_TEST_FAILED)), "Failed")
         XCTAssertEqual(String(cString: game_order_test_result_name(DZW_ORDER_TEST_FUBAR)), "FUBAR")
+        XCTAssertEqual(String(cString: game_fubar_result_name(DZW_FUBAR_FRIENDLY_FIRE)), "Friendly Fire")
+        XCTAssertEqual(String(cString: game_fubar_result_name(DZW_FUBAR_PANIC)), "Panic")
+        XCTAssertEqual(String(cString: game_fubar_result_name(DZW_FUBAR_DOWN)), "Down")
     }
 
     func testOrderDiceCupBuildsDeterministicSeededRemainingDice() {
@@ -237,6 +247,209 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertFalse(alreadyOrdered.eligible)
         let reason = String(cString: alreadyOrdered.reason)
         XCTAssertTrue(reason.contains("retaining") || reason.contains("already received"))
+    }
+
+    func testOrderDiceTurnEndReturnsSpentDiceAndPreservesRetainedOrders() {
+        guard let game = game_create_demo(41) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(game_draw_order_die(game))
+        let retainedOwner = game_current_order_die_view(game).owner
+        let retainedUnit = firstOrderAssignableUnit(owner: retainedOwner, in: game)
+        XCTAssertTrue(game_assign_order(game, retainedUnit.id, DZW_ORDER_AMBUSH))
+
+        while game_order_dice_remaining_count(game) > 0 {
+            XCTAssertTrue(game_draw_order_die(game))
+            let owner = game_current_order_die_view(game).owner
+            let unit = firstOrderAssignableUnit(owner: owner, in: game)
+            XCTAssertTrue(game_assign_order(game, unit.id, DZW_ORDER_FIRE))
+        }
+
+        XCTAssertTrue(game_order_dice_turn_complete(game))
+        XCTAssertGreaterThan(Int(game_order_dice_spent_count(game)), 0)
+        XCTAssertEqual(Int(game_order_dice_retained_count(game)), 1)
+
+        XCTAssertTrue(game_end_order_dice_turn(game))
+        XCTAssertEqual(Int(game_view(game).turn_number), 2)
+        XCTAssertEqual(Int(game_order_dice_spent_count(game)), 0)
+        XCTAssertEqual(Int(game_order_dice_retained_count(game)), 1)
+
+        let retained = unitView(withID: retainedUnit.id, in: game)
+        XCTAssertEqual(retained.current_order, DZW_ORDER_AMBUSH)
+        XCTAssertTrue(retained.retained_order)
+        XCTAssertFalse(retained.acted_this_turn)
+        XCTAssertEqual(Int(game_order_dice_remaining_count(game)), orderDiceEligibleUnitCount(in: game))
+    }
+
+    func testMoraleQualityMapsExistingUnitsToReferenceBaselines() {
+        guard let game = game_create_demo_with_armies(46, DZW_ARMY_BRITISH, DZW_ARMY_GERMAN) else {
+            XCTFail("Failed to create army preset demo")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let rifleSection = unitView(named: "British Rifle Section", owner: DZW_PLAYER_ONE, in: game)
+        let mg42Team = unitView(named: "German MG42 Team", owner: DZW_PLAYER_TWO, in: game)
+        let firefly = unitView(named: "Sherman Firefly", owner: DZW_PLAYER_ONE, in: game)
+
+        XCTAssertEqual(rifleSection.morale_quality, DZW_MORALE_REGULAR)
+        XCTAssertEqual(mg42Team.morale_quality, DZW_MORALE_VETERAN)
+        XCTAssertEqual(firefly.morale_quality, DZW_MORALE_REGULAR)
+
+        guard let italianGame = game_create_demo_with_armies(47, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
+            XCTFail("Failed to create Italian army preset demo")
+            return
+        }
+        defer { game_destroy(italianGame) }
+
+        let italianRifleSquad = unitView(named: "Italian Rifle Squad", owner: DZW_PLAYER_TWO, in: italianGame)
+        XCTAssertEqual(italianRifleSquad.morale_quality, DZW_MORALE_INEXPERIENCED)
+    }
+
+    func testPinnedOrderTestPassReportsRollAndRemovesPin() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_ADVANCE) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let pinned = unitView(withID: 5, in: game)
+        XCTAssertGreaterThan(Int(pinned.pin_count), 0)
+        game_seed(game, 1)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+
+        let resolved = unitView(withID: 5, in: game)
+        XCTAssertEqual(resolved.last_order_test_result, DZW_ORDER_TEST_PASSED)
+        XCTAssertEqual(Int(resolved.last_order_test_roll), 6)
+        XCTAssertEqual(Int(resolved.last_order_test_pin_modifier), -1)
+        XCTAssertGreaterThan(Int(resolved.last_order_test_target), 0)
+        XCTAssertEqual(Int(resolved.pin_count), 0)
+        XCTAssertEqual(resolved.current_order, DZW_ORDER_ADVANCE)
+    }
+
+    func testOrderDiceTurnEndRequiresResolvingPinnedOrderTests() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_ADVANCE) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        while game_order_dice_remaining_count(game) > 0 {
+            XCTAssertTrue(game_draw_order_die(game))
+            let owner = game_current_order_die_view(game).owner
+            let unit = firstOrderAssignableUnit(owner: owner, in: game)
+            XCTAssertTrue(game_assign_order(game, unit.id, DZW_ORDER_FIRE))
+        }
+
+        XCTAssertFalse(game_order_dice_turn_complete(game))
+        XCTAssertFalse(game_end_order_dice_turn(game))
+        XCTAssertTrue(String(cString: game_last_error(game)).contains("Resolve required order tests"))
+    }
+
+    func testPinnedOrderTestFailureRetainsDownOrder() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_ADVANCE) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        game_seed(game, 3)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+
+        let resolved = unitView(withID: 5, in: game)
+        XCTAssertEqual(resolved.last_order_test_result, DZW_ORDER_TEST_FAILED)
+        XCTAssertEqual(Int(resolved.last_order_test_roll), 10)
+        XCTAssertEqual(resolved.current_order, DZW_ORDER_DOWN)
+        XCTAssertTrue(resolved.retained_order)
+        XCTAssertEqual(Int(game_order_dice_retained_count(game)), 1)
+    }
+
+    func testFubarFriendlyFireResultRecordsExplicitTarget() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_ADVANCE) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertGreaterThan(Int(game_fubar_friendly_fire_target_count(game, 5)), 0)
+        game_seed(game, 48)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+
+        let resolved = unitView(withID: 5, in: game)
+        XCTAssertEqual(resolved.last_order_test_result, DZW_ORDER_TEST_FUBAR)
+        XCTAssertEqual(resolved.last_fubar_result, DZW_FUBAR_FRIENDLY_FIRE)
+        XCTAssertGreaterThan(Int(resolved.last_fubar_target_id), 0)
+        XCTAssertEqual(resolved.current_order, DZW_ORDER_FIRE)
+
+        let target = unitView(withID: resolved.last_fubar_target_id, in: game)
+        XCTAssertEqual(target.owner, resolved.owner)
+        XCTAssertNotEqual(target.id, resolved.id)
+    }
+
+    func testFubarPanicMovesAwayFromNearestEnemy() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_ADVANCE) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let before = unitView(withID: 5, in: game)
+        game_seed(game, 56)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+
+        let resolved = unitView(withID: 5, in: game)
+        XCTAssertEqual(resolved.last_order_test_result, DZW_ORDER_TEST_FUBAR)
+        XCTAssertEqual(resolved.last_fubar_result, DZW_FUBAR_PANIC)
+        XCTAssertGreaterThan(Int(resolved.last_fubar_target_id), 0)
+        XCTAssertEqual(resolved.current_order, DZW_ORDER_RUN)
+        XCTAssertTrue(resolved.moved_this_turn)
+        XCTAssertTrue(abs(resolved.x - before.x) > 0.01 || abs(resolved.y - before.y) > 0.01)
+    }
+
+    func testFubarFromRetainedOrderMovesDieBackToSpentWhenResultIsPanic() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_DOWN) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let retainedBefore = Int(game_order_dice_retained_count(game))
+        let spentBefore = Int(game_order_dice_spent_count(game))
+        XCTAssertGreaterThan(retainedBefore, 0)
+
+        game_seed(game, 56)
+        XCTAssertTrue(game_resolve_order_test(game, 5))
+
+        let resolved = unitView(withID: 5, in: game)
+        XCTAssertEqual(resolved.last_order_test_result, DZW_ORDER_TEST_FUBAR)
+        XCTAssertEqual(resolved.last_fubar_result, DZW_FUBAR_PANIC)
+        XCTAssertEqual(resolved.current_order, DZW_ORDER_RUN)
+        XCTAssertFalse(resolved.retained_order)
+        XCTAssertEqual(Int(game_order_dice_retained_count(game)), retainedBefore - 1)
+        XCTAssertEqual(Int(game_order_dice_spent_count(game)), spentBefore + 1)
+    }
+
+    func testFubarFriendlyFireTargetsAreFilteredToFriendlyUnitsNearEnemy() {
+        guard let game = game_create_demo(60) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let source = unitView(withID: 5, in: game)
+        let count = Int(game_fubar_friendly_fire_target_count(game, source.id))
+        XCTAssertGreaterThan(count, 0)
+
+        for index in 0..<count {
+            let target = game_fubar_friendly_fire_target_view(game, source.id, Int32(index))
+            XCTAssertEqual(target.owner, source.owner)
+            XCTAssertNotEqual(target.id, source.id)
+            XCTAssertFalse(target.destroyed)
+        }
     }
 
     func testArmyPresetDemoLoadsSelectedMatchup() {
@@ -2785,6 +2998,36 @@ final class DerZweiteWeltkriegTests: XCTestCase {
             }
         }
         return false
+    }
+
+    private func preparePinnedOrderDiceGame(order: dzw_order_t, unitID: Int32 = 5) -> OpaquePointer? {
+        for seed in 8...128 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+
+            game_advance_phase(game)
+            _ = game_shoot_unit(game, 8, unitID)
+            let pinned = unitView(withID: unitID, in: game)
+            guard pinned.pinned || pinned.pin_count > 0 else {
+                game_destroy(game)
+                continue
+            }
+
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            guard drawUntilCurrentDie(owner: pinned.owner, in: game) else {
+                game_destroy(game)
+                continue
+            }
+
+            let eligibility = game_unit_order_eligibility_view(game, unitID, order)
+            guard eligibility.eligible && eligibility.requires_order_test && game_assign_order(game, unitID, order) else {
+                game_destroy(game)
+                continue
+            }
+            return game
+        }
+        return nil
     }
 
     private func profileGroupView(named groupName: String, unitID: Int32, in game: OpaquePointer) -> profile_group_view_t {

@@ -82,6 +82,7 @@ The old all-units movement -> shooting -> assault phase flow becomes compatibili
 
 - **Cycles 1-20 complete:** Added the baseline audit, target rules model, fixed-phase compatibility diagnostics, staged ruleset enum, typed public order values, and public unit primitives for order, acted state, retained order, pin count, morale quality, and order-test result. The playable loop still uses fixed phases until cycles 21+ replace activation with the order-dice cup.
 - **Cycles 21-40 complete:** Added the opt-in order-dice cup, seeded deterministic draw order, replay signature, draw/current/spent/retained die views, order assignment eligibility reasons, and `game_assign_order` as the central order command. The old movement, shooting, and assault commands now operate as order-dice execution helpers when the order-dice ruleset is enabled.
+- **Cycles 41-60 complete:** Added order-dice turn completion/end-turn cleanup, spent-die return, retained Ambush/Down preservation, destroyed-unit activation cleanup, morale-quality baseline mapping, pinned-unit order tests with pin and officer modifiers, double-one/double-six handling, structured order-test snapshot fields, and FUBAR Friendly Fire/Panic/Down result reporting with explicit friendly-fire target views.
 
 ## Acceptance Gates
 

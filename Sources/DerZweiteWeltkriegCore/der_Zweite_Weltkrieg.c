@@ -221,6 +221,12 @@ typedef struct {
     int pin_count;
     dzw_morale_quality_t morale_quality;
     dzw_order_test_result_t last_order_test_result;
+    int last_order_test_roll;
+    int last_order_test_target;
+    int last_order_test_pin_modifier;
+    int last_order_test_officer_modifier;
+    dzw_fubar_result_t last_fubar_result;
+    int last_fubar_target_id;
     bool destroyed;
     bool manual_in_cover;
     bool manual_hull_down;
@@ -360,6 +366,7 @@ static const char *player_name(player_t player);
 static void log_profile_group_allocation(game_t *game, const unit_t *target, const int *allocated_hits);
 static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, float y, int ignore_unit_id);
 static float move_toward_point_legally(const game_t *game, unit_t *unit, float target_x, float target_y, float distance, int ignore_unit_id);
+static bool find_legal_position_along_heading(const game_t *game, const unit_t *unit, float angle_degrees, float requested_distance, float *out_x, float *out_y, float *out_distance);
 
 static weapon_profile_t with_fire_arc(weapon_profile_t weapon, int fire_arc_degrees) {
     weapon.fire_arc_degrees = fire_arc_degrees;
@@ -2099,6 +2106,21 @@ const char *game_order_test_result_name(dzw_order_test_result_t result) {
     }
 }
 
+const char *game_fubar_result_name(dzw_fubar_result_t result) {
+    switch (result) {
+        case DZW_FUBAR_NONE:
+            return "None";
+        case DZW_FUBAR_FRIENDLY_FIRE:
+            return "Friendly Fire";
+        case DZW_FUBAR_PANIC:
+            return "Panic";
+        case DZW_FUBAR_DOWN:
+            return "Down";
+        default:
+            return "Unknown";
+    }
+}
+
 static bool order_value_can_be_assigned(dzw_order_t order) {
     return order >= DZW_ORDER_FIRE && order <= DZW_ORDER_DOWN;
 }
@@ -2277,6 +2299,332 @@ static bool order_requires_test_for_unit(const game_t *game, const unit_t *unit)
         return false;
     }
     return unit->pin_count > 0 || unit->pinned_until_turn == game->turn_number;
+}
+
+static int morale_target_for_quality(dzw_morale_quality_t quality) {
+    switch (quality) {
+        case DZW_MORALE_INEXPERIENCED:
+            return 8;
+        case DZW_MORALE_VETERAN:
+            return 10;
+        case DZW_MORALE_REGULAR:
+        default:
+            return 9;
+    }
+}
+
+static bool unit_name_mentions(const unit_t *unit, const char *needle) {
+    return unit != NULL && unit->name != NULL && needle != NULL && strstr(unit->name, needle) != NULL;
+}
+
+static bool unit_is_officer_like(const unit_t *unit) {
+    if (unit == NULL || unit->destroyed || unit_is_embarked(unit) || unit_uses_vehicle_rules(unit)) {
+        return false;
+    }
+    return unit_name_mentions(unit, "HQ") ||
+        unit_name_mentions(unit, "Officer") ||
+        unit_name_mentions(unit, "Lieutenant") ||
+        unit_name_mentions(unit, "Captain") ||
+        unit_name_mentions(unit, "Major") ||
+        unit_name_mentions(unit, "Command");
+}
+
+static int officer_morale_modifier_value(const unit_t *unit) {
+    if (!unit_is_officer_like(unit)) {
+        return 0;
+    }
+    if (unit_name_mentions(unit, "Major")) {
+        return 4;
+    }
+    if (unit_name_mentions(unit, "Captain")) {
+        return 3;
+    }
+    if (unit_name_mentions(unit, "First Lieutenant")) {
+        return 2;
+    }
+    return 1;
+}
+
+static int nearby_officer_modifier_for_unit(const game_t *game, const unit_t *unit) {
+    if (game == NULL || unit == NULL || unit->owner == DZW_PLAYER_NONE) {
+        return 0;
+    }
+
+    int best_modifier = 0;
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *candidate = &game->units[index];
+        if (candidate->owner != unit->owner || !unit_is_officer_like(candidate)) {
+            continue;
+        }
+        float distance = edge_distance_between_units(unit, candidate);
+        if (candidate->id != unit->id && distance > 6.0f) {
+            continue;
+        }
+        int modifier = officer_morale_modifier_value(candidate);
+        if (modifier > best_modifier) {
+            best_modifier = modifier;
+        }
+    }
+    return best_modifier;
+}
+
+static int order_test_pin_modifier_for_unit(const game_t *game, const unit_t *unit) {
+    if (game == NULL || unit == NULL) {
+        return 0;
+    }
+    int pins = unit->pin_count;
+    if (pins <= 0 && unit->pinned_until_turn == game->turn_number) {
+        pins = 1;
+    }
+    return pins > 0 ? -pins : 0;
+}
+
+static int clamped_order_test_target(int target) {
+    if (target < 2) {
+        return 2;
+    }
+    if (target > 12) {
+        return 12;
+    }
+    return target;
+}
+
+static void reset_unit_order_test_details(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+    unit->last_order_test_roll = 0;
+    unit->last_order_test_target = 0;
+    unit->last_order_test_pin_modifier = 0;
+    unit->last_order_test_officer_modifier = 0;
+    unit->last_fubar_result = DZW_FUBAR_NONE;
+    unit->last_fubar_target_id = 0;
+}
+
+static void reduce_order_test_pin(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    if (unit->pin_count > 0) {
+        unit->pin_count -= 1;
+    }
+    if (unit->pin_count <= 0) {
+        unit->pin_count = 0;
+        unit->pinned_until_turn = 0;
+    }
+}
+
+static bool move_last_spent_die_to_retained(game_t *game, player_t owner) {
+    if (game == NULL || owner == DZW_PLAYER_NONE || game->order_dice_retained_count >= DZW_MAX_UNITS) {
+        return false;
+    }
+    for (int index = game->order_dice_spent_count - 1; index >= 0; index -= 1) {
+        if (game->order_dice_spent[index].owner != owner) {
+            continue;
+        }
+        order_die_t die = game->order_dice_spent[index];
+        for (int shift = index; shift < game->order_dice_spent_count - 1; shift += 1) {
+            game->order_dice_spent[shift] = game->order_dice_spent[shift + 1];
+        }
+        game->order_dice_spent_count -= 1;
+        memset(&game->order_dice_spent[game->order_dice_spent_count], 0, sizeof(game->order_dice_spent[game->order_dice_spent_count]));
+        append_order_die(game->order_dice_retained, &game->order_dice_retained_count, die);
+        return true;
+    }
+    return false;
+}
+
+static bool move_last_retained_die_to_spent(game_t *game, player_t owner) {
+    if (game == NULL || owner == DZW_PLAYER_NONE || game->order_dice_spent_count >= DZW_MAX_UNITS) {
+        return false;
+    }
+    for (int index = game->order_dice_retained_count - 1; index >= 0; index -= 1) {
+        if (game->order_dice_retained[index].owner != owner) {
+            continue;
+        }
+        order_die_t die = game->order_dice_retained[index];
+        for (int shift = index; shift < game->order_dice_retained_count - 1; shift += 1) {
+            game->order_dice_retained[shift] = game->order_dice_retained[shift + 1];
+        }
+        game->order_dice_retained_count -= 1;
+        memset(&game->order_dice_retained[game->order_dice_retained_count], 0, sizeof(game->order_dice_retained[game->order_dice_retained_count]));
+        append_order_die(game->order_dice_spent, &game->order_dice_spent_count, die);
+        return true;
+    }
+    return false;
+}
+
+static void set_unit_down_from_failed_order(game_t *game, unit_t *unit, dzw_fubar_result_t fubar_result) {
+    if (game == NULL || unit == NULL) {
+        return;
+    }
+    if (!unit->retained_order) {
+        move_last_spent_die_to_retained(game, unit->owner);
+    }
+    unit->current_order = DZW_ORDER_DOWN;
+    unit->retained_order = true;
+    unit->movement_action_used_this_turn = true;
+    unit->shot_this_turn = true;
+    unit->assaulted_this_turn = true;
+    unit->last_fubar_result = fubar_result;
+}
+
+static bool fubar_target_has_nearby_enemy(const game_t *game, const unit_t *target, player_t fubar_owner) {
+    if (game == NULL || target == NULL) {
+        return false;
+    }
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *enemy = &game->units[index];
+        if (enemy->owner == fubar_owner || enemy->owner == DZW_PLAYER_NONE || enemy->destroyed || unit_is_embarked(enemy)) {
+            continue;
+        }
+        if (edge_distance_between_units(target, enemy) <= 12.0f) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const unit_t *fubar_friendly_fire_target_at_index(const game_t *game, const unit_t *source, int target_index) {
+    if (game == NULL || source == NULL || target_index < 0) {
+        return NULL;
+    }
+
+    int matched_index = 0;
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *candidate = &game->units[index];
+        if (candidate->id == source->id ||
+            candidate->owner != source->owner ||
+            candidate->destroyed ||
+            unit_is_embarked(candidate) ||
+            candidate->falling_back) {
+            continue;
+        }
+        if (!fubar_target_has_nearby_enemy(game, candidate, source->owner)) {
+            continue;
+        }
+        if (matched_index == target_index) {
+            return candidate;
+        }
+        matched_index += 1;
+    }
+    return NULL;
+}
+
+static const unit_t *nearest_fubar_friendly_fire_target(const game_t *game, const unit_t *source) {
+    const unit_t *best = NULL;
+    float best_distance = 0.0f;
+    for (int index = 0; ; index += 1) {
+        const unit_t *candidate = fubar_friendly_fire_target_at_index(game, source, index);
+        if (candidate == NULL) {
+            break;
+        }
+        float distance = edge_distance_between_units(source, candidate);
+        if (best == NULL || distance < best_distance) {
+            best = candidate;
+            best_distance = distance;
+        }
+    }
+    return best;
+}
+
+static const unit_t *nearest_enemy_unit(const game_t *game, const unit_t *source) {
+    if (game == NULL || source == NULL) {
+        return NULL;
+    }
+
+    const unit_t *best = NULL;
+    float best_distance = 0.0f;
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *candidate = &game->units[index];
+        if (candidate->owner == source->owner || candidate->owner == DZW_PLAYER_NONE || candidate->destroyed || unit_is_embarked(candidate)) {
+            continue;
+        }
+        float distance = edge_distance_between_units(source, candidate);
+        if (best == NULL || distance < best_distance) {
+            best = candidate;
+            best_distance = distance;
+        }
+    }
+    return best;
+}
+
+static float fubar_panic_run_distance_for_unit(const unit_t *unit) {
+    if (unit == NULL) {
+        return 0.0f;
+    }
+    if (!unit_uses_vehicle_rules(unit)) {
+        return 12.0f;
+    }
+    return unit->fast || unit->recon ? 24.0f : 18.0f;
+}
+
+static void resolve_fubar_order_result(game_t *game, unit_t *unit) {
+    if (game == NULL || unit == NULL) {
+        return;
+    }
+
+    int fubar_roll = roll_d6(game);
+    if (fubar_roll <= 2) {
+        const unit_t *target = nearest_fubar_friendly_fire_target(game, unit);
+        if (target != NULL) {
+            unit->current_order = DZW_ORDER_FIRE;
+            if (unit->retained_order) {
+                move_last_retained_die_to_spent(game, unit->owner);
+            }
+            unit->retained_order = false;
+            unit->movement_action_used_this_turn = true;
+            unit->shot_this_turn = true;
+            unit->assaulted_this_turn = true;
+            unit->last_fubar_result = DZW_FUBAR_FRIENDLY_FIRE;
+            unit->last_fubar_target_id = target->id;
+            dzw_log(game, "%s rolls FUBAR Friendly Fire and mistakes %s for the target.", unit->name, target->name);
+            return;
+        }
+
+        set_unit_down_from_failed_order(game, unit, DZW_FUBAR_DOWN);
+        dzw_log(game, "%s rolls FUBAR Friendly Fire but has no legal friendly-fire target, so it goes Down.", unit->name);
+        return;
+    }
+
+    const unit_t *enemy = nearest_enemy_unit(game, unit);
+    if (enemy == NULL) {
+        set_unit_down_from_failed_order(game, unit, DZW_FUBAR_DOWN);
+        dzw_log(game, "%s rolls FUBAR Panic but sees no enemy, so it goes Down.", unit->name);
+        return;
+    }
+
+    float panic_heading = angle_to(enemy->x, enemy->y, unit->x, unit->y);
+    float destination_x = unit->x;
+    float destination_y = unit->y;
+    float actual_distance = 0.0f;
+    bool found_position = find_legal_position_along_heading(game, unit, panic_heading, fubar_panic_run_distance_for_unit(unit), &destination_x, &destination_y, &actual_distance);
+    if (!found_position || actual_distance <= 0.01f) {
+        set_unit_down_from_failed_order(game, unit, DZW_FUBAR_DOWN);
+        dzw_log(game, "%s rolls FUBAR Panic but has no legal panic path, so it goes Down.", unit->name);
+        return;
+    }
+
+    unit->x = destination_x;
+    unit->y = destination_y;
+    unit->facing_degrees = panic_heading;
+    unit->current_order = DZW_ORDER_RUN;
+    if (unit->retained_order) {
+        move_last_retained_die_to_spent(game, unit->owner);
+    }
+    unit->retained_order = false;
+    unit->moved_this_turn = true;
+    unit->movement_action_used_this_turn = true;
+    unit->moved_distance = actual_distance;
+    unit->shot_this_turn = true;
+    unit->assaulted_this_turn = true;
+    unit->last_fubar_result = DZW_FUBAR_PANIC;
+    unit->last_fubar_target_id = enemy->id;
+    if (unit_is_transport(unit)) {
+        sync_embarked_unit_position(game, unit);
+    }
+    dzw_log(game, "%s rolls FUBAR Panic and runs %.1f\" away from %s.", unit->name, actual_distance, enemy->name);
 }
 
 static unit_order_eligibility_view_t make_order_eligibility_view(int unit_id, dzw_order_t order, bool eligible, bool requires_order_test, const char *reason) {
@@ -2545,7 +2893,7 @@ bool game_assign_order(game_t *game, int unit_id, dzw_order_t order) {
     unit->current_order = order;
     unit->acted_this_turn_order_dice = true;
     unit->retained_order = order_is_retained(order);
-    unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+    reset_unit_order_test_details(unit);
     if (!order_permits_movement(order)) {
         unit->movement_action_used_this_turn = true;
     }
@@ -2570,6 +2918,240 @@ bool game_assign_order(game_t *game, int unit_id, dzw_order_t order) {
         dzw_log(game, "%s will need an order test before resolving %s.", unit->name, game_order_name(order));
     }
     return true;
+}
+
+bool game_resolve_order_test(game_t *game, int unit_id) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Order tests are only available in the Order Dice ruleset.");
+    }
+
+    unit_t *unit = find_unit(game, unit_id);
+    if (unit == NULL || unit->destroyed || unit->models <= 0) {
+        return fail(game, "Unit not found.");
+    }
+    if (!unit->acted_this_turn_order_dice || unit->current_order == DZW_ORDER_NONE) {
+        return fail(game, "%s has no assigned order to test.", unit->name);
+    }
+    if (unit->last_order_test_roll > 0 || unit->last_order_test_result != DZW_ORDER_TEST_NOT_REQUIRED) {
+        return true;
+    }
+
+    int pin_modifier = order_test_pin_modifier_for_unit(game, unit);
+    int officer_modifier = nearby_officer_modifier_for_unit(game, unit);
+    int target = clamped_order_test_target(morale_target_for_quality(unit->morale_quality) + pin_modifier + officer_modifier);
+    unit->last_order_test_target = target;
+    unit->last_order_test_pin_modifier = pin_modifier;
+    unit->last_order_test_officer_modifier = officer_modifier;
+
+    if (!order_requires_test_for_unit(game, unit)) {
+        unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+        dzw_log(game, "%s does not need an order test for %s.", unit->name, game_order_name(unit->current_order));
+        return true;
+    }
+
+    int first_die = roll_d6(game);
+    int second_die = roll_d6(game);
+    int roll = first_die + second_die;
+    unit->last_order_test_roll = roll;
+
+    if (first_die == 1 && second_die == 1) {
+        unit->last_order_test_result = DZW_ORDER_TEST_PASSED;
+        reduce_order_test_pin(unit);
+        dzw_log(game, "%s passes its order test with double-one on %d against target %d.", unit->name, roll, target);
+        return true;
+    }
+
+    if (first_die == 6 && second_die == 6) {
+        unit->last_order_test_result = DZW_ORDER_TEST_FUBAR;
+        dzw_log(game, "%s rolls double-six for its order test and goes FUBAR.", unit->name);
+        resolve_fubar_order_result(game, unit);
+        return true;
+    }
+
+    if (roll <= target) {
+        unit->last_order_test_result = DZW_ORDER_TEST_PASSED;
+        reduce_order_test_pin(unit);
+        dzw_log(game, "%s passes its order test on %d against target %d.", unit->name, roll, target);
+        return true;
+    }
+
+    unit->last_order_test_result = DZW_ORDER_TEST_FAILED;
+    set_unit_down_from_failed_order(game, unit, DZW_FUBAR_NONE);
+    dzw_log(game, "%s fails its order test on %d against target %d and goes Down.", unit->name, roll, target);
+    return true;
+}
+
+static bool unit_retains_order_between_order_dice_turns(const unit_t *unit) {
+    if (unit == NULL || unit->destroyed || unit->models <= 0) {
+        return false;
+    }
+    return unit->retained_order && (unit->current_order == DZW_ORDER_AMBUSH || unit->current_order == DZW_ORDER_DOWN);
+}
+
+static void clear_unit_order_dice_activation_for_next_turn(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    unit->current_order = DZW_ORDER_NONE;
+    unit->acted_this_turn_order_dice = false;
+    unit->retained_order = false;
+    unit->moved_this_turn = false;
+    unit->movement_action_used_this_turn = false;
+    unit->shot_this_turn = false;
+    unit->assaulted_this_turn = false;
+    unit->moved_distance = 0.0f;
+    unit->smoke_used_this_turn = false;
+    unit->fired_stationary_rapid_or_heavy = false;
+    unit->embarked_this_turn = false;
+    reset_unit_order_test_details(unit);
+}
+
+static void reset_order_dice_pools_for_next_turn(game_t *game) {
+    if (game == NULL) {
+        return;
+    }
+    game->order_dice_remaining_count = 0;
+    game->order_dice_spent_count = 0;
+    game->order_dice_retained_count = 0;
+    game->current_order_die_available = false;
+    game->next_order_die_sequence = 1;
+    memset(game->order_dice_remaining, 0, sizeof(game->order_dice_remaining));
+    memset(game->order_dice_spent, 0, sizeof(game->order_dice_spent));
+    memset(game->order_dice_retained, 0, sizeof(game->order_dice_retained));
+    memset(&game->current_order_die, 0, sizeof(game->current_order_die));
+}
+
+static bool game_has_unresolved_order_tests(const game_t *game) {
+    if (game == NULL) {
+        return false;
+    }
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *unit = &game->units[index];
+        if (!unit->acted_this_turn_order_dice || unit->current_order == DZW_ORDER_NONE) {
+            continue;
+        }
+        if (!order_requires_test_for_unit(game, unit)) {
+            continue;
+        }
+        if (unit->last_order_test_roll == 0 && unit->last_order_test_result == DZW_ORDER_TEST_NOT_REQUIRED) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool game_order_dice_turn_complete(const game_t *game) {
+    if (game == NULL || game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return false;
+    }
+    return !game->current_order_die_available && game->order_dice_remaining_count == 0 && !game_has_unresolved_order_tests(game);
+}
+
+bool game_end_order_dice_turn(game_t *game) {
+    clear_error(game);
+    if (game == NULL) {
+        return false;
+    }
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Order-dice turn end is only available in the Order Dice ruleset.");
+    }
+    if (game->current_order_die_available) {
+        return fail(game, "Assign the current order die before ending the turn.");
+    }
+    if (game->order_dice_remaining_count > 0) {
+        return fail(game, "Draw and assign all remaining order dice before ending the turn.");
+    }
+    if (game_has_unresolved_order_tests(game)) {
+        return fail(game, "Resolve required order tests before ending the turn.");
+    }
+
+    reset_order_dice_pools_for_next_turn(game);
+    int retained_units = 0;
+    for (int index = 0; index < game->unit_count; index += 1) {
+        unit_t *unit = &game->units[index];
+        if (unit->destroyed || unit->models <= 0) {
+            clear_unit_order_dice_activation_for_next_turn(unit);
+            continue;
+        }
+        if (unit_retains_order_between_order_dice_turns(unit)) {
+            unit->acted_this_turn_order_dice = false;
+            unit->moved_this_turn = false;
+            unit->movement_action_used_this_turn = true;
+            unit->shot_this_turn = true;
+            unit->assaulted_this_turn = true;
+            unit->moved_distance = 0.0f;
+            unit->smoke_used_this_turn = false;
+            unit->fired_stationary_rapid_or_heavy = false;
+            order_die_t die = {
+                .sequence = game->next_order_die_sequence,
+                .owner = unit->owner,
+            };
+            game->next_order_die_sequence += 1;
+            append_order_die(game->order_dice_retained, &game->order_dice_retained_count, die);
+            retained_units += 1;
+            continue;
+        }
+        clear_unit_order_dice_activation_for_next_turn(unit);
+    }
+
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *unit = &game->units[index];
+        if (!unit_can_receive_order_die(unit)) {
+            continue;
+        }
+        order_die_t die = {
+            .sequence = game->next_order_die_sequence,
+            .owner = unit->owner,
+        };
+        game->next_order_die_sequence += 1;
+        append_order_die(game->order_dice_remaining, &game->order_dice_remaining_count, die);
+    }
+    shuffle_order_dice_remaining(game);
+    game->turn_number += 1;
+    game->active_player = DZW_PLAYER_NONE;
+    game->phase = DZW_PHASE_MOVEMENT;
+    dzw_log(game, "Order-dice turn ends: %d retained dice stay with Ambush/Down units and %d dice return to the cup.", retained_units, game->order_dice_remaining_count);
+    return true;
+}
+
+int game_fubar_friendly_fire_target_count(const game_t *game, int unit_id) {
+    const unit_t *source = find_unit_const(game, unit_id);
+    if (source == NULL) {
+        return 0;
+    }
+
+    int count = 0;
+    while (fubar_friendly_fire_target_at_index(game, source, count) != NULL) {
+        count += 1;
+    }
+    return count;
+}
+
+unit_view_t game_fubar_friendly_fire_target_view(const game_t *game, int unit_id, int index) {
+    unit_view_t view;
+    memset(&view, 0, sizeof(view));
+    const unit_t *source = find_unit_const(game, unit_id);
+    const unit_t *target = fubar_friendly_fire_target_at_index(game, source, index);
+    if (game == NULL || target == NULL) {
+        return view;
+    }
+
+    for (int unit_index = 0; unit_index < game->unit_count; unit_index += 1) {
+        if (game->units[unit_index].id == target->id) {
+            return game_unit_view(game, unit_index);
+        }
+    }
+    return view;
 }
 
 static player_t mission_winner(const game_t *game) {
@@ -2759,7 +3341,7 @@ static void destroy_unit_with_passenger_outcome(game_t *game, unit_t *unit, cons
     unit->current_order = DZW_ORDER_NONE;
     unit->acted_this_turn_order_dice = false;
     unit->retained_order = false;
-    unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+    reset_unit_order_test_details(unit);
     unit->transport_capacity = 0;
     unit->embarked_unit_id = 0;
     unit->embarked_in_transport_id = 0;
@@ -4447,6 +5029,19 @@ static bool is_valid_order_test_result(dzw_order_test_result_t result) {
     return result >= DZW_ORDER_TEST_NOT_REQUIRED && result <= DZW_ORDER_TEST_FUBAR;
 }
 
+static dzw_morale_quality_t infer_morale_quality_for_unit(const unit_t *unit) {
+    if (unit == NULL || unit_uses_vehicle_rules(unit)) {
+        return DZW_MORALE_REGULAR;
+    }
+    if (unit->leadership <= 7) {
+        return DZW_MORALE_INEXPERIENCED;
+    }
+    if (unit->leadership >= 9) {
+        return DZW_MORALE_VETERAN;
+    }
+    return DZW_MORALE_REGULAR;
+}
+
 static void initialize_order_dice_primitives(unit_t *unit) {
     if (unit == NULL) {
         return;
@@ -4460,10 +5055,30 @@ static void initialize_order_dice_primitives(unit_t *unit) {
         unit->pin_count = 0;
     }
     if (!is_valid_morale_quality(unit->morale_quality)) {
-        unit->morale_quality = DZW_MORALE_REGULAR;
+        unit->morale_quality = infer_morale_quality_for_unit(unit);
+    } else if (unit->morale_quality == DZW_MORALE_REGULAR) {
+        unit->morale_quality = infer_morale_quality_for_unit(unit);
     }
     if (!is_valid_order_test_result(unit->last_order_test_result)) {
         unit->last_order_test_result = DZW_ORDER_TEST_NOT_REQUIRED;
+    }
+    if (unit->last_order_test_roll < 0) {
+        unit->last_order_test_roll = 0;
+    }
+    if (unit->last_order_test_target < 0) {
+        unit->last_order_test_target = 0;
+    }
+    if (unit->last_order_test_pin_modifier > 0) {
+        unit->last_order_test_pin_modifier = 0;
+    }
+    if (unit->last_order_test_officer_modifier < 0) {
+        unit->last_order_test_officer_modifier = 0;
+    }
+    if (unit->last_fubar_result < DZW_FUBAR_NONE || unit->last_fubar_result > DZW_FUBAR_DOWN) {
+        unit->last_fubar_result = DZW_FUBAR_NONE;
+    }
+    if (unit->last_fubar_target_id < 0) {
+        unit->last_fubar_target_id = 0;
     }
 }
 
@@ -6397,6 +7012,12 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.pin_count = unit->pin_count;
     view.morale_quality = unit->morale_quality;
     view.last_order_test_result = unit->last_order_test_result;
+    view.last_order_test_roll = unit->last_order_test_roll;
+    view.last_order_test_target = unit->last_order_test_target;
+    view.last_order_test_pin_modifier = unit->last_order_test_pin_modifier;
+    view.last_order_test_officer_modifier = unit->last_order_test_officer_modifier;
+    view.last_fubar_result = unit->last_fubar_result;
+    view.last_fubar_target_id = unit->last_fubar_target_id;
     view.embarked = unit_is_embarked(unit);
     view.embarked_unit_id = unit->embarked_unit_id;
     view.embarked_in_transport_id = unit->embarked_in_transport_id;

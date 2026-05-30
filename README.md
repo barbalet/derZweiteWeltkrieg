@@ -23,6 +23,7 @@ The demo opens on `Bocage Breakout`, an Allies-vs-Axis objective battle where th
 - Order-dice baseline audit: `docs/order_dice_baseline_audit.md`
 - Order-dice rules model: `docs/order_dice_rules_model.md`
 - Order-dice activation contract: `docs/order_dice_activation_contract.md`
+- Order tests and FUBAR contract: `docs/order_tests_and_fubar_contract.md`
 
 ## Game Systems
 
