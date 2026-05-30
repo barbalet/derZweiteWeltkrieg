@@ -71,6 +71,14 @@ typedef enum {
 } dzw_vehicle_damage_class_t;
 
 typedef enum {
+    DZW_VEHICLE_DAMAGE_RESULT_NONE = 0,
+    DZW_VEHICLE_DAMAGE_RESULT_CREW_STUNNED = 1,
+    DZW_VEHICLE_DAMAGE_RESULT_IMMOBILIZED = 2,
+    DZW_VEHICLE_DAMAGE_RESULT_ON_FIRE = 3,
+    DZW_VEHICLE_DAMAGE_RESULT_KNOCKED_OUT = 4
+} dzw_vehicle_damage_result_t;
+
+typedef enum {
     DZW_UNIT_INFANTRY = 0,
     DZW_UNIT_VEHICLE = 1,
     DZW_UNIT_ASSAULT_GUN = 2
@@ -383,6 +391,11 @@ typedef struct {
     int last_shooting_vehicle_long_range_penalty;
     int last_shooting_vehicle_open_topped_indirect_modifier;
     dzw_vehicle_damage_class_t last_shooting_vehicle_damage_class;
+    int last_vehicle_damage_table_roll;
+    dzw_vehicle_damage_result_t last_vehicle_damage_result;
+    int last_vehicle_damage_morale_roll;
+    int last_vehicle_damage_morale_target;
+    bool last_vehicle_damage_morale_failed;
     int last_shooting_models_removed;
     int last_shooting_pins_added;
     bool last_shooting_morale_checked;
@@ -396,6 +409,18 @@ typedef struct {
     int embarked_in_transport_id;
     int transport_capacity;
     bool destroyed;
+    bool wrecked;
+    bool wreck_blocks_movement;
+    int last_assault_target_id;
+    float last_assault_range;
+    dzw_target_reaction_t last_assault_target_reaction;
+    int last_assault_attacker_wounds;
+    int last_assault_defender_wounds;
+    int last_assault_draw_rounds;
+    int last_assault_winner_id;
+    int last_assault_loser_id;
+    bool last_assault_loser_destroyed;
+    float last_assault_regroup_distance;
 } unit_view_t;
 
 float game_board_width(void);
@@ -434,6 +459,7 @@ const char *game_morale_quality_name(dzw_morale_quality_t quality);
 const char *game_order_test_result_name(dzw_order_test_result_t result);
 const char *game_fubar_result_name(dzw_fubar_result_t result);
 const char *game_target_reaction_name(dzw_target_reaction_t reaction);
+const char *game_vehicle_damage_result_name(dzw_vehicle_damage_result_t result);
 bool game_uses_legacy_phase_flow(const game_t *game);
 int game_phase_flow_migration_blocker_count(const game_t *game);
 const char *game_phase_flow_migration_blocker(const game_t *game, int index);

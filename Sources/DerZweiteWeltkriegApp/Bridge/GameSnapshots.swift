@@ -539,6 +539,11 @@ struct UnitSnapshot: Identifiable {
     let lastShootingVehicleLongRangePenalty: Int
     let lastShootingVehicleOpenToppedIndirectModifier: Int
     let lastShootingVehicleDamageClass: dzw_vehicle_damage_class_t
+    let lastVehicleDamageTableRoll: Int
+    let lastVehicleDamageResult: dzw_vehicle_damage_result_t
+    let lastVehicleDamageMoraleRoll: Int
+    let lastVehicleDamageMoraleTarget: Int
+    let lastVehicleDamageMoraleFailed: Bool
     let lastShootingModelsRemoved: Int
     let lastShootingPinsAdded: Int
     let lastShootingMoraleChecked: Bool
@@ -552,6 +557,18 @@ struct UnitSnapshot: Identifiable {
     let embarkedInTransportID: Int
     let transportCapacity: Int
     let destroyed: Bool
+    let wrecked: Bool
+    let wreckBlocksMovement: Bool
+    let lastAssaultTargetID: Int
+    let lastAssaultRange: CGFloat
+    let lastAssaultTargetReaction: dzw_target_reaction_t
+    let lastAssaultAttackerWounds: Int
+    let lastAssaultDefenderWounds: Int
+    let lastAssaultDrawRounds: Int
+    let lastAssaultWinnerID: Int
+    let lastAssaultLoserID: Int
+    let lastAssaultLoserDestroyed: Bool
+    let lastAssaultRegroupDistance: CGFloat
 
     init(raw: unit_view_t) {
         id = Int(raw.id)
@@ -648,6 +665,11 @@ struct UnitSnapshot: Identifiable {
         lastShootingVehicleLongRangePenalty = Int(raw.last_shooting_vehicle_long_range_penalty)
         lastShootingVehicleOpenToppedIndirectModifier = Int(raw.last_shooting_vehicle_open_topped_indirect_modifier)
         lastShootingVehicleDamageClass = raw.last_shooting_vehicle_damage_class
+        lastVehicleDamageTableRoll = Int(raw.last_vehicle_damage_table_roll)
+        lastVehicleDamageResult = raw.last_vehicle_damage_result
+        lastVehicleDamageMoraleRoll = Int(raw.last_vehicle_damage_morale_roll)
+        lastVehicleDamageMoraleTarget = Int(raw.last_vehicle_damage_morale_target)
+        lastVehicleDamageMoraleFailed = raw.last_vehicle_damage_morale_failed
         lastShootingModelsRemoved = Int(raw.last_shooting_models_removed)
         lastShootingPinsAdded = Int(raw.last_shooting_pins_added)
         lastShootingMoraleChecked = raw.last_shooting_morale_checked
@@ -661,6 +683,18 @@ struct UnitSnapshot: Identifiable {
         embarkedInTransportID = Int(raw.embarked_in_transport_id)
         transportCapacity = Int(raw.transport_capacity)
         destroyed = raw.destroyed
+        wrecked = raw.wrecked
+        wreckBlocksMovement = raw.wreck_blocks_movement
+        lastAssaultTargetID = Int(raw.last_assault_target_id)
+        lastAssaultRange = CGFloat(raw.last_assault_range)
+        lastAssaultTargetReaction = raw.last_assault_target_reaction
+        lastAssaultAttackerWounds = Int(raw.last_assault_attacker_wounds)
+        lastAssaultDefenderWounds = Int(raw.last_assault_defender_wounds)
+        lastAssaultDrawRounds = Int(raw.last_assault_draw_rounds)
+        lastAssaultWinnerID = Int(raw.last_assault_winner_id)
+        lastAssaultLoserID = Int(raw.last_assault_loser_id)
+        lastAssaultLoserDestroyed = raw.last_assault_loser_destroyed
+        lastAssaultRegroupDistance = CGFloat(raw.last_assault_regroup_distance)
     }
 
     var ownerName: String {
@@ -685,6 +719,14 @@ struct UnitSnapshot: Identifiable {
 
     var lastShootingTargetReactionName: String {
         String(cString: game_target_reaction_name(lastShootingTargetReaction))
+    }
+
+    var lastVehicleDamageResultName: String {
+        String(cString: game_vehicle_damage_result_name(lastVehicleDamageResult))
+    }
+
+    var lastAssaultTargetReactionName: String {
+        String(cString: game_target_reaction_name(lastAssaultTargetReaction))
     }
 
     var orderDiceSummary: String {
@@ -721,6 +763,21 @@ struct UnitSnapshot: Identifiable {
         }
         if lastShootingMoraleRoll > 0 {
             parts.append("Morale \(lastShootingMoraleRoll)/\(lastShootingMoraleTarget)")
+        }
+        if lastVehicleDamageResult != DZW_VEHICLE_DAMAGE_RESULT_NONE {
+            parts.append("Vehicle \(lastVehicleDamageResultName)")
+        }
+        if wreckBlocksMovement {
+            parts.append("Wreck")
+        }
+        if lastAssaultTargetID > 0 {
+            parts.append("Assault \(lastAssaultTargetID)")
+            if lastAssaultTargetReaction != DZW_TARGET_REACTION_NONE {
+                parts.append(lastAssaultTargetReactionName)
+            }
+            if lastAssaultLoserDestroyed {
+                parts.append("Loser destroyed")
+            }
         }
         if lastOrderTestResult != DZW_ORDER_TEST_NOT_REQUIRED {
             parts.append(lastOrderTestResultName)

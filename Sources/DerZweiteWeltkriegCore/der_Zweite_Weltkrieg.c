@@ -289,6 +289,11 @@ typedef struct {
     int last_shooting_vehicle_long_range_penalty;
     int last_shooting_vehicle_open_topped_indirect_modifier;
     dzw_vehicle_damage_class_t last_shooting_vehicle_damage_class;
+    int last_vehicle_damage_table_roll;
+    dzw_vehicle_damage_result_t last_vehicle_damage_result;
+    int last_vehicle_damage_morale_roll;
+    int last_vehicle_damage_morale_target;
+    bool last_vehicle_damage_morale_failed;
     int last_shooting_models_removed;
     int last_shooting_pins_added;
     bool last_shooting_morale_checked;
@@ -304,6 +309,7 @@ typedef struct {
     int casualties_this_shooting_phase;
     bool morale_checked_this_phase;
     bool fired_stationary_rapid_or_heavy;
+    bool wrecked;
     bool crew_shaken;
     bool crew_stunned;
     int crew_shaken_until_turn;
@@ -316,6 +322,16 @@ typedef struct {
     int profile_group_count;
     int preferred_casualty_group_index;
     profile_group_t profile_groups[DZW_MAX_PROFILE_GROUPS];
+    int last_assault_target_id;
+    float last_assault_range;
+    dzw_target_reaction_t last_assault_target_reaction;
+    int last_assault_attacker_wounds;
+    int last_assault_defender_wounds;
+    int last_assault_draw_rounds;
+    int last_assault_winner_id;
+    int last_assault_loser_id;
+    bool last_assault_loser_destroyed;
+    float last_assault_regroup_distance;
 } unit_t;
 
 typedef struct {
@@ -440,6 +456,7 @@ static bool unit_can_move_now(const game_t *game, const unit_t *unit);
 static float move_toward_point_legally(const game_t *game, unit_t *unit, float target_x, float target_y, float distance, int ignore_unit_id);
 static bool find_legal_position_along_heading(const game_t *game, const unit_t *unit, float angle_degrees, float requested_distance, float *out_x, float *out_y, float *out_distance);
 static int add_pin_markers_from_fire(game_t *game, unit_t *unit, int pins, const char *source_name);
+static dzw_target_reaction_t target_reaction_for_shooting(const unit_t *target);
 
 static weapon_profile_t with_fire_arc(weapon_profile_t weapon, int fire_arc_degrees) {
     weapon.fire_arc_degrees = fire_arc_degrees;
@@ -1822,7 +1839,7 @@ static bool line_of_sight_blocked(const game_t *game, const unit_t *attacker, co
 
     for (int index = 0; index < game->unit_count; index += 1) {
         const unit_t *blocker = &game->units[index];
-        if (blocker->destroyed || unit_is_embarked(blocker) || blocker->id == attacker->id || blocker->id == target->id || !unit_uses_vehicle_rules(blocker)) {
+        if ((blocker->destroyed && !blocker->wrecked) || unit_is_embarked(blocker) || blocker->id == attacker->id || blocker->id == target->id || !unit_uses_vehicle_rules(blocker)) {
             continue;
         }
 
@@ -2303,6 +2320,23 @@ const char *game_target_reaction_name(dzw_target_reaction_t reaction) {
     }
 }
 
+const char *game_vehicle_damage_result_name(dzw_vehicle_damage_result_t result) {
+    switch (result) {
+        case DZW_VEHICLE_DAMAGE_RESULT_NONE:
+            return "None";
+        case DZW_VEHICLE_DAMAGE_RESULT_CREW_STUNNED:
+            return "Crew Stunned";
+        case DZW_VEHICLE_DAMAGE_RESULT_IMMOBILIZED:
+            return "Immobilized";
+        case DZW_VEHICLE_DAMAGE_RESULT_ON_FIRE:
+            return "On Fire";
+        case DZW_VEHICLE_DAMAGE_RESULT_KNOCKED_OUT:
+            return "Knocked Out";
+        default:
+            return "Unknown";
+    }
+}
+
 static bool order_value_can_be_assigned(dzw_order_t order) {
     return order >= DZW_ORDER_FIRE && order <= DZW_ORDER_DOWN;
 }
@@ -2624,6 +2658,23 @@ static void record_vehicle_penetration_details(
     if (damage_class > attacker->last_shooting_vehicle_damage_class) {
         attacker->last_shooting_vehicle_damage_class = damage_class;
     }
+}
+
+static void record_vehicle_damage_table_result(unit_t *vehicle, int table_roll, dzw_vehicle_damage_result_t result) {
+    if (vehicle == NULL) {
+        return;
+    }
+    vehicle->last_vehicle_damage_table_roll = table_roll;
+    vehicle->last_vehicle_damage_result = result;
+}
+
+static void record_vehicle_damage_morale(unit_t *vehicle, int morale_roll, int morale_target, bool failed) {
+    if (vehicle == NULL) {
+        return;
+    }
+    vehicle->last_vehicle_damage_morale_roll = morale_roll;
+    vehicle->last_vehicle_damage_morale_target = morale_target;
+    vehicle->last_vehicle_damage_morale_failed = failed;
 }
 
 static order_die_view_t order_die_view_from(order_die_t die, bool available) {
@@ -4051,11 +4102,13 @@ void shared_adapter_destroy_unit(shared_game_t *game, shared_unit_t *unit, const
 }
 
 static void destroy_unit_with_passenger_outcome(game_t *game, unit_t *unit, const char *reason, bool annihilate_embarked_units) {
+    bool leaves_wreck = unit_uses_vehicle_rules(unit);
     if (unit_is_transport(unit) && unit->embarked_unit_id > 0) {
         resolve_destroyed_transport_passengers(game, unit, annihilate_embarked_units);
     }
 
     unit->destroyed = true;
+    unit->wrecked = leaves_wreck;
     unit->models = 0;
     unit->lead_model_wounds = 0;
     unit->falling_back = false;
@@ -4123,6 +4176,27 @@ static bool path_touches_terrain(const game_t *game, float x1, float y1, float x
             continue;
         }
         if (segment_intersects_rect(x1, y1, x2, y2, zone->rect)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool unit_is_wreck_blocker(const unit_t *unit) {
+    return unit != NULL && unit->destroyed && unit->wrecked && unit_uses_vehicle_rules(unit);
+}
+
+static bool path_crosses_wrecked_vehicle(const game_t *game, const unit_t *unit, float x1, float y1, float x2, float y2, int ignore_unit_id) {
+    if (game == NULL || unit == NULL) {
+        return false;
+    }
+    for (int index = 0; index < game->unit_count; index += 1) {
+        const unit_t *wreck = &game->units[index];
+        if (!unit_is_wreck_blocker(wreck) || wreck->id == unit->id || wreck->id == ignore_unit_id || unit_is_embarked(wreck)) {
+            continue;
+        }
+        float blocking_radius = wreck->footprint_radius + unit->footprint_radius + 0.01f;
+        if (segment_intersects_circle(x1, y1, x2, y2, wreck->x, wreck->y, blocking_radius)) {
             return true;
         }
     }
@@ -4333,6 +4407,10 @@ static const char *order_dice_path_restriction_reason(const game_t *game, const 
     bool is_run = order == DZW_ORDER_RUN;
     dzw_mobility_internal_t mobility = mobility_for_unit(unit);
 
+    if (path_crosses_wrecked_vehicle(game, unit, unit->x, unit->y, x, y, unit->id)) {
+        return "Wrecked armoured vehicles are impassable.";
+    }
+
     if (mobility == DZW_MOBILITY_ARTILLERY_INTERNAL) {
         if (touches_rough) {
             return "Artillery cannot enter rough ground.";
@@ -4384,11 +4462,17 @@ static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, f
 
     for (int index = 0; index < game->unit_count; index += 1) {
         const unit_t *other = &game->units[index];
-        if (other->destroyed || other->id == unit->id || other->id == ignore_unit_id || unit_is_embarked(other)) {
+        if ((other->destroyed && !other->wrecked) || other->id == unit->id || other->id == ignore_unit_id || unit_is_embarked(other)) {
             continue;
         }
 
         float separation = dzw_distance(x, y, other->x, other->y) - unit->footprint_radius - other->footprint_radius;
+        if (unit_is_wreck_blocker(other)) {
+            if (separation < 0.25f) {
+                return false;
+            }
+            continue;
+        }
         if (other->owner != unit->owner && separation < 1.0f) {
             return false;
         }
@@ -5342,22 +5426,102 @@ static void apply_vehicle_damage(game_t *game, const unit_t *attacker, unit_t *v
     apply_vehicle_damage_with_modifier(game, attacker, vehicle, glancing_hit, 0, true);
 }
 
+static void set_order_dice_vehicle_down_from_damage(game_t *game, unit_t *vehicle, const char *source_name) {
+    if (game == NULL || vehicle == NULL || game->ruleset != DZW_RULESET_ORDER_DICE || vehicle->destroyed) {
+        return;
+    }
+    if (vehicle->retained_order) {
+        move_last_retained_die_to_spent(game, vehicle->owner);
+    }
+    vehicle->current_order = DZW_ORDER_DOWN;
+    vehicle->retained_order = false;
+    vehicle->acted_this_turn_order_dice = true;
+    vehicle->movement_action_used_this_turn = true;
+    vehicle->shot_this_turn = true;
+    vehicle->assaulted_this_turn = true;
+    cleanup_destroyed_order_dice(game);
+    dzw_log(game, "%s is marked Down by %s and cannot take another action this turn.", vehicle->name, source_name != NULL ? source_name : "vehicle damage");
+}
+
+static bool order_dice_vehicle_morale_passes(game_t *game, unit_t *vehicle, const char *source_name) {
+    int pin_modifier = order_test_pin_modifier_for_unit(game, vehicle);
+    int officer_modifier = nearby_officer_modifier_for_unit(game, vehicle);
+    int morale_target = clamped_order_test_target(morale_target_for_quality(vehicle->morale_quality) + pin_modifier + officer_modifier);
+    int morale_roll = roll_2d6(game);
+    bool failed = morale_roll > morale_target;
+    record_vehicle_damage_morale(vehicle, morale_roll, morale_target, failed);
+    dzw_log(game, "%s checks morale against %s: roll %d vs target %d.", vehicle->name, source_name != NULL ? source_name : "vehicle damage", morale_roll, morale_target);
+    return !failed;
+}
+
+static void apply_order_dice_immobilized_vehicle_result(game_t *game, unit_t *vehicle) {
+    if (vehicle->immobilized) {
+        record_vehicle_damage_table_result(vehicle, 2, DZW_VEHICLE_DAMAGE_RESULT_KNOCKED_OUT);
+        destroy_unit(game, vehicle, "a second Immobilized result knocked it out");
+        return;
+    }
+    vehicle->immobilized = true;
+    dzw_log(game, "%s is immobilized.", vehicle->name);
+}
+
+static void apply_order_dice_vehicle_damage_roll(game_t *game, const unit_t *attacker, unit_t *vehicle, int damage_roll_modifier) {
+    if (game == NULL || vehicle == NULL || vehicle->destroyed) {
+        return;
+    }
+    int table_roll = roll_d6(game) + damage_roll_modifier;
+    if (table_roll > 6) {
+        table_roll = 6;
+    }
+
+    if (table_roll <= 1) {
+        record_vehicle_damage_table_result(vehicle, table_roll, DZW_VEHICLE_DAMAGE_RESULT_CREW_STUNNED);
+        set_unit_crew_stunned_until_next_turn(game, vehicle);
+        add_pin_markers_from_fire(game, vehicle, 1, "Crew Stunned");
+        dzw_log(game, "%s suffers Crew Stunned on the vehicle damage table.", vehicle->name);
+        set_order_dice_vehicle_down_from_damage(game, vehicle, "Crew Stunned");
+        return;
+    }
+
+    if (table_roll == 2) {
+        record_vehicle_damage_table_result(vehicle, table_roll, DZW_VEHICLE_DAMAGE_RESULT_IMMOBILIZED);
+        add_pin_markers_from_fire(game, vehicle, 1, "Immobilized");
+        apply_order_dice_immobilized_vehicle_result(game, vehicle);
+        if (!vehicle->destroyed) {
+            set_order_dice_vehicle_down_from_damage(game, vehicle, "Immobilized");
+        }
+        return;
+    }
+
+    if (table_roll == 3) {
+        record_vehicle_damage_table_result(vehicle, table_roll, DZW_VEHICLE_DAMAGE_RESULT_ON_FIRE);
+        add_pin_markers_from_fire(game, vehicle, 1, "On Fire");
+        dzw_log(game, "%s catches fire.", vehicle->name);
+        if (!order_dice_vehicle_morale_passes(game, vehicle, "On Fire")) {
+            destroy_unit(game, vehicle, "its crew abandoned the burning vehicle");
+            return;
+        }
+        dzw_log(game, "%s puts the fire out.", vehicle->name);
+        set_order_dice_vehicle_down_from_damage(game, vehicle, "On Fire");
+        return;
+    }
+
+    record_vehicle_damage_table_result(vehicle, table_roll, DZW_VEHICLE_DAMAGE_RESULT_KNOCKED_OUT);
+    (void)attacker;
+    destroy_unit(game, vehicle, "it was knocked out by vehicle damage");
+}
+
 static void apply_vehicle_damage_class(game_t *game, const unit_t *attacker, unit_t *vehicle, dzw_vehicle_damage_class_t damage_class, int damage_roll_modifier) {
     if (damage_class == DZW_VEHICLE_DAMAGE_NONE || vehicle == NULL || vehicle->destroyed) {
         return;
     }
+    int table_modifier = damage_roll_modifier;
     if (damage_class == DZW_VEHICLE_DAMAGE_SUPERFICIAL) {
-        apply_vehicle_damage_with_modifier(game, attacker, vehicle, true, damage_roll_modifier - 3, false);
-        return;
+        table_modifier -= 3;
     }
-    if (damage_class == DZW_VEHICLE_DAMAGE_MASSIVE) {
-        apply_vehicle_damage_with_modifier(game, attacker, vehicle, false, damage_roll_modifier, false);
-        if (!vehicle->destroyed && !game_has_pending_weapon_destroy_choice(game)) {
-            apply_vehicle_damage_with_modifier(game, attacker, vehicle, false, damage_roll_modifier, false);
-        }
-        return;
+    apply_order_dice_vehicle_damage_roll(game, attacker, vehicle, table_modifier);
+    if (damage_class == DZW_VEHICLE_DAMAGE_MASSIVE && !vehicle->destroyed) {
+        apply_order_dice_vehicle_damage_roll(game, attacker, vehicle, damage_roll_modifier);
     }
-    apply_vehicle_damage_with_modifier(game, attacker, vehicle, false, damage_roll_modifier, false);
 }
 
 static void log_profile_group_allocation(game_t *game, const unit_t *target, const int *allocated_hits) {
@@ -8262,6 +8426,11 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.last_shooting_vehicle_long_range_penalty = unit->last_shooting_vehicle_long_range_penalty;
     view.last_shooting_vehicle_open_topped_indirect_modifier = unit->last_shooting_vehicle_open_topped_indirect_modifier;
     view.last_shooting_vehicle_damage_class = unit->last_shooting_vehicle_damage_class;
+    view.last_vehicle_damage_table_roll = unit->last_vehicle_damage_table_roll;
+    view.last_vehicle_damage_result = unit->last_vehicle_damage_result;
+    view.last_vehicle_damage_morale_roll = unit->last_vehicle_damage_morale_roll;
+    view.last_vehicle_damage_morale_target = unit->last_vehicle_damage_morale_target;
+    view.last_vehicle_damage_morale_failed = unit->last_vehicle_damage_morale_failed;
     view.last_shooting_models_removed = unit->last_shooting_models_removed;
     view.last_shooting_pins_added = unit->last_shooting_pins_added;
     view.last_shooting_morale_checked = unit->last_shooting_morale_checked;
@@ -8275,6 +8444,18 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.embarked_in_transport_id = unit->embarked_in_transport_id;
     view.transport_capacity = unit->transport_capacity;
     view.destroyed = unit->destroyed;
+    view.wrecked = unit->wrecked;
+    view.wreck_blocks_movement = unit_is_wreck_blocker(unit);
+    view.last_assault_target_id = unit->last_assault_target_id;
+    view.last_assault_range = unit->last_assault_range;
+    view.last_assault_target_reaction = unit->last_assault_target_reaction;
+    view.last_assault_attacker_wounds = unit->last_assault_attacker_wounds;
+    view.last_assault_defender_wounds = unit->last_assault_defender_wounds;
+    view.last_assault_draw_rounds = unit->last_assault_draw_rounds;
+    view.last_assault_winner_id = unit->last_assault_winner_id;
+    view.last_assault_loser_id = unit->last_assault_loser_id;
+    view.last_assault_loser_destroyed = unit->last_assault_loser_destroyed;
+    view.last_assault_regroup_distance = unit->last_assault_regroup_distance;
     return view;
 }
 
@@ -8503,6 +8684,9 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
     if (touches_impassable) {
         return fail(game, "%s cannot cross impassable terrain.", unit->name);
     }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && path_crosses_wrecked_vehicle(game, unit, unit->x, unit->y, x, y, unit->id)) {
+        return fail(game, "%s cannot cross a wrecked armoured vehicle.", unit->name);
+    }
 
     const char *order_dice_restriction = order_dice_path_restriction_reason(game, unit, unit->current_order, x, y);
     if (order_dice_restriction != NULL) {
@@ -8535,6 +8719,9 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         : (float)best_movement_allowance(game, unit, touches_difficult && (unit->kind != DZW_UNIT_VEHICLE || unit->kind == DZW_UNIT_ASSAULT_GUN));
     if (distance > allowance + 0.01f) {
         return fail(game, "%s can move up to %.0f\" with %s, not %.1f\".", unit->name, allowance, game->ruleset == DZW_RULESET_ORDER_DICE ? game_order_name(unit->current_order) : "this phase", distance);
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !can_place_unit_at(game, unit, x, y, unit->id)) {
+        return fail(game, "%s cannot end its move in that position.", unit->name);
     }
 
     for (int index = 0; index < game->unit_count; index += 1) {
@@ -8599,6 +8786,9 @@ bool game_reverse_unit(game_t *game, int unit_id, float distance) {
     }
     if (path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_IMPASSABLE)) {
         return fail(game, "%s cannot reverse across impassable terrain.", unit->name);
+    }
+    if (path_crosses_wrecked_vehicle(game, unit, unit->x, unit->y, x, y, unit->id)) {
+        return fail(game, "%s cannot reverse across a wrecked armoured vehicle.", unit->name);
     }
     const char *order_dice_restriction = order_dice_path_restriction_reason(game, unit, unit->current_order, x, y);
     if (order_dice_restriction != NULL) {
@@ -9269,6 +9459,28 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     return true;
 }
 
+static bool resolve_ambush_opportunity_fire_for_assault(game_t *game, unit_t *attacker, unit_t *target) {
+    if (game == NULL || attacker == NULL || target == NULL || game->ruleset != DZW_RULESET_ORDER_DICE || !unit_ambush_order_active(target)) {
+        return false;
+    }
+
+    player_t previous_active_player = game->active_player;
+    if (!game_trigger_ambush_order(game, target->id)) {
+        game->active_player = previous_active_player;
+        clear_error(game);
+        return false;
+    }
+
+    dzw_log(game, "%s uses Ambush opportunity fire against %s before contact.", target->name, attacker->name);
+    bool fired = game_shoot_unit(game, target->id, attacker->id);
+    game->active_player = previous_active_player;
+    if (!fired) {
+        dzw_log(game, "%s cannot resolve Ambush opportunity fire before the assault.", target->name);
+        clear_error(game);
+    }
+    return fired;
+}
+
 static int melee_hits_for_profile_group(game_t *game, int models, int attacks, int attacker_ws, int defender_ws, bool charging) {
     int total_attacks = models * (attacks + (charging ? 1 : 0));
     int needed_to_hit = required_to_hit_melee(attacker_ws, defender_ws);
@@ -9767,24 +9979,125 @@ static int melee_vehicle_damage_results(game_t *game, const unit_t *attacker, un
     return damaging_hits;
 }
 
-static void consolidate_after_wiping_out_enemy(game_t *game, unit_t *winner, const unit_t *loser) {
+static float consolidate_after_wiping_out_enemy(game_t *game, unit_t *winner, const unit_t *loser) {
     if (game == NULL || winner == NULL || loser == NULL || winner->destroyed) {
-        return;
+        return 0.0f;
     }
 
     float moved = move_toward_point_legally(game, winner, loser->x, loser->y, 3.0f, -1);
     if (moved < 0.01f) {
         dzw_log(game, "%s cannot consolidate after destroying %s without entering a new combat in the current token model.", winner->name, loser->name);
-        return;
+        return 0.0f;
     }
     if (moved + 0.01f < 3.0f) {
         dzw_log(game, "%s consolidates %.1f\" after destroying %s in close combat, stopping short of a new combat.", winner->name, moved, loser->name);
-        return;
+        return moved;
     }
     dzw_log(game, "%s consolidates 3\" after destroying %s in close combat.", winner->name, loser->name);
+    return moved;
+}
+
+static void reset_unit_assault_execution_details(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    unit->last_assault_target_id = 0;
+    unit->last_assault_range = 0.0f;
+    unit->last_assault_target_reaction = DZW_TARGET_REACTION_NONE;
+    unit->last_assault_attacker_wounds = 0;
+    unit->last_assault_defender_wounds = 0;
+    unit->last_assault_draw_rounds = 0;
+    unit->last_assault_winner_id = 0;
+    unit->last_assault_loser_id = 0;
+    unit->last_assault_loser_destroyed = false;
+    unit->last_assault_regroup_distance = 0.0f;
+}
+
+static dzw_target_reaction_t target_reaction_for_assault(const unit_t *target) {
+    return target_reaction_for_shooting(target);
+}
+
+static void begin_assault_procedure(unit_t *attacker, const unit_t *target, float range) {
+    reset_unit_assault_execution_details(attacker);
+    if (attacker == NULL || target == NULL) {
+        return;
+    }
+    attacker->last_assault_target_id = target->id;
+    attacker->last_assault_range = range;
+    attacker->last_assault_target_reaction = target_reaction_for_assault(target);
+}
+
+static void record_assault_outcome(unit_t *attacker, int attacker_wounds, int defender_wounds, int draw_rounds, const unit_t *winner, const unit_t *loser, bool loser_destroyed, float regroup_distance) {
+    if (attacker == NULL) {
+        return;
+    }
+    attacker->last_assault_attacker_wounds = attacker_wounds;
+    attacker->last_assault_defender_wounds = defender_wounds;
+    attacker->last_assault_draw_rounds = draw_rounds;
+    attacker->last_assault_winner_id = winner != NULL ? winner->id : 0;
+    attacker->last_assault_loser_id = loser != NULL ? loser->id : 0;
+    attacker->last_assault_loser_destroyed = loser_destroyed;
+    attacker->last_assault_regroup_distance = regroup_distance;
+}
+
+static void resolve_order_dice_close_quarters_outcome(game_t *game, unit_t *attacker, unit_t *target, int attacker_score, int defender_score) {
+    if (attacker->destroyed || target->destroyed) {
+        unit_t *winner = !attacker->destroyed && target->destroyed ? attacker : (!target->destroyed && attacker->destroyed ? target : NULL);
+        unit_t *loser = winner == attacker ? target : (winner == target ? attacker : NULL);
+        clear_locked_state(attacker);
+        clear_locked_state(target);
+        float regroup = winner != NULL && loser != NULL ? consolidate_after_wiping_out_enemy(game, winner, loser) : 0.0f;
+        record_assault_outcome(attacker, attacker_score, defender_score, 0, winner, loser, loser != NULL && loser->destroyed, regroup);
+        return;
+    }
+
+    int draw_rounds = 0;
+    while (attacker_score == defender_score && !attacker->destroyed && !target->destroyed && draw_rounds < 6) {
+        draw_rounds += 1;
+        dzw_log(game, "Close quarters draw: %s and %s fight another round.", attacker->name, target->name);
+        attacker_score = resolve_melee_infantry_damage(game, attacker, target, false);
+        defender_score = target->destroyed ? 0 : resolve_melee_infantry_damage(game, target, attacker, false);
+    }
+
+    if (attacker->destroyed || target->destroyed) {
+        unit_t *winner = !attacker->destroyed && target->destroyed ? attacker : (!target->destroyed && attacker->destroyed ? target : NULL);
+        unit_t *loser = winner == attacker ? target : (winner == target ? attacker : NULL);
+        clear_locked_state(attacker);
+        clear_locked_state(target);
+        float regroup = winner != NULL && loser != NULL ? consolidate_after_wiping_out_enemy(game, winner, loser) : 0.0f;
+        record_assault_outcome(attacker, attacker_score, defender_score, draw_rounds, winner, loser, loser != NULL && loser->destroyed, regroup);
+        return;
+    }
+
+    if (attacker_score == defender_score) {
+        int attacker_roll = roll_d6(game);
+        int defender_roll = roll_d6(game);
+        dzw_log(game, "Close quarters remains tied after repeated rounds: %s rolls %d, %s rolls %d.", attacker->name, attacker_roll, target->name, defender_roll);
+        if (attacker_roll == defender_roll) {
+            attacker_roll += 1;
+        }
+        if (attacker_roll > defender_roll) {
+            attacker_score += 1;
+        } else {
+            defender_score += 1;
+        }
+    }
+
+    unit_t *winner = attacker_score > defender_score ? attacker : target;
+    unit_t *loser = winner == attacker ? target : attacker;
+    destroy_unit(game, loser, "it lost close quarters and was destroyed");
+    clear_locked_state(attacker);
+    clear_locked_state(target);
+    float regroup = consolidate_after_wiping_out_enemy(game, winner, loser);
+    record_assault_outcome(attacker, attacker_score, defender_score, draw_rounds, winner, loser, true, regroup);
 }
 
 static void resolve_close_combat_outcome(game_t *game, unit_t *attacker, unit_t *target, int attacker_score, int defender_score, follow_up_t follow_up) {
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !unit_uses_vehicle_rules(attacker) && !unit_uses_vehicle_rules(target)) {
+        resolve_order_dice_close_quarters_outcome(game, attacker, target, attacker_score, defender_score);
+        return;
+    }
+
     if (attacker->destroyed || target->destroyed) {
         unit_t *winner = NULL;
         unit_t *loser = NULL;
@@ -10207,8 +10520,24 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
 
     float assault_origin_x = attacker->x;
     float assault_origin_y = attacker->y;
+    float declared_assault_range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+    if (declared_assault_range < 0.0f) {
+        declared_assault_range = 0.0f;
+    }
     if (!continuing_combat) {
-        float range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
+        begin_assault_procedure(attacker, target, declared_assault_range);
+        if (attacker->last_assault_target_reaction != DZW_TARGET_REACTION_NONE) {
+            dzw_log(game, "%s's assault reaction is %s.", target->name, game_target_reaction_name(attacker->last_assault_target_reaction));
+        }
+        if (attacker->last_assault_target_reaction == DZW_TARGET_REACTION_AMBUSH_READY) {
+            resolve_ambush_opportunity_fire_for_assault(game, attacker, target);
+            if (attacker->destroyed || attacker->falling_back || game_has_pending_hit_allocation_choice(game) || game_has_pending_weapon_destroy_choice(game)) {
+                attacker->assaulted_this_turn = true;
+                return true;
+            }
+        }
+
+        float range = declared_assault_range;
         bool difficult = path_touches_terrain(game, attacker->x, attacker->y, target->x, target->y, DZW_TERRAIN_DIFFICULT);
         float assault_distance = 0.0f;
         if (game->ruleset == DZW_RULESET_ORDER_DICE) {
@@ -10238,6 +10567,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         attacker->moved_distance = moved;
         dzw_log(game, "%s charges into combat with %s.", attacker->name, target->name);
     } else {
+        begin_assault_procedure(attacker, target, 0.0f);
         dzw_log(game, "%s and %s continue their close combat.", attacker->name, target->name);
     }
 
@@ -10253,6 +10583,7 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
         if (attacker_score <= 0 && !target->destroyed) {
             dzw_log(game, "%s fails to find a weak point on %s.", attacker->name, target->name);
         }
+        record_assault_outcome(attacker, attacker_score, 0, 0, target->destroyed ? attacker : NULL, target->destroyed ? target : NULL, target->destroyed, 0.0f);
         return true;
     }
 

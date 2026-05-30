@@ -3585,6 +3585,149 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertTrue(foundPendingChoice)
     }
 
+    func testOrderDiceVehicleDamageTableAppliesDownAndWreckResults() {
+        var observedDamageTableResult = false
+
+        for seed in 141...320 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_deploy_unit(game, 6, 30.0, 10.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 7, in: game))
+            XCTAssertTrue(game_shoot_unit(game, 7, 6))
+
+            let vehicle = unitView(withID: 6, in: game)
+            guard vehicle.last_vehicle_damage_result != DZW_VEHICLE_DAMAGE_RESULT_NONE else {
+                continue
+            }
+
+            observedDamageTableResult = true
+            XCTAssertNotEqual(String(cString: game_vehicle_damage_result_name(vehicle.last_vehicle_damage_result)), "None")
+            XCTAssertLessThanOrEqual(Int(vehicle.last_vehicle_damage_table_roll), 6)
+
+            switch vehicle.last_vehicle_damage_result {
+            case DZW_VEHICLE_DAMAGE_RESULT_CREW_STUNNED,
+                 DZW_VEHICLE_DAMAGE_RESULT_IMMOBILIZED:
+                XCTAssertEqual(vehicle.current_order, DZW_ORDER_DOWN)
+                XCTAssertGreaterThanOrEqual(Int(vehicle.pin_count), 1)
+            case DZW_VEHICLE_DAMAGE_RESULT_ON_FIRE:
+                XCTAssertGreaterThan(Int(vehicle.last_vehicle_damage_morale_roll), 0)
+                XCTAssertGreaterThanOrEqual(Int(vehicle.last_vehicle_damage_morale_target), 2)
+                if vehicle.last_vehicle_damage_morale_failed {
+                    XCTAssertTrue(vehicle.destroyed)
+                    XCTAssertTrue(vehicle.wrecked)
+                } else {
+                    XCTAssertEqual(vehicle.current_order, DZW_ORDER_DOWN)
+                }
+            case DZW_VEHICLE_DAMAGE_RESULT_KNOCKED_OUT:
+                XCTAssertTrue(vehicle.destroyed)
+                XCTAssertTrue(vehicle.wrecked)
+                XCTAssertTrue(vehicle.wreck_blocks_movement)
+            default:
+                XCTFail("Unexpected vehicle damage result")
+            }
+            break
+        }
+
+        XCTAssertTrue(observedDamageTableResult)
+    }
+
+    func testOrderDiceWreckedArmouredVehiclesBlockRunPaths() {
+        var foundBlockingWreck = false
+
+        for seed in 141...420 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_deploy_unit(game, 1, 30.0, 2.0))
+            XCTAssertTrue(game_deploy_unit(game, 6, 30.0, 10.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 7, in: game, preserving: [1, 6]))
+            XCTAssertTrue(game_shoot_unit(game, 7, 6))
+
+            let wreck = unitView(withID: 6, in: game)
+            guard wreck.wrecked && wreck.wreck_blocks_movement else {
+                continue
+            }
+
+            foundBlockingWreck = true
+            XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 1, in: game, preserving: [1]))
+            XCTAssertFalse(game_move_unit(game, 1, 30.0, 14.0))
+            XCTAssertTrue(String(cString: game_last_error(game)).contains("wrecked armoured vehicle"))
+            break
+        }
+
+        XCTAssertTrue(foundBlockingWreck)
+    }
+
+    func testOrderDiceCloseQuartersRecordsDownReactionAndDestroysLoser() {
+        guard let game = game_create_demo(151) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 1, 20.0, 36.0))
+        XCTAssertTrue(game_deploy_unit(game, 4, 30.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_DOWN, to: 4, in: game, preserving: [1]))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 1, in: game, preserving: [1]))
+        if !game_assault_unit(game, 1, 4, DZW_FOLLOW_UP_CONSOLIDATE) {
+            let logLines = (0..<Int(game_log_count(game))).map { index in
+                String(cString: game_log_line(game, Int32(index)))
+            }
+            XCTFail(logLines.joined(separator: "\n"))
+            return
+        }
+
+        let assault = unitView(withID: 1, in: game)
+        XCTAssertEqual(Int(assault.last_assault_target_id), 4)
+        XCTAssertEqual(assault.last_assault_target_reaction, DZW_TARGET_REACTION_DOWN)
+        XCTAssertGreaterThanOrEqual(Int(assault.last_assault_range), 0)
+        XCTAssertGreaterThan(Int(assault.last_assault_winner_id), 0)
+        XCTAssertGreaterThan(Int(assault.last_assault_loser_id), 0)
+        XCTAssertTrue(assault.last_assault_loser_destroyed)
+
+        let loser = unitView(withID: assault.last_assault_loser_id, in: game)
+        XCTAssertTrue(loser.destroyed)
+    }
+
+    func testOrderDiceAssaultTriggersAmbushOpportunityFireBeforeContact() {
+        guard let game = game_create_demo(156) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 1, 20.0, 36.0))
+        XCTAssertTrue(game_deploy_unit(game, 4, 30.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_AMBUSH, to: 4, in: game, preserving: [1]))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 1, in: game, preserving: [1]))
+        if !game_assault_unit(game, 1, 4, DZW_FOLLOW_UP_CONSOLIDATE) {
+            let logLines = (0..<Int(game_log_count(game))).map { index in
+                String(cString: game_log_line(game, Int32(index)))
+            }
+            XCTFail(logLines.joined(separator: "\n"))
+            return
+        }
+
+        let assault = unitView(withID: 1, in: game)
+        let defender = unitView(withID: 4, in: game)
+        XCTAssertEqual(Int(assault.last_assault_target_id), 4)
+        XCTAssertEqual(assault.last_assault_target_reaction, DZW_TARGET_REACTION_AMBUSH_READY)
+        XCTAssertEqual(defender.current_order, DZW_ORDER_FIRE)
+        XCTAssertFalse(defender.retained_order)
+        XCTAssertEqual(Int(defender.last_shooting_target_id), 1)
+        XCTAssertTrue(defender.last_shooting_range_checked)
+        XCTAssertTrue(defender.shot_this_turn)
+    }
+
     private var playableArmies: [army_list_t] {
         [
             DZW_ARMY_BRITISH,
