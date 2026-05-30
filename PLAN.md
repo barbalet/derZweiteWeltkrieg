@@ -95,6 +95,7 @@ The old all-units movement -> shooting -> assault phase flow becomes compatibili
 - **Guderian cycle 101-120 bridge note:** Swift board-session actions now respect assigned order-dice action permissions instead of adding an extra phase-only gate, and the Guderian runner can prepare a drawn-die activation, resolve order tests, and resolve Rally through the shared DZW bridge.
 - **Guderian cycle 121-140 bridge note:** Guderian now layers late-career tuning and activation-aware scoring metadata over DZW-owned order-dice state without adding new engine rules, keeping DZW as the source for activation legality, pins, order tests, Rally, Down, Ambush, and combat effects.
 - **Guderian cycle 141-160 bridge note:** Guderian now versions its consumer save/debrief/tutorial surfaces around DZW-owned order-dice activation state, including activation state, order bag, retained orders, and activation-first player copy, without adding a second rules interpretation in the app layer.
+- **Guderian cycle 161-180 bridge note:** Guderian now consumes DZW turn-end cleanup, retained Ambush/Down state, destroyed-die cleanup, and replay-signature expectations through app-layer persistence/harness reports while keeping the old phase advance surface explicitly labeled as compatibility only.
 
 ## Acceptance Gates
 
