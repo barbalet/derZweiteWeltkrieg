@@ -92,6 +92,7 @@ The old all-units movement -> shooting -> assault phase flow becomes compatibili
 - **Cycles 181-200 complete:** Added order-dice-aware historical autoplay decisions for unit, order, target/path, order-test expectation, and Ambush/Down reaction context; wired autoplay to issue explicit orders before compatibility actions; updated book/rules documentation around order-dice turn and combat timing; added Guderian/Monty migration notes; added cycle-200 acceptance closeout for full test pass, deterministic replay signatures, rules-reference conformance, docs readability, and downstream handoff. The fixed phase loop is now documented as legacy compatibility only.
 - **Guderian cycle 61-80 bridge note:** Swift-facing unit snapshots now also expose current vehicle crew-shaken, crew-stunned, and immobilized state so downstream order-dice vehicle UI can distinguish live status from the most recent damage-table result without reimplementing DZW rules.
 - **Guderian cycle 81-100 bridge note:** Swift-facing unit snapshots now expose order-test and FUBAR trace fields used by downstream pins/morale AI, preserving DZW as the sole rules source while allowing Guderian to explain Rally, Down, Ambush, and failed-order-test choices.
+- **Guderian cycle 101-120 bridge note:** Swift board-session actions now respect assigned order-dice action permissions instead of adding an extra phase-only gate, and the Guderian runner can prepare a drawn-die activation, resolve order tests, and resolve Rally through the shared DZW bridge.
 
 ## Acceptance Gates
 

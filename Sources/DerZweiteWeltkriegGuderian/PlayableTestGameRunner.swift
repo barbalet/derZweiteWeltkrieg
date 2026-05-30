@@ -1,3 +1,4 @@
+import DerZweiteWeltkriegHistorical
 import Foundation
 
 public enum PlayableTestAIController: String, Codable, Hashable, Sendable {
@@ -543,6 +544,16 @@ public struct PlayableTestGameBattleResult: Identifiable, Codable, Hashable, Sen
         steps.map(\.movementDistance).reduce(0, +)
     }
 
+    public var activationSteps: Int {
+        phaseAdvances
+    }
+
+    public var usesOrderDiceActivationSteps: Bool {
+        activationSteps > 0 &&
+            activationSteps <= steps.count &&
+            steps.allSatisfy { $0.title.localizedCaseInsensitiveContains("activation") }
+    }
+
     public var blockedMovementPhases: Int {
         steps.filter { $0.phase == .movement && $0.status == .blocked }.count
     }
@@ -555,7 +566,7 @@ public struct PlayableTestGameBattleResult: Identifiable, Codable, Hashable, Sen
     }
 
     public var summary: String {
-        "\(title) played to debrief with \(antiGuderianStepCount) default-side automation steps, \(germanStepCount) Guderian-command automation steps, and \(phaseAdvances) phase advances."
+        "\(title) played to debrief with \(antiGuderianStepCount) default-side automation steps, \(germanStepCount) Guderian-command automation steps, and \(activationSteps) order-dice activations."
     }
 }
 
@@ -687,7 +698,10 @@ public enum PlayableTestGameRunner {
         let balance = ScenarioBalanceCatalog.profile(for: scenario)
         let antiPlan = OpposingForceAIPlanCatalog.plan(for: scenario)
         let germanPlan = GermanAIPlanCatalog.plan(for: scenario)
-        let maxPhaseAdvances = max(24, balance.targetTurns.upperBound * 8)
+        let maxPhaseAdvances = max(
+            48,
+            balance.targetTurns.upperBound * max(24, opening.units.filter { !$0.destroyed }.count * 3)
+        )
         var steps: [PlayableTestGameStep] = []
         var phaseAdvances = 0
         var blockers: [String] = []
@@ -696,6 +710,24 @@ public enum PlayableTestGameRunner {
         while current.turnNumber <= balance.targetTurns.upperBound &&
             current.mission.winner == .none &&
             phaseAdvances < maxPhaseAdvances {
+            guard session.prepareNextOrderDiceActivation() else {
+                steps.append(
+                    compatibilityActivationStep(
+                        scenario: scenario,
+                        snapshot: current,
+                        stepIndex: steps.count,
+                        activationIndex: phaseAdvances + 1,
+                        detail: "The order-dice bag could not draw cleanly, so the legacy phase bridge advanced one compatibility activation."
+                    )
+                )
+                drainPendingChoices(in: session)
+                resolveLingeringOrderDiceEffects(in: session)
+                session.advancePhase()
+                phaseAdvances += 1
+                current = session.snapshot()
+                continue
+            }
+            current = session.snapshot()
             steps.append(
                 performActiveAIPhase(
                     in: session,
@@ -703,16 +735,17 @@ public enum PlayableTestGameRunner {
                     antiPlan: antiPlan,
                     germanPlan: germanPlan,
                     stepIndex: steps.count
-                )
+                    )
             )
-            drainPendingChoices(in: session, steps: &steps)
+            drainPendingChoices(in: session)
+            resolveLingeringOrderDiceEffects(in: session)
             session.advancePhase()
             phaseAdvances += 1
             current = session.snapshot()
         }
 
         if phaseAdvances >= maxPhaseAdvances {
-            blockers.append("\(scenario.title) hit the \(maxPhaseAdvances)-phase autoplay guard before debrief.")
+            blockers.append("\(scenario.title) hit the \(maxPhaseAdvances)-activation autoplay guard before debrief.")
         }
         let automatedSides = Set(steps.map(\.activePlayer))
         if !automatedSides.contains(.player) {
@@ -752,45 +785,42 @@ public enum PlayableTestGameRunner {
         let detail: String
         let movementDistance: Double
 
-        switch snapshot.phase {
-        case .movement:
-            let movement = moveActiveUnits(in: session, snapshot: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            let reason = priorityInstruction(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            status = movement.moved == 0 ? .blocked : .succeeded
-            title = "\(controller.rawValue) movement"
-            detail = movement.moved == 0 ?
-                "No legal movement was available for priority target \(target); fallback to nearest legal objective also failed. Reason: \(reason)" :
-                "\(movement.moved) active units moved \(String(format: "%.1f", movement.distance))\" toward priority target \(target), with nearest legal objective as fallback. Reason: \(reason)"
-            movementDistance = movement.distance
-        case .shooting:
-            let shots = shootActiveUnits(in: session, snapshot: snapshot)
-            let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            let reason = priorityInstruction(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            status = shots == 0 ? .blocked : .succeeded
-            title = "\(controller.rawValue) shooting"
-            detail = shots == 0 ?
-                "No legal shots were available while protecting priority target \(target). Reason: \(reason)" :
-                "\(shots) active units fired at nearest enemies to protect priority target \(target). Reason: \(reason)"
-            movementDistance = 0
-        case .assault:
-            let assaults = assaultActiveUnits(in: session, snapshot: snapshot)
-            let resolved = session.resolveFirstPendingChoice()
-            let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            let reason = priorityInstruction(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
-            title = "\(controller.rawValue) assault"
-            movementDistance = 0
-            if assaults > 0 {
-                status = .succeeded
-                detail = "\(assaults) active units assaulted nearest enemies around priority target \(target). Reason: \(reason)"
-            } else if resolved {
-                status = .succeeded
-                detail = "Resolved a pending assault or damage choice around priority target \(target). Reason: \(reason)"
-            } else {
-                status = .blocked
-                detail = "No legal assaults or pending choices were available around priority target \(target). Reason: \(reason)"
-            }
+        let target = priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
+        let reason = priorityInstruction(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)
+        guard let unit = activationUnit(in: snapshot) else {
+            return PlayableTestGameStep(
+                id: "\(snapshot.scenarioID.rawValue)-playable-test-step-\(stepIndex)",
+                turnNumber: snapshot.turnNumber,
+                activePlayer: snapshot.activePlayer,
+                controller: controller,
+                phase: snapshot.phase,
+                status: .blocked,
+                title: "\(controller.rawValue) activation",
+                detail: "No legal order-dice activation was available for priority target \(target). Reason: \(reason)"
+            )
         }
+
+        session.selectUnit(unit.id)
+        session.selectNearestEnemyToSelectedUnit()
+        let order = activationOrder(for: unit, phase: snapshot.phase)
+        let issued = session.issueOrder(order, to: unit.id)
+        _ = issued ? session.resolveOrderTestIfNeeded(for: unit.id) : false
+        let afterOrder = session.snapshot().units.first { $0.id == unit.id } ?? unit
+        let action = resolveActivationAction(
+            order: afterOrder.currentOrder ?? order,
+            originalOrder: order,
+            unit: afterOrder,
+            session: session,
+            snapshot: snapshot,
+            antiPlan: antiPlan,
+            germanPlan: germanPlan
+        )
+        status = issued && action.succeeded ? .succeeded : .blocked
+        title = "\(controller.rawValue) \(order.rawValue) activation"
+        detail = issued ?
+            "\(unit.name) received \(order.rawValue); \(action.detail) Reason: \(reason)" :
+            "\(unit.name) could not receive \(order.rawValue) for priority target \(target). Reason: \(reason)"
+        movementDistance = action.movementDistance
 
         return PlayableTestGameStep(
             id: "\(snapshot.scenarioID.rawValue)-playable-test-step-\(stepIndex)",
@@ -803,6 +833,130 @@ public enum PlayableTestGameRunner {
             detail: detail,
             movementDistance: movementDistance
         )
+    }
+
+    private static func compatibilityActivationStep(
+        scenario: GuderianScenario,
+        snapshot: NativeBoardSnapshot,
+        stepIndex: Int,
+        activationIndex: Int,
+        detail: String
+    ) -> PlayableTestGameStep {
+        let controller = PlayableTestAIController(activePlayer: snapshot.activePlayer)
+        return PlayableTestGameStep(
+            id: "\(scenario.id.rawValue)-playable-test-step-\(stepIndex)",
+            turnNumber: snapshot.turnNumber,
+            activePlayer: snapshot.activePlayer,
+            controller: controller,
+            phase: snapshot.phase,
+            status: .blocked,
+            title: "\(controller.rawValue) compatibility activation \(activationIndex)",
+            detail: detail
+        )
+    }
+
+    private static func resolveLingeringOrderDiceEffects(in session: NativeBoardSession) {
+        let snapshot = session.snapshot()
+        for unit in snapshot.units where !unit.destroyed && unit.currentOrder != nil {
+            _ = session.resolveOrderTestIfNeeded(for: unit.id)
+            if unit.currentOrder == .rally {
+                _ = session.resolveRallyOrder(for: unit.id)
+            }
+        }
+        drainPendingChoices(in: session)
+    }
+
+    private static func activationUnit(in snapshot: NativeBoardSnapshot) -> NativeBoardUnitSnapshot? {
+        snapshot.units
+            .filter { $0.owner == snapshot.activePlayer && !$0.destroyed && !$0.retainedOrder && $0.currentOrder == nil }
+            .sorted { activationScore($0, phase: snapshot.phase) > activationScore($1, phase: snapshot.phase) }
+            .first
+    }
+
+    private static func activationScore(_ unit: NativeBoardUnitSnapshot, phase: NativeBoardPhase) -> Int {
+        var score = 100 - unit.pinCount
+        if unit.pinCount >= 2 { score += 8 }
+        if unit.kind == "Artillery" || unit.kind == "Gun" { score += phase == .shooting ? 10 : 2 }
+        if unit.kind == "Vehicle" || unit.kind == "Assault gun" { score += phase == .movement ? 8 : 4 }
+        if unit.inCover || unit.hullDown { score += 2 }
+        return score
+    }
+
+    private static func activationOrder(
+        for unit: NativeBoardUnitSnapshot,
+        phase: NativeBoardPhase
+    ) -> HistoricalBoardOrder {
+        let options = unit.availableOrders.isEmpty ? HistoricalBoardOrder.allCases : unit.availableOrders
+        if unit.pinCount >= 2, options.contains(.rally) {
+            return .rally
+        }
+        switch phase {
+        case .shooting where options.contains(.fire):
+            return .fire
+        case .assault where options.contains(.run):
+            return .run
+        case .movement:
+            if (unit.kind == "Artillery" || unit.kind == "Gun"), options.contains(.fire) {
+                return .fire
+            }
+            if (unit.kind == "Vehicle" || unit.kind == "Assault gun"), options.contains(.run) {
+                return .run
+            }
+            if options.contains(.advance) {
+                return .advance
+            }
+        default:
+            break
+        }
+        if options.contains(.advance) { return .advance }
+        if options.contains(.fire) { return .fire }
+        return options.first ?? .down
+    }
+
+    private static func resolveActivationAction(
+        order: HistoricalBoardOrder,
+        originalOrder: HistoricalBoardOrder,
+        unit: NativeBoardUnitSnapshot,
+        session: NativeBoardSession,
+        snapshot: NativeBoardSnapshot,
+        antiPlan: AntiGuderianAIPlan,
+        germanPlan: GermanAIPlan
+    ) -> PlayableActivationActionResult {
+        switch order {
+        case .advance, .run:
+            let before = session.snapshot().units.first { $0.id == unit.id } ?? unit
+            let maxDistance = order == .run ?
+                max(unit.runMoveAllowance, movementDistance(for: unit, controller: PlayableTestAIController(activePlayer: snapshot.activePlayer), scenarioID: snapshot.scenarioID, turnNumber: snapshot.turnNumber)) :
+                max(unit.advanceMoveAllowance, movementDistance(for: unit, controller: PlayableTestAIController(activePlayer: snapshot.activePlayer), scenarioID: snapshot.scenarioID, turnNumber: snapshot.turnNumber))
+            let moved = session.moveSelectedUnitTowardPriorityObjective(
+                named: phasePriorities(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan),
+                maxDistance: maxDistance
+            ) || session.moveSelectedUnitTowardNearestObjective(maxDistance: maxDistance)
+            let after = session.snapshot().units.first { $0.id == unit.id } ?? before
+            let distance = hypot(after.x - before.x, after.y - before.y)
+            let detail = moved ?
+                "1 active units moved \(String(format: "%.1f", distance))\" toward priority target \(priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)), with nearest legal objective as fallback." :
+                "No legal movement was available for priority target \(priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan)); fallback to nearest legal objective also failed."
+            return PlayableActivationActionResult(succeeded: moved, detail: detail, movementDistance: distance)
+        case .fire:
+            session.selectNearestEnemyToSelectedUnit()
+            let fired = session.shootSelectedTarget()
+            drainPendingChoices(in: session)
+            return PlayableActivationActionResult(
+                succeeded: fired,
+                detail: fired ? "1 active units fired at nearest enemies to protect priority target \(priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan))." : "No legal shots were available while protecting priority target \(priorityTarget(for: snapshot, antiPlan: antiPlan, germanPlan: germanPlan))."
+            )
+        case .rally:
+            let rallied = session.resolveRallyOrder(for: unit.id)
+            return PlayableActivationActionResult(
+                succeeded: rallied || originalOrder == .rally,
+                detail: rallied ? "\(unit.name) rallied and removed pin pressure." : "\(unit.name) held the Rally order after order-test resolution."
+            )
+        case .ambush:
+            return PlayableActivationActionResult(succeeded: true, detail: "\(unit.name) retained Ambush for opportunity fire.")
+        case .down:
+            return PlayableActivationActionResult(succeeded: true, detail: "\(unit.name) went Down to reduce incoming fire.")
+        }
     }
 
     private static func moveActiveUnits(
@@ -997,4 +1151,16 @@ public enum PlayableTestGameRunner {
 private struct PlayableMovementPhaseResult: Hashable, Sendable {
     let moved: Int
     let distance: Double
+}
+
+private struct PlayableActivationActionResult: Hashable, Sendable {
+    let succeeded: Bool
+    let detail: String
+    let movementDistance: Double
+
+    init(succeeded: Bool, detail: String, movementDistance: Double = 0) {
+        self.succeeded = succeeded
+        self.detail = detail
+        self.movementDistance = movementDistance
+    }
 }
