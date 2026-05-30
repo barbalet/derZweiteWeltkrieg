@@ -104,6 +104,13 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
     public let orderDiceSummary: String
     public let pinCount: Int
     public let moraleQuality: String
+    public let lastOrderTestResult: String
+    public let lastOrderTestRoll: Int
+    public let lastOrderTestTarget: Int
+    public let lastOrderTestPinModifier: Int
+    public let lastOrderTestOfficerModifier: Int
+    public let lastFubarResult: String
+    public let lastFubarTargetID: Int?
     public let retainedOrder: Bool
     public let downOrderActive: Bool
     public let ambushOrderActive: Bool
@@ -216,6 +223,13 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
         orderDiceSummary: String = "",
         pinCount: Int = 0,
         moraleQuality: String = "Regular",
+        lastOrderTestResult: String = "Not Required",
+        lastOrderTestRoll: Int = 0,
+        lastOrderTestTarget: Int = 0,
+        lastOrderTestPinModifier: Int = 0,
+        lastOrderTestOfficerModifier: Int = 0,
+        lastFubarResult: String = "None",
+        lastFubarTargetID: Int? = nil,
         retainedOrder: Bool = false,
         downOrderActive: Bool = false,
         ambushOrderActive: Bool = false,
@@ -327,6 +341,13 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
         self.orderDiceSummary = orderDiceSummary
         self.pinCount = pinCount
         self.moraleQuality = moraleQuality
+        self.lastOrderTestResult = lastOrderTestResult
+        self.lastOrderTestRoll = lastOrderTestRoll
+        self.lastOrderTestTarget = lastOrderTestTarget
+        self.lastOrderTestPinModifier = lastOrderTestPinModifier
+        self.lastOrderTestOfficerModifier = lastOrderTestOfficerModifier
+        self.lastFubarResult = lastFubarResult
+        self.lastFubarTargetID = lastFubarTargetID
         self.retainedOrder = retainedOrder
         self.downOrderActive = downOrderActive
         self.ambushOrderActive = ambushOrderActive
@@ -932,6 +953,13 @@ public final class NativeBoardSession {
                 orderDiceSummary: orderDiceSummary(for: unit),
                 pinCount: Int(unit.pin_count),
                 moraleQuality: nativeBoardCString(game_morale_quality_name(unit.morale_quality)),
+                lastOrderTestResult: nativeBoardCString(game_order_test_result_name(unit.last_order_test_result)),
+                lastOrderTestRoll: Int(unit.last_order_test_roll),
+                lastOrderTestTarget: Int(unit.last_order_test_target),
+                lastOrderTestPinModifier: Int(unit.last_order_test_pin_modifier),
+                lastOrderTestOfficerModifier: Int(unit.last_order_test_officer_modifier),
+                lastFubarResult: nativeBoardCString(game_fubar_result_name(unit.last_fubar_result)),
+                lastFubarTargetID: optionalNativeBoardID(unit.last_fubar_target_id),
                 retainedOrder: unit.retained_order,
                 downOrderActive: unit.down_order_active,
                 ambushOrderActive: unit.ambush_order_active,
