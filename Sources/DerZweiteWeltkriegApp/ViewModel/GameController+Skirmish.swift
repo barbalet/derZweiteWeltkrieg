@@ -522,6 +522,9 @@ extension GameController {
     }
 
     private func aiMovementAllowance(for unit: UnitSnapshot) -> CGFloat {
+        if unit.currentOrderMoveAllowance > 0 {
+            return unit.currentOrderMoveAllowance
+        }
         if unit.kind == DZW_UNIT_VEHICLE {
             return unit.fast ? 18 : 12
         }

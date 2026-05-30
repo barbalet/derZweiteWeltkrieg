@@ -770,6 +770,160 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertTrue(String(cString: game_last_error(roadGame)).contains("can move up to 12"))
     }
 
+    func testVehicleReverseMovesUseAdvanceRateLimitsAndRecceException() {
+        guard let trackedGame = game_create_demo(85),
+              let recceGame = game_create_demo(86) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(trackedGame)
+            game_destroy(recceGame)
+        }
+
+        XCTAssertTrue(game_set_ruleset(trackedGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 7, in: trackedGame))
+        var firefly = unitView(withID: 7, in: trackedGame)
+        XCTAssertEqual(firefly.reverse_move_allowance, 4.5, accuracy: 0.01)
+        XCTAssertTrue(firefly.can_reverse_now)
+        XCTAssertFalse(game_reverse_unit(trackedGame, 7, 4.6))
+        XCTAssertTrue(String(cString: game_last_error(trackedGame)).contains("can reverse up to 4.5"))
+        XCTAssertTrue(game_reverse_unit(trackedGame, 7, 4.5))
+        firefly = unitView(withID: 7, in: trackedGame)
+        XCTAssertEqual(firefly.x, 15.5, accuracy: 0.01)
+        XCTAssertEqual(firefly.last_reverse_distance, 4.5, accuracy: 0.01)
+
+        XCTAssertTrue(game_deploy_unit(recceGame, 3, 20.0, 20.0))
+        XCTAssertTrue(game_set_ruleset(recceGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 3, in: recceGame))
+        let carrier = unitView(withID: 3, in: recceGame)
+        XCTAssertEqual(carrier.reverse_move_allowance, 9.0, accuracy: 0.01)
+        XCTAssertTrue(game_reverse_unit(recceGame, 3, 9.0))
+        XCTAssertEqual(unitView(withID: 3, in: recceGame).x, 11.0, accuracy: 0.01)
+    }
+
+    func testVehiclePivotBudgetsFollowMobilityAndOrder() {
+        guard let trackedAdvance = game_create_demo(87),
+              let trackedRun = game_create_demo(88),
+              let wheeledAdvance = game_create_demo(89) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(trackedAdvance)
+            game_destroy(trackedRun)
+            game_destroy(wheeledAdvance)
+        }
+
+        XCTAssertTrue(game_set_ruleset(trackedAdvance, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 7, in: trackedAdvance))
+        XCTAssertTrue(game_rotate_unit(trackedAdvance, 7, 90.0))
+        let firefly = unitView(withID: 7, in: trackedAdvance)
+        XCTAssertEqual(Int(firefly.pivot_budget), 1)
+        XCTAssertEqual(Int(firefly.pivot_count_used), 1)
+        XCTAssertFalse(game_rotate_unit(trackedAdvance, 7, 180.0))
+        XCTAssertTrue(String(cString: game_last_error(trackedAdvance)).contains("1 pivot"))
+
+        XCTAssertTrue(game_set_ruleset(trackedRun, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 7, in: trackedRun))
+        XCTAssertFalse(game_rotate_unit(trackedRun, 7, 90.0))
+        XCTAssertTrue(String(cString: game_last_error(trackedRun)).contains("0 pivots"))
+
+        XCTAssertTrue(game_set_ruleset(wheeledAdvance, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 6, in: wheeledAdvance))
+        XCTAssertTrue(game_rotate_unit(wheeledAdvance, 6, 90.0))
+        XCTAssertTrue(game_rotate_unit(wheeledAdvance, 6, 0.0))
+        let armoredCar = unitView(withID: 6, in: wheeledAdvance)
+        XCTAssertEqual(Int(armoredCar.pivot_budget), 2)
+        XCTAssertEqual(Int(armoredCar.pivot_count_used), 2)
+        XCTAssertFalse(game_rotate_unit(wheeledAdvance, 6, 270.0))
+    }
+
+    func testMovementUIContractReportsUnresolvedOrderTestBlockers() {
+        guard let game = preparePinnedOrderDiceGame(order: DZW_ORDER_ADVANCE) else {
+            XCTFail("Failed to prepare pinned order-dice game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        let pinned = unitView(withID: 5, in: game)
+        XCTAssertFalse(pinned.can_move_now)
+        XCTAssertTrue(cString(pinned.movement_rejection_reason).contains("order test"))
+        XCTAssertTrue(cString(game_unit_order_movement_rejection_reason(game, 5, DZW_ORDER_ADVANCE)).contains("order test"))
+        XCTAssertFalse(game_move_unit(game, 5, 48.0, 24.0))
+        XCTAssertTrue(String(cString: game_last_error(game)).contains("required order test"))
+    }
+
+    func testRunOrderProvidesAssaultMovementAndPreventsFollowOnFire() {
+        guard let runGame = game_create_demo(90),
+              let advanceGame = game_create_demo(91) else {
+            XCTFail("Failed to create demo games")
+            return
+        }
+        defer {
+            game_destroy(runGame)
+            game_destroy(advanceGame)
+        }
+
+        XCTAssertTrue(game_deploy_unit(runGame, 2, 8.0, 45.0))
+        XCTAssertTrue(game_deploy_unit(runGame, 6, 18.0, 45.0))
+        XCTAssertTrue(game_set_ruleset(runGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_RUN, to: 2, in: runGame))
+        XCTAssertTrue(game_assault_unit(runGame, 2, 6, DZW_FOLLOW_UP_CONSOLIDATE))
+        let attacker = unitView(withID: 2, in: runGame)
+        XCTAssertTrue(attacker.moved_this_turn)
+        XCTAssertGreaterThan(attacker.moved_distance, 6.0)
+        XCTAssertTrue(attacker.shot_this_turn)
+        XCTAssertFalse(attacker.can_shoot_now)
+
+        XCTAssertTrue(game_deploy_unit(advanceGame, 2, 8.0, 45.0))
+        XCTAssertTrue(game_deploy_unit(advanceGame, 6, 18.0, 45.0))
+        XCTAssertTrue(game_set_ruleset(advanceGame, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 2, in: advanceGame))
+        XCTAssertFalse(game_assault_unit(advanceGame, 2, 6, DZW_FOLLOW_UP_CONSOLIDATE))
+        XCTAssertTrue(String(cString: game_last_error(advanceGame)).contains("needs a Run order"))
+    }
+
+    func testShootingProcedureRecordsDeclaredTargetRangeAndResolutionSteps() {
+        guard let game = game_create_demo(96) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 4, 25.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 1, in: game))
+        XCTAssertTrue(game_shoot_unit(game, 1, 4))
+
+        let shooter = unitView(withID: 1, in: game)
+        XCTAssertEqual(Int(shooter.last_shooting_target_id), 4)
+        XCTAssertEqual(shooter.last_shooting_range, 10.8, accuracy: 0.2)
+        XCTAssertEqual(shooter.last_shooting_target_reaction, DZW_TARGET_REACTION_NONE)
+        XCTAssertTrue(shooter.last_shooting_range_checked)
+        XCTAssertTrue(shooter.last_shooting_hit_rolls_resolved)
+        XCTAssertTrue(shooter.last_shooting_damage_resolved)
+        XCTAssertTrue(shooter.last_shooting_morale_checked)
+    }
+
+    func testShootingProcedureRecordsDownTargetReaction() {
+        guard let game = game_create_demo(97) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 4, 25.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_DOWN, to: 4, in: game, preserving: [1]))
+        XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 1, in: game))
+        XCTAssertTrue(game_shoot_unit(game, 1, 4))
+
+        let shooter = unitView(withID: 1, in: game)
+        XCTAssertEqual(shooter.last_shooting_target_reaction, DZW_TARGET_REACTION_DOWN)
+        XCTAssertEqual(String(cString: game_target_reaction_name(shooter.last_shooting_target_reaction)), "Down")
+    }
+
     func testArmyPresetDemoLoadsSelectedMatchup() {
         guard let game = game_create_demo_with_armies(500, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
             XCTFail("Failed to create army preset demo")
@@ -3296,6 +3450,18 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         return unit_view_t()
     }
 
+    private func firstOrderAssignableUnit(owner: player_t, excluding reservedUnitIDs: Set<Int32>, in game: OpaquePointer) -> unit_view_t {
+        let count = Int(game_unit_count(game))
+        for index in 0..<count {
+            let view = game_unit_view(game, Int32(index))
+            if view.owner == owner && !reservedUnitIDs.contains(view.id) && orderDiceUnitCanReceiveDie(view) {
+                return view
+            }
+        }
+        XCTFail("Could not find an order-assignable non-reserved unit for owner \(owner)")
+        return unit_view_t()
+    }
+
     private func drawUntilCurrentDie(owner: player_t, in game: OpaquePointer) -> Bool {
         var attemptsRemaining = Int(game_order_dice_remaining_count(game)) + 1
         while attemptsRemaining > 0 {
@@ -3318,9 +3484,39 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         return false
     }
 
+    private func drawUntilCurrentDie(owner: player_t, in game: OpaquePointer, preserving reservedUnitIDs: Set<Int32>) -> Bool {
+        var attemptsRemaining = Int(game_order_dice_remaining_count(game)) + 1
+        while attemptsRemaining > 0 {
+            attemptsRemaining -= 1
+            let current = game_current_order_die_view(game)
+            if current.available {
+                if current.owner == owner {
+                    return true
+                }
+                let filler = firstOrderAssignableUnit(owner: current.owner, excluding: reservedUnitIDs, in: game)
+                if !game_assign_order(game, filler.id, DZW_ORDER_DOWN) {
+                    return false
+                }
+                continue
+            }
+            if !game_draw_order_die(game) {
+                return false
+            }
+        }
+        return false
+    }
+
     private func assignOrder(_ order: dzw_order_t, to unitID: Int32, in game: OpaquePointer) -> Bool {
         let unit = unitView(withID: unitID, in: game)
         guard drawUntilCurrentDie(owner: unit.owner, in: game) else {
+            return false
+        }
+        return game_assign_order(game, unitID, order)
+    }
+
+    private func assignOrder(_ order: dzw_order_t, to unitID: Int32, in game: OpaquePointer, preserving reservedUnitIDs: Set<Int32>) -> Bool {
+        let unit = unitView(withID: unitID, in: game)
+        guard drawUntilCurrentDie(owner: unit.owner, in: game, preserving: reservedUnitIDs.union([unitID])) else {
             return false
         }
         return game_assign_order(game, unitID, order)

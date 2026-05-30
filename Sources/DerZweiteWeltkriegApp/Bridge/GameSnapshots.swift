@@ -506,7 +506,23 @@ struct UnitSnapshot: Identifiable {
     let lastRallyPinsRemoved: Int
     let advanceMoveAllowance: CGFloat
     let runMoveAllowance: CGFloat
+    let assaultMoveAllowance: CGFloat
     let currentOrderMoveAllowance: CGFloat
+    let reverseMoveAllowance: CGFloat
+    let canReverseNow: Bool
+    let pivotBudget: Int
+    let pivotCountUsed: Int
+    let lastReverseDistance: CGFloat
+    let movementRestrictionReason: String?
+    let lastShootingTargetID: Int
+    let lastShootingRange: CGFloat
+    let lastShootingTargetReaction: dzw_target_reaction_t
+    let lastShootingRangeChecked: Bool
+    let lastShootingHitRollsResolved: Bool
+    let lastShootingDamageResolved: Bool
+    let lastShootingModelsRemoved: Int
+    let lastShootingPinsAdded: Int
+    let lastShootingMoraleChecked: Bool
     let embarked: Bool
     let embarkedUnitID: Int
     let embarkedInTransportID: Int
@@ -575,7 +591,23 @@ struct UnitSnapshot: Identifiable {
         lastRallyPinsRemoved = Int(raw.last_rally_pins_removed)
         advanceMoveAllowance = CGFloat(raw.advance_move_allowance)
         runMoveAllowance = CGFloat(raw.run_move_allowance)
+        assaultMoveAllowance = CGFloat(raw.assault_move_allowance)
         currentOrderMoveAllowance = CGFloat(raw.current_order_move_allowance)
+        reverseMoveAllowance = CGFloat(raw.reverse_move_allowance)
+        canReverseNow = raw.can_reverse_now
+        pivotBudget = Int(raw.pivot_budget)
+        pivotCountUsed = Int(raw.pivot_count_used)
+        lastReverseDistance = CGFloat(raw.last_reverse_distance)
+        movementRestrictionReason = raw.movement_rejection_reason.map { String(cString: $0) }
+        lastShootingTargetID = Int(raw.last_shooting_target_id)
+        lastShootingRange = CGFloat(raw.last_shooting_range)
+        lastShootingTargetReaction = raw.last_shooting_target_reaction
+        lastShootingRangeChecked = raw.last_shooting_range_checked
+        lastShootingHitRollsResolved = raw.last_shooting_hit_rolls_resolved
+        lastShootingDamageResolved = raw.last_shooting_damage_resolved
+        lastShootingModelsRemoved = Int(raw.last_shooting_models_removed)
+        lastShootingPinsAdded = Int(raw.last_shooting_pins_added)
+        lastShootingMoraleChecked = raw.last_shooting_morale_checked
         embarked = raw.embarked
         embarkedUnitID = Int(raw.embarked_unit_id)
         embarkedInTransportID = Int(raw.embarked_in_transport_id)
@@ -603,6 +635,10 @@ struct UnitSnapshot: Identifiable {
         String(cString: game_fubar_result_name(lastFubarResult))
     }
 
+    var lastShootingTargetReactionName: String {
+        String(cString: game_target_reaction_name(lastShootingTargetReaction))
+    }
+
     var orderDiceSummary: String {
         var parts = ["Order \(currentOrderName)", "\(moraleQualityName)", "Pins \(pinCount)"]
         if actedThisTurn {
@@ -619,6 +655,15 @@ struct UnitSnapshot: Identifiable {
         }
         if lastRallyRoll > 0 {
             parts.append("Rally -\(lastRallyPinsRemoved)")
+        }
+        if pivotBudget > 0 {
+            parts.append("Pivots \(pivotCountUsed)/\(pivotBudget)")
+        }
+        if lastReverseDistance > 0 {
+            parts.append("Reverse \(String(format: "%.1f", Double(lastReverseDistance)))")
+        }
+        if lastShootingRangeChecked {
+            parts.append("Shot \(String(format: "%.1f", Double(lastShootingRange)))")
         }
         if lastOrderTestResult != DZW_ORDER_TEST_NOT_REQUIRED {
             parts.append(lastOrderTestResultName)

@@ -229,6 +229,17 @@ typedef struct {
     int last_fubar_target_id;
     int last_rally_roll;
     int last_rally_pins_removed;
+    int pivot_count_used;
+    float last_reverse_distance;
+    int last_shooting_target_id;
+    float last_shooting_range;
+    dzw_target_reaction_t last_shooting_target_reaction;
+    bool last_shooting_range_checked;
+    bool last_shooting_hit_rolls_resolved;
+    bool last_shooting_damage_resolved;
+    int last_shooting_models_removed;
+    int last_shooting_pins_added;
+    bool last_shooting_morale_checked;
     bool destroyed;
     bool manual_in_cover;
     bool manual_hull_down;
@@ -368,6 +379,7 @@ static player_t mission_winner(const game_t *game);
 static const char *player_name(player_t player);
 static void log_profile_group_allocation(game_t *game, const unit_t *target, const int *allocated_hits);
 static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, float y, int ignore_unit_id);
+static bool unit_can_move_now(const game_t *game, const unit_t *unit);
 static float move_toward_point_legally(const game_t *game, unit_t *unit, float target_x, float target_y, float distance, int ignore_unit_id);
 static bool find_legal_position_along_heading(const game_t *game, const unit_t *unit, float angle_degrees, float requested_distance, float *out_x, float *out_y, float *out_distance);
 
@@ -2124,6 +2136,19 @@ const char *game_fubar_result_name(dzw_fubar_result_t result) {
     }
 }
 
+const char *game_target_reaction_name(dzw_target_reaction_t reaction) {
+    switch (reaction) {
+        case DZW_TARGET_REACTION_NONE:
+            return "None";
+        case DZW_TARGET_REACTION_DOWN:
+            return "Down";
+        case DZW_TARGET_REACTION_AMBUSH_READY:
+            return "Ambush Ready";
+        default:
+            return "Unknown";
+    }
+}
+
 static bool order_value_can_be_assigned(dzw_order_t order) {
     return order >= DZW_ORDER_FIRE && order <= DZW_ORDER_DOWN;
 }
@@ -2439,6 +2464,38 @@ static void reset_unit_order_test_details(unit_t *unit) {
     unit->last_fubar_target_id = 0;
     unit->last_rally_roll = 0;
     unit->last_rally_pins_removed = 0;
+}
+
+static void reset_unit_movement_execution_details(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    unit->pivot_count_used = 0;
+    unit->last_reverse_distance = 0.0f;
+}
+
+static void reset_unit_shooting_execution_details(unit_t *unit) {
+    if (unit == NULL) {
+        return;
+    }
+    unit->last_shooting_target_id = 0;
+    unit->last_shooting_range = 0.0f;
+    unit->last_shooting_target_reaction = DZW_TARGET_REACTION_NONE;
+    unit->last_shooting_range_checked = false;
+    unit->last_shooting_hit_rolls_resolved = false;
+    unit->last_shooting_damage_resolved = false;
+    unit->last_shooting_models_removed = 0;
+    unit->last_shooting_pins_added = 0;
+    unit->last_shooting_morale_checked = false;
+}
+
+static bool unit_has_unresolved_required_order_test(const game_t *game, const unit_t *unit) {
+    return game != NULL &&
+        game->ruleset == DZW_RULESET_ORDER_DICE &&
+        unit != NULL &&
+        order_requires_test_for_unit(game, unit) &&
+        unit->last_order_test_roll == 0 &&
+        unit->last_order_test_result == DZW_ORDER_TEST_NOT_REQUIRED;
 }
 
 static void reduce_order_test_pin(unit_t *unit) {
@@ -2939,6 +2996,8 @@ bool game_assign_order(game_t *game, int unit_id, dzw_order_t order) {
     unit->acted_this_turn_order_dice = true;
     unit->retained_order = order_is_retained(order);
     reset_unit_order_test_details(unit);
+    reset_unit_movement_execution_details(unit);
+    reset_unit_shooting_execution_details(unit);
     if (!order_permits_movement(order)) {
         unit->movement_action_used_this_turn = true;
     }
@@ -3165,6 +3224,8 @@ static void clear_unit_order_dice_activation_for_next_turn(unit_t *unit) {
     unit->fired_stationary_rapid_or_heavy = false;
     unit->embarked_this_turn = false;
     reset_unit_order_test_details(unit);
+    reset_unit_movement_execution_details(unit);
+    reset_unit_shooting_execution_details(unit);
 }
 
 static void reset_order_dice_pools_for_next_turn(game_t *game) {
@@ -3269,6 +3330,7 @@ bool game_end_order_dice_turn(game_t *game) {
             unit->shot_this_turn = true;
             unit->assaulted_this_turn = true;
             unit->moved_distance = 0.0f;
+            reset_unit_movement_execution_details(unit);
             unit->smoke_used_this_turn = false;
             unit->fired_stationary_rapid_or_heavy = false;
             order_die_t die = {
@@ -3680,6 +3742,105 @@ float game_unit_order_movement_allowance(const game_t *game, int unit_id, dzw_or
     return order_movement_allowance_for_unit(unit, order);
 }
 
+static int order_dice_pivot_budget_for_unit(const unit_t *unit, dzw_order_t order) {
+    dzw_mobility_internal_t mobility = mobility_for_unit(unit);
+    if (!unit_uses_vehicle_rules(unit) || mobility == DZW_MOBILITY_ARTILLERY_INTERNAL) {
+        return 0;
+    }
+
+    if (order == DZW_ORDER_ADVANCE) {
+        if (mobility == DZW_MOBILITY_TRACKED_INTERNAL) {
+            return 1;
+        }
+        if (mobility == DZW_MOBILITY_HALF_TRACKED_INTERNAL || mobility == DZW_MOBILITY_WHEELED_INTERNAL) {
+            return 2;
+        }
+    }
+    if (order == DZW_ORDER_RUN) {
+        if (mobility == DZW_MOBILITY_HALF_TRACKED_INTERNAL || mobility == DZW_MOBILITY_WHEELED_INTERNAL) {
+            return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+static float reverse_movement_allowance_for_unit(const unit_t *unit) {
+    if (unit == NULL || !unit_uses_vehicle_rules(unit) || unit_uses_artillery_rules(unit)) {
+        return 0.0f;
+    }
+
+    float advance = order_movement_allowance_for_unit(unit, DZW_ORDER_ADVANCE);
+    return unit->recon ? advance : advance * 0.5f;
+}
+
+static bool unit_can_reverse_now(const game_t *game, const unit_t *unit) {
+    return game != NULL &&
+        game->ruleset == DZW_RULESET_ORDER_DICE &&
+        unit != NULL &&
+        unit_uses_vehicle_rules(unit) &&
+        !unit_uses_artillery_rules(unit) &&
+        unit->current_order == DZW_ORDER_ADVANCE &&
+        unit_can_move_now(game, unit) &&
+        !unit_has_unresolved_required_order_test(game, unit);
+}
+
+static float angle_delta_degrees(float from_degrees, float to_degrees) {
+    float delta = fabsf(normalize_angle(to_degrees) - normalize_angle(from_degrees));
+    return delta > 180.0f ? 360.0f - delta : delta;
+}
+
+static int pivot_steps_for_angle_delta(float delta_degrees) {
+    if (delta_degrees <= 0.01f) {
+        return 0;
+    }
+    return (int)ceilf(delta_degrees / 90.0f);
+}
+
+static const char *movement_rejection_reason_for_unit(const game_t *game, const unit_t *unit, dzw_order_t order) {
+    if (game == NULL || unit == NULL) {
+        return "Unit not found.";
+    }
+    if (unit->destroyed || unit->models <= 0) {
+        return "Destroyed units cannot move.";
+    }
+    if (unit_is_embarked(unit)) {
+        return "Embarked units cannot move directly.";
+    }
+    if (unit->falling_back) {
+        return "Falling back units cannot make a normal move.";
+    }
+    if (unit->locked_in_assault) {
+        return "Locked units cannot make a normal move.";
+    }
+    if (!order_permits_movement(order)) {
+        return "Order does not permit movement.";
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && unit_has_unresolved_required_order_test(game, unit)) {
+        return "Resolve the required order test before moving.";
+    }
+    if (unit->movement_action_used_this_turn) {
+        return "Movement has already been used this turn.";
+    }
+    if (unit_uses_vehicle_rules(unit) && unit->crew_stunned) {
+        return "Crew stunned vehicles cannot move.";
+    }
+    if (unit_uses_vehicle_rules(unit) && unit->immobilized) {
+        return "Immobilized vehicles cannot move.";
+    }
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_MOVEMENT) {
+        return "Movement is only available in the movement phase.";
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && unit->current_order != order) {
+        return "Assign this order before moving.";
+    }
+    return NULL;
+}
+
+const char *game_unit_order_movement_rejection_reason(const game_t *game, int unit_id, dzw_order_t order) {
+    return movement_rejection_reason_for_unit(game, find_unit_const(game, unit_id), order);
+}
+
 static const char *order_dice_path_restriction_reason(const game_t *game, const unit_t *unit, dzw_order_t order, float x, float y) {
     if (game == NULL || unit == NULL || game->ruleset != DZW_RULESET_ORDER_DICE) {
         return NULL;
@@ -3909,6 +4070,9 @@ static bool unit_can_move_now(const game_t *game, const unit_t *unit) {
     if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_movement(unit->current_order)) {
         return false;
     }
+    if (unit_has_unresolved_required_order_test(game, unit)) {
+        return false;
+    }
     if (unit->falling_back || unit->locked_in_assault || unit_is_embarked(unit)) {
         return false;
     }
@@ -3977,6 +4141,9 @@ static bool unit_can_shoot_now(const game_t *game, const unit_t *unit) {
     if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_shooting(unit->current_order)) {
         return false;
     }
+    if (unit_has_unresolved_required_order_test(game, unit)) {
+        return false;
+    }
     if (unit->shot_this_turn || unit->falling_back || unit->locked_in_assault || unit_is_embarked(unit)) {
         return false;
     }
@@ -4000,6 +4167,9 @@ static bool unit_can_assault_now(const game_t *game, const unit_t *unit) {
         return false;
     }
     if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_assault(unit->current_order)) {
+        return false;
+    }
+    if (unit_has_unresolved_required_order_test(game, unit)) {
         return false;
     }
     if (unit->assaulted_this_turn || unit->falling_back || unit_is_embarked(unit)) {
@@ -4084,6 +4254,8 @@ static void begin_turn(game_t *game) {
         unit->shot_this_turn = false;
         unit->assaulted_this_turn = false;
         unit->moved_distance = 0.0f;
+        reset_unit_movement_execution_details(unit);
+        reset_unit_shooting_execution_details(unit);
         unit->smoke_used_this_turn = false;
         unit->fired_stationary_rapid_or_heavy = false;
         unit->embarked_this_turn = false;
@@ -7356,7 +7528,23 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.last_rally_pins_removed = unit->last_rally_pins_removed;
     view.advance_move_allowance = order_movement_allowance_for_unit(unit, DZW_ORDER_ADVANCE);
     view.run_move_allowance = order_movement_allowance_for_unit(unit, DZW_ORDER_RUN);
+    view.assault_move_allowance = order_movement_allowance_for_unit(unit, DZW_ORDER_RUN);
     view.current_order_move_allowance = order_movement_allowance_for_unit(unit, unit->current_order);
+    view.reverse_move_allowance = reverse_movement_allowance_for_unit(unit);
+    view.can_reverse_now = unit_can_reverse_now(game, unit);
+    view.pivot_budget = order_dice_pivot_budget_for_unit(unit, unit->current_order);
+    view.pivot_count_used = unit->pivot_count_used;
+    view.last_reverse_distance = unit->last_reverse_distance;
+    view.movement_rejection_reason = movement_rejection_reason_for_unit(game, unit, unit->current_order);
+    view.last_shooting_target_id = unit->last_shooting_target_id;
+    view.last_shooting_range = unit->last_shooting_range;
+    view.last_shooting_target_reaction = unit->last_shooting_target_reaction;
+    view.last_shooting_range_checked = unit->last_shooting_range_checked;
+    view.last_shooting_hit_rolls_resolved = unit->last_shooting_hit_rolls_resolved;
+    view.last_shooting_damage_resolved = unit->last_shooting_damage_resolved;
+    view.last_shooting_models_removed = unit->last_shooting_models_removed;
+    view.last_shooting_pins_added = unit->last_shooting_pins_added;
+    view.last_shooting_morale_checked = unit->last_shooting_morale_checked;
     view.embarked = unit_is_embarked(unit);
     view.embarked_unit_id = unit->embarked_unit_id;
     view.embarked_in_transport_id = unit->embarked_in_transport_id;
@@ -7559,6 +7747,9 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         if (game->ruleset == DZW_RULESET_FIXED_PHASES && unit->pinned_until_turn == game->turn_number) {
             return fail(game, "%s is pinned and cannot move this turn.", unit->name);
         }
+        if (unit_has_unresolved_required_order_test(game, unit)) {
+            return fail(game, "Resolve %s's required order test before moving.", unit->name);
+        }
         if (unit->locked_in_assault) {
             return fail(game, "%s is locked in close combat.", unit->name);
         }
@@ -7572,6 +7763,9 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
             return fail(game, "%s has already used its movement for this turn.", unit->name);
         }
         return fail(game, "%s cannot move right now.", unit->name);
+    }
+    if (unit_has_unresolved_required_order_test(game, unit)) {
+        return fail(game, "Resolve %s's required order test before moving.", unit->name);
     }
 
     if (x < unit->footprint_radius || y < unit->footprint_radius || x > DZW_BOARD_WIDTH - unit->footprint_radius || y > DZW_BOARD_HEIGHT - unit->footprint_radius) {
@@ -7638,6 +7832,67 @@ bool game_move_unit(game_t *game, int unit_id, float x, float y) {
         sync_embarked_unit_position(game, unit);
     }
     dzw_log(game, "%s moves %.1f\".", unit->name, distance);
+    return true;
+}
+
+bool game_reverse_unit(game_t *game, int unit_id, float distance) {
+    clear_error(game);
+    if (!assert_no_pending_resolution_choice(game)) {
+        return false;
+    }
+    unit_t *unit = find_unit(game, unit_id);
+    if (!assert_valid_unit_action(game, unit)) {
+        return false;
+    }
+    if (game->ruleset != DZW_RULESET_ORDER_DICE) {
+        return fail(game, "Reverse moves are only available in the Order Dice ruleset.");
+    }
+    if (!unit_uses_vehicle_rules(unit) || unit_uses_artillery_rules(unit)) {
+        return fail(game, "%s cannot make a vehicle reverse move.", unit->name);
+    }
+    if (unit->current_order != DZW_ORDER_ADVANCE) {
+        return fail(game, "%s needs an Advance order to reverse.", unit->name);
+    }
+    if (!unit_can_reverse_now(game, unit)) {
+        const char *reason = movement_rejection_reason_for_unit(game, unit, unit->current_order);
+        return fail(game, "%s", reason != NULL ? reason : "Unit cannot reverse right now.");
+    }
+    if (distance <= 0.0f) {
+        return fail(game, "Reverse distance must be positive.");
+    }
+
+    float allowance = reverse_movement_allowance_for_unit(unit);
+    if (distance > allowance + 0.01f) {
+        return fail(game, "%s can reverse up to %.1f\", not %.1f\".", unit->name, allowance, distance);
+    }
+
+    float radians = normalize_angle(unit->facing_degrees) * ((float)M_PI / 180.0f);
+    float x = unit->x - cosf(radians) * distance;
+    float y = unit->y - sinf(radians) * distance;
+    if (x < unit->footprint_radius || y < unit->footprint_radius || x > DZW_BOARD_WIDTH - unit->footprint_radius || y > DZW_BOARD_HEIGHT - unit->footprint_radius) {
+        return fail(game, "Reverse destination is outside the battlefield.");
+    }
+    if (path_touches_terrain(game, unit->x, unit->y, x, y, DZW_TERRAIN_IMPASSABLE)) {
+        return fail(game, "%s cannot reverse across impassable terrain.", unit->name);
+    }
+    const char *order_dice_restriction = order_dice_path_restriction_reason(game, unit, unit->current_order, x, y);
+    if (order_dice_restriction != NULL) {
+        return fail(game, "%s", order_dice_restriction);
+    }
+    if (!can_place_unit_at(game, unit, x, y, unit->id)) {
+        return fail(game, "%s cannot reverse into that position.", unit->name);
+    }
+
+    unit->x = x;
+    unit->y = y;
+    unit->moved_this_turn = true;
+    unit->movement_action_used_this_turn = true;
+    unit->moved_distance = distance;
+    unit->last_reverse_distance = distance;
+    if (unit_is_transport(unit)) {
+        sync_embarked_unit_position(game, unit);
+    }
+    dzw_log(game, "%s reverses %.1f\".", unit->name, distance);
     return true;
 }
 
@@ -8019,11 +8274,34 @@ bool game_rotate_unit(game_t *game, int unit_id, float facing_degrees) {
     if (!assert_valid_unit_action(game, unit)) {
         return false;
     }
-    if (game->phase != DZW_PHASE_MOVEMENT) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && game->phase != DZW_PHASE_MOVEMENT) {
         return fail(game, "Facing changes are only handled in the movement phase.");
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_movement(unit->current_order)) {
+        return fail(game, "%s needs an Advance or Run order to pivot.", unit->name);
+    }
+    if (unit_has_unresolved_required_order_test(game, unit)) {
+        return fail(game, "Resolve %s's required order test before pivoting.", unit->name);
     }
     if (unit_uses_vehicle_rules(unit) && unit->immobilized) {
         return fail(game, "%s is immobilized and may not turn in place.", unit->name);
+    }
+    if (unit_uses_vehicle_rules(unit) && unit->crew_stunned) {
+        return fail(game, "%s is crew stunned and may not turn in place.", unit->name);
+    }
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && unit_uses_vehicle_rules(unit) && !unit_uses_artillery_rules(unit)) {
+        int pivot_budget = order_dice_pivot_budget_for_unit(unit, unit->current_order);
+        int requested_pivots = pivot_steps_for_angle_delta(angle_delta_degrees(unit->facing_degrees, facing_degrees));
+        if (requested_pivots == 0) {
+            return true;
+        }
+        if (unit->movement_action_used_this_turn) {
+            return fail(game, "%s has already used its movement for this turn.", unit->name);
+        }
+        if (unit->pivot_count_used + requested_pivots > pivot_budget) {
+            return fail(game, "%s has %d pivot%s available with %s and has already used %d.", unit->name, pivot_budget, pivot_budget == 1 ? "" : "s", game_order_name(unit->current_order), unit->pivot_count_used);
+        }
+        unit->pivot_count_used += requested_pivots;
     }
     unit->facing_degrees = normalize_angle(facing_degrees);
     if (unit_is_transport(unit)) {
@@ -8051,6 +8329,38 @@ bool game_deploy_rotate_unit(game_t *game, int unit_id, float facing_degrees) {
     return true;
 }
 
+static dzw_target_reaction_t target_reaction_for_shooting(const unit_t *target) {
+    if (unit_down_order_active(target)) {
+        return DZW_TARGET_REACTION_DOWN;
+    }
+    if (unit_ambush_order_active(target)) {
+        return DZW_TARGET_REACTION_AMBUSH_READY;
+    }
+    return DZW_TARGET_REACTION_NONE;
+}
+
+static void begin_shooting_procedure(unit_t *attacker, const unit_t *target, float range) {
+    reset_unit_shooting_execution_details(attacker);
+    if (attacker == NULL || target == NULL) {
+        return;
+    }
+    attacker->last_shooting_target_id = target->id;
+    attacker->last_shooting_range = range;
+    attacker->last_shooting_target_reaction = target_reaction_for_shooting(target);
+    attacker->last_shooting_range_checked = true;
+}
+
+static void finish_shooting_procedure(unit_t *attacker, const unit_t *target, int target_models_before, int target_pins_before, bool morale_checked) {
+    if (attacker == NULL || target == NULL) {
+        return;
+    }
+    attacker->last_shooting_hit_rolls_resolved = true;
+    attacker->last_shooting_damage_resolved = true;
+    attacker->last_shooting_models_removed = target_models_before > target->models ? target_models_before - target->models : 0;
+    attacker->last_shooting_pins_added = target->pin_count > target_pins_before ? target->pin_count - target_pins_before : 0;
+    attacker->last_shooting_morale_checked = morale_checked;
+}
+
 bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     clear_error(game);
     if (!assert_no_pending_resolution_choice(game)) {
@@ -8074,6 +8384,9 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_shooting(attacker->current_order)) {
         return fail(game, "%s needs a Fire or Advance order to shoot.", attacker->name);
     }
+    if (unit_has_unresolved_required_order_test(game, attacker)) {
+        return fail(game, "Resolve %s's required order test before shooting.", attacker->name);
+    }
     if (target->owner == attacker->owner) {
         return fail(game, "Units cannot target their own side.");
     }
@@ -8090,6 +8403,13 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     float range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
     if (range < 0.0f) {
         range = 0.0f;
+    }
+    begin_shooting_procedure(attacker, target, range);
+    int shooting_target_models_before = target->models;
+    int shooting_target_pins_before = target->pin_count;
+    bool shooting_morale_checked = false;
+    if (attacker->last_shooting_target_reaction != DZW_TARGET_REACTION_NONE) {
+        dzw_log(game, "%s's target reaction is %s.", target->name, game_target_reaction_name(attacker->last_shooting_target_reaction));
     }
 
     bool resolved_any_weapon = false;
@@ -8129,12 +8449,11 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
 
         if (ordnance_slot != NULL) {
             resolved_any_weapon = true;
-            int target_models_before = target->models;
             if (unit_uses_vehicle_rules(target)) {
                 resolve_weapon_against_vehicle(game, attacker, target, &ordnance_slot->profile, 1);
             } else {
                 resolve_weapon_against_infantry(game, attacker, target, &ordnance_slot->profile, 1);
-                if (target->models < target_models_before && ordnance_slot->profile.barrage) {
+                if (target->models < shooting_target_models_before && ordnance_slot->profile.barrage) {
                     apply_pinning(game, target, ordnance_slot->profile.ordnance ? -1 : 0, ordnance_slot->profile.name);
                 }
             }
@@ -8143,7 +8462,9 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
                 attacker->shot_this_turn = true;
                 if (target->kind == DZW_UNIT_INFANTRY) {
                     dzw_apply_shooting_morale(game, target);
+                    shooting_morale_checked = true;
                 }
+                finish_shooting_procedure(attacker, target, shooting_target_models_before, shooting_target_pins_before, shooting_morale_checked);
                 return true;
             }
         } else {
@@ -8173,12 +8494,11 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
         }
 
         resolved_any_weapon = true;
-        int target_models_before = target->models;
         if (unit_uses_vehicle_rules(target)) {
             resolve_weapon_against_vehicle(game, attacker, target, &slot->profile, total_shots);
         } else {
             resolve_weapon_against_infantry(game, attacker, target, &slot->profile, total_shots);
-            if (target->models < target_models_before && slot->profile.barrage) {
+            if (target->models < shooting_target_models_before && slot->profile.barrage) {
                 apply_pinning(game, target, slot->profile.ordnance ? -1 : 0, slot->profile.name);
             }
         }
@@ -8205,7 +8525,9 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
     attacker->shot_this_turn = true;
     if (target->kind == DZW_UNIT_INFANTRY) {
         dzw_apply_shooting_morale(game, target);
+        shooting_morale_checked = true;
     }
+    finish_shooting_procedure(attacker, target, shooting_target_models_before, shooting_target_pins_before, shooting_morale_checked);
     return true;
 }
 
@@ -9114,6 +9436,9 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
     if (game->ruleset == DZW_RULESET_ORDER_DICE && !order_permits_assault(attacker->current_order)) {
         return fail(game, "%s needs a Run order to assault.", attacker->name);
     }
+    if (unit_has_unresolved_required_order_test(game, attacker)) {
+        return fail(game, "Resolve %s's required order test before assaulting.", attacker->name);
+    }
     if (attacker->kind == DZW_UNIT_VEHICLE) {
         return fail(game, "Only assault guns and tank destroyers can launch vehicle assaults.");
     }
@@ -9147,9 +9472,18 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
     if (!continuing_combat) {
         float range = dzw_distance(attacker->x, attacker->y, target->x, target->y) - attacker->footprint_radius - target->footprint_radius;
         bool difficult = path_touches_terrain(game, attacker->x, attacker->y, target->x, target->y, DZW_TERRAIN_DIFFICULT);
-        int assault_distance = difficult ? roll_highest_of_2d6(game) : 6;
-        if (range > (float)assault_distance + 0.01f) {
-            return fail(game, "%s needs %.1f\" to make contact but only has %d\".", attacker->name, range, assault_distance);
+        float assault_distance = 0.0f;
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            const char *restriction = order_dice_path_restriction_reason(game, attacker, attacker->current_order, target->x, target->y);
+            if (restriction != NULL) {
+                return fail(game, "%s", restriction);
+            }
+            assault_distance = order_movement_allowance_for_path(game, attacker, DZW_ORDER_RUN, target->x, target->y);
+        } else {
+            assault_distance = (float)(difficult ? roll_highest_of_2d6(game) : 6);
+        }
+        if (range > assault_distance + 0.01f) {
+            return fail(game, "%s needs %.1f\" to make contact but only has %.0f\".", attacker->name, range, assault_distance);
         }
 
         float contact_distance = fmaxf(range, 0.0f);
@@ -9161,6 +9495,9 @@ bool game_assault_unit(game_t *game, int attacker_id, int target_id, follow_up_t
             attacker->y = origin_y;
             return fail(game, "%s cannot find a legal way to contact %s without entering another combat.", attacker->name, target->name);
         }
+        attacker->moved_this_turn = true;
+        attacker->movement_action_used_this_turn = true;
+        attacker->moved_distance = moved;
         dzw_log(game, "%s charges into combat with %s.", attacker->name, target->name);
     } else {
         dzw_log(game, "%s and %s continue their close combat.", attacker->name, target->name);

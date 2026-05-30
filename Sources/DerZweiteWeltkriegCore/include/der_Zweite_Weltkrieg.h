@@ -58,6 +58,12 @@ typedef enum {
 } dzw_fubar_result_t;
 
 typedef enum {
+    DZW_TARGET_REACTION_NONE = 0,
+    DZW_TARGET_REACTION_DOWN = 1,
+    DZW_TARGET_REACTION_AMBUSH_READY = 2
+} dzw_target_reaction_t;
+
+typedef enum {
     DZW_UNIT_INFANTRY = 0,
     DZW_UNIT_VEHICLE = 1,
     DZW_UNIT_ASSAULT_GUN = 2
@@ -325,7 +331,23 @@ typedef struct {
     int last_rally_pins_removed;
     float advance_move_allowance;
     float run_move_allowance;
+    float assault_move_allowance;
     float current_order_move_allowance;
+    float reverse_move_allowance;
+    bool can_reverse_now;
+    int pivot_budget;
+    int pivot_count_used;
+    float last_reverse_distance;
+    const char *movement_rejection_reason;
+    int last_shooting_target_id;
+    float last_shooting_range;
+    dzw_target_reaction_t last_shooting_target_reaction;
+    bool last_shooting_range_checked;
+    bool last_shooting_hit_rolls_resolved;
+    bool last_shooting_damage_resolved;
+    int last_shooting_models_removed;
+    int last_shooting_pins_added;
+    bool last_shooting_morale_checked;
     bool embarked;
     int embarked_unit_id;
     int embarked_in_transport_id;
@@ -368,6 +390,7 @@ const char *game_order_name(dzw_order_t order);
 const char *game_morale_quality_name(dzw_morale_quality_t quality);
 const char *game_order_test_result_name(dzw_order_test_result_t result);
 const char *game_fubar_result_name(dzw_fubar_result_t result);
+const char *game_target_reaction_name(dzw_target_reaction_t reaction);
 bool game_uses_legacy_phase_flow(const game_t *game);
 int game_phase_flow_migration_blocker_count(const game_t *game);
 const char *game_phase_flow_migration_blocker(const game_t *game, int index);
@@ -390,6 +413,7 @@ bool game_cancel_ambush_order(game_t *game, int unit_id);
 bool game_order_dice_turn_complete(const game_t *game);
 bool game_end_order_dice_turn(game_t *game);
 float game_unit_order_movement_allowance(const game_t *game, int unit_id, dzw_order_t order);
+const char *game_unit_order_movement_rejection_reason(const game_t *game, int unit_id, dzw_order_t order);
 int game_fubar_friendly_fire_target_count(const game_t *game, int unit_id);
 unit_view_t game_fubar_friendly_fire_target_view(const game_t *game, int unit_id, int index);
 
@@ -412,6 +436,7 @@ int game_unit_profile_group_count(const game_t *game, int unit_id);
 profile_group_view_t game_unit_profile_group_view(const game_t *game, int unit_id, int index);
 
 bool game_move_unit(game_t *game, int unit_id, float x, float y);
+bool game_reverse_unit(game_t *game, int unit_id, float distance);
 bool game_deploy_unit(game_t *game, int unit_id, float x, float y);
 bool game_tank_shock_unit(game_t *game, int attacker_id, int target_id);
 bool game_embark_unit(game_t *game, int unit_id, int transport_id);
