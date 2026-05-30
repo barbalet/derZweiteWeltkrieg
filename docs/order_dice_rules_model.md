@@ -1,6 +1,6 @@
 # Order-Dice Rules Model
 
-Status: cycles 6-10 complete.
+Status: cycles 181-200 complete.
 
 Rules reference: Warlord Games Bolt Action reference sheet, `https://warlordgames.com/downloads/pdf/bolt_action_reference.pdf`.
 
@@ -95,6 +95,19 @@ The existing weapon slots, vehicle arcs, transport state, crew damage, smoke, hu
 
 Close quarters begins from an order, not from a global Assault phase. The usual path is a Run order into legal contact. The engine should expose target reaction, movement distance, damage rounds, loser destruction, draw handling, and winner regroup as inspectable steps. Infantry-vs-vehicle assaults need their own legality checks, including anti-tank equipment and enclosed-armour pressure where represented.
 
-## Cycle 20 Boundary
+## AI And Autoplay Hooks
 
-After cycle 20 the game is expected to still play through the old fixed phase loop. The completed work is the migration foundation: audit notes, target model notes, diagnostics identifying legacy phase dependencies, a staged ruleset enum, typed order values, and public unit state for order, pins, morale quality, retained order, acted state, and order-test result.
+The shared historical autoplay layer now uses order-dice-aware decisions before it falls back to compatibility movement, shooting, or assault helpers. `HistoricalAutoplayOrderAdvisor` chooses:
+
+- an eligible active unit without a current order,
+- an order from Fire, Advance, Run, Ambush, Rally, and Down,
+- a target when fire or assault is plausible,
+- a path objective when movement is plausible,
+- whether an order test is expected because pins are present,
+- whether Ambush or Down reaction state is relevant.
+
+Pinned units prefer Rally when available. Shooting posture prefers Fire, movement posture prefers Advance, close-quarters posture prefers Run, and Ambush threats can push a unit Down. This is intentionally a contract-level AI, not a full tactical brain. Its purpose is to make automated games exercise the same order surface as human play.
+
+## Cycle 200 Boundary
+
+At cycle 200 the order-dice conversion has a full internal contract: activation lifecycle, order assignment, pins and morale, FUBAR, Down and Ambush, order-specific movement, shooting modifiers, HE and vehicle penetration, vehicle damage, close quarters, infantry assaults against vehicles, Swift snapshots, historical adapters, autoplay hooks, migration notes, and acceptance closeout. The old fixed phase loop is legacy-only compatibility infrastructure for callers that have not yet completed their move to order-first commands.

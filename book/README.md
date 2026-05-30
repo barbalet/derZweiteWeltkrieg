@@ -1,6 +1,6 @@
 # derZweiteWeltkrieg Book
 
-This directory is a source-oriented book for `derZweiteWeltkrieg`, modeled after the narrative developer documentation style in the [APESDK book](https://github.com/barbalet/apesdk/tree/master/book). It explains the rationale and logic of the game as it exists in this repository: a World War 2 tabletop wargame with a C rules engine, a SwiftUI command surface, playable setup flow, AI opponent, scenario extensions, and tests.
+This directory is a source-oriented book for `derZweiteWeltkrieg`, modeled after the narrative developer documentation style in the [APESDK book](https://github.com/barbalet/apesdk/tree/master/book). It explains the rationale and logic of the game as it exists in this repository: a World War 2 tabletop wargame with an order-dice C rules engine, a SwiftUI command surface, playable setup flow, AI opponent, scenario extensions, and tests.
 
 The book is written for maintainers who need to change the game without losing the design intent. Each chapter points to the files that embody the idea being described.
 
@@ -29,6 +29,8 @@ The book is written for maintainers who need to change the game without losing t
 - Controller actions and AI: [`../Sources/DerZweiteWeltkriegApp/ViewModel/GameController+Skirmish.swift`](../Sources/DerZweiteWeltkriegApp/ViewModel/GameController+Skirmish.swift)
 - Board view: [`../Sources/DerZweiteWeltkriegApp/Board/BattleBoardView.swift`](../Sources/DerZweiteWeltkriegApp/Board/BattleBoardView.swift)
 - Setup screen: [`../Sources/DerZweiteWeltkriegApp/Shell/SkirmishSetupView.swift`](../Sources/DerZweiteWeltkriegApp/Shell/SkirmishSetupView.swift)
+- Order-dice rules model: [`../docs/order_dice_rules_model.md`](../docs/order_dice_rules_model.md)
+- Downstream migration notes: [`../docs/order_dice_migration_guderian_monty.md`](../docs/order_dice_migration_guderian_monty.md)
+- Cycle-200 acceptance closeout: [`../docs/order_dice_acceptance_closeout.md`](../docs/order_dice_acceptance_closeout.md)
 - Unit and integration tests: [`../Tests/DerZweiteWeltkriegTests/DerZweiteWeltkriegTests.swift`](../Tests/DerZweiteWeltkriegTests/DerZweiteWeltkriegTests.swift)
 - UI tests: [`../Tests/DerZweiteWeltkriegUITests/DerZweiteWeltkriegUITests.swift`](../Tests/DerZweiteWeltkriegUITests/DerZweiteWeltkriegUITests.swift)
-

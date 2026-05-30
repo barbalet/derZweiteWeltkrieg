@@ -51,6 +51,7 @@ public struct HistoricalAutoplayTacticalOrder: Identifiable, Codable, Hashable, 
     public let id: String
     public let turnWindow: String
     public let phase: HistoricalBoardPhase
+    public let order: HistoricalBoardOrder?
     public let target: String
     public let instruction: String
 
@@ -58,12 +59,14 @@ public struct HistoricalAutoplayTacticalOrder: Identifiable, Codable, Hashable, 
         id: String,
         turnWindow: String,
         phase: HistoricalBoardPhase,
+        order: HistoricalBoardOrder? = nil,
         target: String,
         instruction: String
     ) {
         self.id = id
         self.turnWindow = turnWindow
         self.phase = phase
+        self.order = order
         self.target = target
         self.instruction = instruction
     }
@@ -112,6 +115,10 @@ public struct HistoricalAutoplayTacticalPlan: Identifiable, Codable, Hashable, S
     public func instruction(for phase: HistoricalBoardPhase) -> String {
         orders.first { $0.phase == phase }?.instruction ?? strategicGoal
     }
+
+    public func preferredOrder(for phase: HistoricalBoardPhase) -> HistoricalBoardOrder? {
+        orders.first { $0.phase == phase && $0.order != nil }?.order
+    }
 }
 
 public struct HistoricalAutoplaySidePlan: Codable, Hashable, Sendable {
@@ -155,6 +162,247 @@ public struct HistoricalAutoplaySidePlan: Codable, Hashable, Sendable {
             return "Use the nearest legal action while preserving the side's scenario goal."
         }
         return tacticalPlan.instruction(for: phase)
+    }
+
+    public func preferredOrder(for phase: HistoricalBoardPhase) -> HistoricalBoardOrder? {
+        tacticalPlan?.preferredOrder(for: phase)
+    }
+}
+
+public struct HistoricalAutoplayOrderDecision: Codable, Hashable, Sendable {
+    public let unitID: Int
+    public let unitName: String
+    public let order: HistoricalBoardOrder
+    public let targetID: Int?
+    public let targetName: String?
+    public let pathTarget: HistoricalBattleCoordinate?
+    public let requiresOrderTest: Bool
+    public let respondsToAmbushOrDown: Bool
+    public let reason: String
+
+    public init(
+        unitID: Int,
+        unitName: String,
+        order: HistoricalBoardOrder,
+        targetID: Int?,
+        targetName: String?,
+        pathTarget: HistoricalBattleCoordinate?,
+        requiresOrderTest: Bool,
+        respondsToAmbushOrDown: Bool,
+        reason: String
+    ) {
+        self.unitID = unitID
+        self.unitName = unitName
+        self.order = order
+        self.targetID = targetID
+        self.targetName = targetName
+        self.pathTarget = pathTarget
+        self.requiresOrderTest = requiresOrderTest
+        self.respondsToAmbushOrDown = respondsToAmbushOrDown
+        self.reason = reason
+    }
+
+    public var summary: String {
+        let targetText = targetName.map { " toward \($0)" } ?? ""
+        let testText = requiresOrderTest ? " after order test" : ""
+        let reactionText = respondsToAmbushOrDown ? "; checking Ambush/Down reaction state" : ""
+        return "\(order.rawValue) order to \(unitName)\(targetText)\(testText). \(reason)\(reactionText)"
+    }
+}
+
+public enum HistoricalAutoplayOrderAdvisor {
+    public static func decision<ID: HistoricalBattleID>(
+        in snapshot: HistoricalBoardSnapshot<ID>,
+        sidePlan: HistoricalAutoplaySidePlan
+    ) -> HistoricalAutoplayOrderDecision? {
+        guard let unit = chooseUnit(in: snapshot) else {
+            return nil
+        }
+
+        let target = chooseTarget(for: unit, in: snapshot, sidePlan: sidePlan)
+        let pathTarget = choosePathTarget(for: unit, in: snapshot, sidePlan: sidePlan)
+        let order = chooseOrder(
+            for: unit,
+            target: target,
+            pathTarget: pathTarget,
+            in: snapshot,
+            sidePlan: sidePlan
+        )
+
+        guard let order else {
+            return nil
+        }
+
+        return HistoricalAutoplayOrderDecision(
+            unitID: unit.id,
+            unitName: unit.name,
+            order: order,
+            targetID: target?.id,
+            targetName: target?.name,
+            pathTarget: pathTarget,
+            requiresOrderTest: requiresOrderTest(for: unit, order: order),
+            respondsToAmbushOrDown: respondsToAmbushOrDown(for: unit, target: target),
+            reason: reason(for: order, unit: unit, target: target, pathTarget: pathTarget, sidePlan: sidePlan, phase: snapshot.phase)
+        )
+    }
+
+    public static func chooseUnit<ID: HistoricalBattleID>(
+        in snapshot: HistoricalBoardSnapshot<ID>
+    ) -> HistoricalBoardUnitSnapshot? {
+        let candidates = snapshot.units
+            .filter { $0.sideID == snapshot.activeSideID && !$0.destroyed && $0.currentOrder == nil && !$0.availableOrders.isEmpty }
+            .sorted { lhs, rhs in
+                if lhs.pinCount != rhs.pinCount {
+                    return lhs.pinCount > rhs.pinCount
+                }
+                if lhs.selected != rhs.selected {
+                    return lhs.selected
+                }
+                return lhs.id < rhs.id
+            }
+        return candidates.first
+    }
+
+    public static func chooseTarget<ID: HistoricalBattleID>(
+        for unit: HistoricalBoardUnitSnapshot,
+        in snapshot: HistoricalBoardSnapshot<ID>,
+        sidePlan: HistoricalAutoplaySidePlan
+    ) -> HistoricalBoardUnitSnapshot? {
+        let priorityTokens = sidePlan.priorityNames(for: snapshot.phase).map { $0.lowercased() }
+        let enemies = snapshot.units
+            .filter { $0.sideID != unit.sideID && !$0.destroyed }
+            .sorted { lhs, rhs in
+                let lhsPriority = priorityTokens.contains { token in
+                    lhs.name.lowercased().contains(token) || lhs.role.lowercased().contains(token)
+                }
+                let rhsPriority = priorityTokens.contains { token in
+                    rhs.name.lowercased().contains(token) || rhs.role.lowercased().contains(token)
+                }
+                if lhsPriority != rhsPriority {
+                    return lhsPriority
+                }
+                return distance(from: unit.position, to: lhs.position) < distance(from: unit.position, to: rhs.position)
+            }
+        return enemies.first
+    }
+
+    public static func choosePathTarget<ID: HistoricalBattleID>(
+        for unit: HistoricalBoardUnitSnapshot,
+        in snapshot: HistoricalBoardSnapshot<ID>,
+        sidePlan: HistoricalAutoplaySidePlan
+    ) -> HistoricalBattleCoordinate? {
+        let priorityNames = sidePlan.priorityNames(for: .movement).map { $0.lowercased() }
+        if let objective = snapshot.objectives.first(where: { objective in
+            priorityNames.contains { objective.name.lowercased().contains($0) }
+        }) {
+            return objective.location
+        }
+
+        return snapshot.objectives
+            .sorted { distance(from: unit.position, to: $0.location) < distance(from: unit.position, to: $1.location) }
+            .first?
+            .location
+    }
+
+    public static func chooseOrder<ID: HistoricalBattleID>(
+        for unit: HistoricalBoardUnitSnapshot,
+        target: HistoricalBoardUnitSnapshot?,
+        pathTarget: HistoricalBattleCoordinate?,
+        in snapshot: HistoricalBoardSnapshot<ID>,
+        sidePlan: HistoricalAutoplaySidePlan
+    ) -> HistoricalBoardOrder? {
+        let available = Set(unit.availableOrders)
+
+        if unit.pinCount > 0, available.contains(.rally) {
+            return .rally
+        }
+
+        if let target, target.ambushOrderActive, available.contains(.down) {
+            return .down
+        }
+
+        if let preferred = sidePlan.preferredOrder(for: snapshot.phase), available.contains(preferred) {
+            return preferred
+        }
+
+        switch snapshot.phase {
+        case .movement:
+            if pathTarget != nil, available.contains(.advance) {
+                return .advance
+            }
+            if available.contains(.run) {
+                return .run
+            }
+        case .shooting:
+            if target != nil, available.contains(.fire) {
+                return .fire
+            }
+            if target != nil, available.contains(.advance) {
+                return .advance
+            }
+        case .assault:
+            if target != nil, available.contains(.run) {
+                return .run
+            }
+        }
+
+        if target == nil, available.contains(.ambush) {
+            return .ambush
+        }
+        if available.contains(.down) {
+            return .down
+        }
+
+        return unit.availableOrders.first
+    }
+
+    public static func requiresOrderTest(
+        for unit: HistoricalBoardUnitSnapshot,
+        order: HistoricalBoardOrder
+    ) -> Bool {
+        unit.pinCount > 0 && order != .down
+    }
+
+    public static func respondsToAmbushOrDown(
+        for unit: HistoricalBoardUnitSnapshot,
+        target: HistoricalBoardUnitSnapshot?
+    ) -> Bool {
+        unit.downOrderActive || unit.ambushOrderActive || target?.downOrderActive == true || target?.ambushOrderActive == true
+    }
+
+    private static func reason(
+        for order: HistoricalBoardOrder,
+        unit: HistoricalBoardUnitSnapshot,
+        target: HistoricalBoardUnitSnapshot?,
+        pathTarget: HistoricalBattleCoordinate?,
+        sidePlan: HistoricalAutoplaySidePlan,
+        phase: HistoricalBoardPhase
+    ) -> String {
+        if unit.pinCount > 0 && order == .rally {
+            return "Pinned unit takes Rally before attempting a normal action."
+        }
+        if order == .down {
+            return "Down response protects against the current Ambush or defensive-fire threat."
+        }
+        if target != nil && (order == .fire || order == .run || order == .advance) {
+            return sidePlan.priorityInstruction(for: phase)
+        }
+        if pathTarget != nil && order == .advance {
+            return sidePlan.priorityInstruction(for: phase)
+        }
+        if order == .ambush {
+            return "No immediate target is better than preserving an opportunity-fire posture."
+        }
+        return sidePlan.priorityInstruction(for: phase)
+    }
+
+    private static func distance(
+        from lhs: HistoricalBattleCoordinate,
+        to rhs: HistoricalBattleCoordinate
+    ) -> Double {
+        let dx = lhs.x - rhs.x
+        let dy = lhs.y - rhs.y
+        return sqrt(dx * dx + dy * dy)
     }
 }
 
@@ -507,44 +755,47 @@ public final class HistoricalAutoplayRunController<Session: HistoricalBoardSessi
         stepIndex: Int
     ) -> HistoricalAutoplayStep<BattleID> {
         let sidePlan = configuration.plan(for: snapshot.activeSideID)
+        let orderDecision = issueOrderForActiveUnitIfAvailable(snapshot: snapshot, sidePlan: sidePlan)
+        let actionSnapshot = session.snapshot()
+        let orderDetailPrefix = orderDecision.map { "\($0.summary) " } ?? "No order-dice assignment was available before the compatibility action. "
         let status: HistoricalBoardActionStatus
         let title: String
         let detail: String
 
         switch snapshot.phase {
         case .movement:
-            let moved = moveActiveUnits(snapshot: snapshot, sidePlan: sidePlan)
+            let moved = moveActiveUnits(snapshot: actionSnapshot, sidePlan: sidePlan)
             let target = sidePlan.priorityTarget(for: snapshot.phase)
             let reason = sidePlan.priorityInstruction(for: snapshot.phase)
             status = moved == 0 ? .blocked : .succeeded
             title = "\(sidePlan.controllerLabel) movement"
             detail = moved == 0 ?
-                "No legal movement was available for priority target \(target); fallback to nearest legal objective also failed. Reason: \(reason)" :
-                "\(moved) active units moved toward priority target \(target), with nearest legal objective as fallback. Reason: \(reason)"
+                "\(orderDetailPrefix)No legal movement was available for priority target \(target); fallback to nearest legal objective also failed. Reason: \(reason)" :
+                "\(orderDetailPrefix)\(moved) active units moved toward priority target \(target), with nearest legal objective as fallback. Reason: \(reason)"
         case .shooting:
-            let shots = shootActiveUnits(snapshot: snapshot)
+            let shots = shootActiveUnits(snapshot: actionSnapshot)
             let target = sidePlan.priorityTarget(for: snapshot.phase)
             let reason = sidePlan.priorityInstruction(for: snapshot.phase)
             status = shots == 0 ? .blocked : .succeeded
             title = "\(sidePlan.controllerLabel) shooting"
             detail = shots == 0 ?
-                "No legal shots were available while protecting priority target \(target). Reason: \(reason)" :
-                "\(shots) active units fired at nearest enemies to protect priority target \(target). Reason: \(reason)"
+                "\(orderDetailPrefix)No legal shots were available while protecting priority target \(target). Reason: \(reason)" :
+                "\(orderDetailPrefix)\(shots) active units fired at nearest enemies to protect priority target \(target). Reason: \(reason)"
         case .assault:
-            let assaults = assaultActiveUnits(snapshot: snapshot)
+            let assaults = assaultActiveUnits(snapshot: actionSnapshot)
             let resolved = session.resolveFirstPendingChoice()
             let target = sidePlan.priorityTarget(for: snapshot.phase)
             let reason = sidePlan.priorityInstruction(for: snapshot.phase)
             title = "\(sidePlan.controllerLabel) assault"
             if assaults > 0 {
                 status = .succeeded
-                detail = "\(assaults) active units assaulted nearest enemies around priority target \(target). Reason: \(reason)"
+                detail = "\(orderDetailPrefix)\(assaults) active units assaulted nearest enemies around priority target \(target). Reason: \(reason)"
             } else if resolved {
                 status = .succeeded
-                detail = "Resolved a pending assault or damage choice around priority target \(target). Reason: \(reason)"
+                detail = "\(orderDetailPrefix)Resolved a pending assault or damage choice around priority target \(target). Reason: \(reason)"
             } else {
                 status = .blocked
-                detail = "No legal assaults or pending choices were available around priority target \(target). Reason: \(reason)"
+                detail = "\(orderDetailPrefix)No legal assaults or pending choices were available around priority target \(target). Reason: \(reason)"
             }
         }
 
@@ -559,6 +810,28 @@ public final class HistoricalAutoplayRunController<Session: HistoricalBoardSessi
             title: title,
             detail: detail
         )
+    }
+
+    private func issueOrderForActiveUnitIfAvailable(
+        snapshot: HistoricalBoardSnapshot<BattleID>,
+        sidePlan: HistoricalAutoplaySidePlan
+    ) -> HistoricalAutoplayOrderDecision? {
+        guard let decision = HistoricalAutoplayOrderAdvisor.decision(in: snapshot, sidePlan: sidePlan) else {
+            return nil
+        }
+
+        session.selectUnit(decision.unitID)
+        if let targetID = decision.targetID {
+            session.selectTarget(targetID)
+        } else {
+            session.selectNearestEnemyToSelectedUnit()
+        }
+
+        if session.issueOrder(decision.order, to: decision.unitID) {
+            drainPendingChoices()
+        }
+
+        return decision
     }
 
     private func moveActiveUnits(

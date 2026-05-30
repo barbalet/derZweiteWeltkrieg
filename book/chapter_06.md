@@ -1,16 +1,16 @@
 # Chapter 6: The Turn Engine
 
-The turn engine is small in vocabulary and large in consequence. A game has a turn number, an active player, and one of three phases: Movement, Shooting, or Assault. Those values are public through `game_view_t` and appear in Swift as `GameSnapshot`. Almost every action checks them.
+The turn engine is small in vocabulary and large in consequence. A battle has a turn number, a dice cup, a current drawn die, a side that owns that die, and units that can receive exactly one order while eligible. The current rules model follows the World War 2 order-dice structure used throughout the repository documentation: draw a die, choose a unit, assign Fire, Advance, Run, Ambush, Rally, or Down, resolve any required order test, execute that unit, then continue drawing until all eligible units have acted or retained a legal standing order.
 
-This three-phase structure is the spine of play. Movement decides position, transport flow, facing, tank shock, smoke, and approach to objectives. Shooting resolves ranged fire, line of sight, ordnance, barrage, passenger fire, and vehicle weapon sequencing. Assault resolves charges, close combat, follow-up movement, and combat locks. The sequence is familiar enough for tabletop players and small enough for a demo to be playable.
+This order-dice structure is the spine of play. Movement is no longer a side-wide phase that all units share; it is a consequence of Advance or Run. Shooting is no longer opened for a whole side at once; it is tied to Fire or Advance, with target reactions and hit modifiers resolved immediately. Assault is no longer a separate global phase; it is normally the close-quarters branch of a Run order. The older Movement, Shooting, and Assault labels still exist in compatibility adapters where old callers have not yet been fully retired, but new rules, AI, snapshots, documentation, and downstream contracts are written around unit orders.
 
-## Advancing Phase
+## Drawing And Assigning Orders
 
-The C function `game_advance_phase` is the authoritative transition. Movement advances to Shooting and initializes shooting state. Shooting advances to Assault. Assault finishes the current player's turn, scores objectives, switches active player, starts Movement, and increments the turn. This single function prevents the UI from needing to know how to finish a turn correctly.
+The order-dice lifecycle is the authoritative transition. The engine builds a deterministic cup from eligible units, draws one side-owned die, asks that side to choose one unit, and records the assigned order next to that unit. Once a unit has an order, it cannot receive a second normal order during the same turn. Destroyed units remove their dice. Normal spent dice return to the cup at turn end, while retained Ambush or Down orders remain attached where the rules allow.
 
-There is also an important guard: phase advancement refuses to proceed when a pending resolution choice exists. If a vehicle weapon-destroy choice or mixed-profile hit allocation is waiting, the engine keeps the battle paused. That prevents the player or AI from skipping half-finished combat.
+The command surface centers on `game_assign_order` in C and `HistoricalBoardSession.issueOrder(_:to:)` in Swift. Older movement, shooting, assault, and phase-advance functions remain as compatibility infrastructure, but the future-facing path is order first, action second. That order-first shape is important because it gives pins, morale, FUBAR, Ambush, and Down a single place to interrupt activation before any movement or fire is performed.
 
-The app exposes phase advancement through `GameController.advancePhase()`. It only allows advancement in battle mode, on the human turn, when the AI is not in progress. The app's guard protects experience. The engine's guard protects rules.
+There is also an important guard: time cannot advance while a pending resolution choice exists. If a vehicle damage result, hit allocation, order-test branch, FUBAR result, or close-quarters continuation is waiting, the engine keeps the battle paused. That prevents a player or AI from skipping half-finished combat.
 
 ## Movement
 
@@ -230,26 +230,24 @@ The controller supports cycling active units. This is not an engine concept, but
 
 This shows how the app can add ergonomic behavior without taking ownership of rules. Cycling does not decide whether a unit can move or shoot. It chooses a useful selection from units the engine describes. The distinction is subtle but important. Convenience features should be derived from engine state, not separate from it.
 
-## AI And The Phase Loop
+## AI And The Order Loop
 
-The AI uses the same phase structure. In Movement, it attempts moves toward objectives or enemies. In Shooting, it chooses targets and resolves pending choices. In Assault, it checks nearby targets. At the end of each phase it records an advance-phase action. This means the AI plays the same game as the human.
+The AI uses the same order structure as the human. It chooses a unit, chooses an order, chooses a target or path, resolves any order test or FUBAR result it owns, then executes the command that belongs to the selected order. The historical autoplay layer now exposes this as `HistoricalAutoplayOrderAdvisor`, which returns a `HistoricalAutoplayOrderDecision` containing the chosen unit, order, target, movement objective, order-test need, Ambush/Down reaction context, and visible reason string.
 
-The AI loop is intentionally simple:
+The AI loop is intentionally modest:
 
 ```swift
-switch game.phase {
-case DZW_PHASE_MOVEMENT:
-    performAIMovementPhase()
-case DZW_PHASE_SHOOTING:
-    performAIShootingPhase()
-case DZW_PHASE_ASSAULT:
-    performAIAssaultPhase()
-default:
-    _ = executeRecordedAction(RecordedBattleAction(kind: .advancePhase), record: true, triggerAI: false)
-}
+let decision = HistoricalAutoplayOrderAdvisor.decision(
+    in: snapshot,
+    sidePlan: sidePlan
+)
+session.selectUnit(decision.unitID)
+session.issueOrder(decision.order, to: decision.unitID)
 ```
 
-The important thing is not AI brilliance. It is integration. The AI observes phase, issues recorded actions, resolves pending choices when it owns them, and advances time through the same command. That makes AI behavior replayable and testable.
+The important thing is not AI brilliance. It is integration. The AI observes the same snapshot fields as the UI: `availableOrders`, `currentOrder`, `pinCount`, `moraleQuality`, `retainedOrder`, `downOrderActive`, `ambushOrderActive`, and `orderDiceSummary`. It issues the same order command as the human. It resolves its own pending choices and pauses when a human-owned choice blocks the game. That makes AI behavior replayable and testable.
+
+The advisor follows a practical priority order. Pinned units Rally before normal work when Rally is available. A unit facing an Ambush threat can choose Down. Movement-oriented plans prefer Advance or Run toward configured objectives. Shooting-oriented plans prefer Fire against a legal target. Close-quarters plans prefer Run because contact is an order result rather than a separate global phase. When no immediate action is better, Ambush preserves an opportunity-fire posture.
 
 ## Restart And Replay
 
@@ -257,23 +255,25 @@ The phase engine also benefits replay. A saved battle records `advancePhase` act
 
 This is a powerful debugging property. If replay stops early, a command failed. If a phase differs, the action sequence or rule changed. The phase engine becomes a timeline that can be reconstructed, not a field that can be arbitrarily restored.
 
-## Testing Phase Behavior
+## Testing Order-Dice Behavior
 
-Phase tests should cover more than simple advancement. Useful tests include:
+Order-dice tests should cover more than simple assignment. Useful tests include:
 
-- a game starts on Movement,
-- advancing enters Shooting,
-- advancing enters Assault,
-- advancing from Assault scores objectives and switches active player,
-- pending choices block advancement,
-- movement commands fail outside Movement,
-- shooting commands fail outside Shooting,
-- assault commands fail outside Assault,
-- deployment commands do not consume movement,
-- smoke is Movement-only,
-- passenger fire is Shooting-only.
+- the cup is deterministic for a seed,
+- the drawn die constrains which side can activate,
+- assigning an order consumes the current die,
+- pinned units produce an order-test result before executing,
+- double-one and double-six order-test paths are visible,
+- FUBAR outcomes expose friendly-fire or panic details,
+- Down and Ambush can be retained where legal,
+- Advance and Run expose different movement allowances,
+- Fire and Advance are the normal shooting orders,
+- Run is the normal close-quarters entry order,
+- pending choices block turn completion,
+- destroyed units remove their order dice,
+- replay signatures remain stable across equivalent activation sequences.
 
-These tests protect the turn rhythm. Many bugs in tabletop games are timing bugs: something happens in the wrong phase, twice in a phase, or after it should be unavailable. The phase tests are the guardrail.
+These tests protect the turn rhythm. Many bugs in tabletop games are timing bugs: something happens in the wrong order, twice in a turn, after a die is already spent, or while a pending choice is unresolved. The order-dice tests are the guardrail.
 
 ## The Chapter's Rule Of Thumb
 
@@ -352,19 +352,19 @@ This is an app-level reflection of engine pending state. The engine blocks unrel
 
 This pattern should be reused for future pending decisions. A pending decision should identify the chooser owner. The AI should auto-resolve its own decisions and pause for human decisions. The phase engine should not advance until the pending decision is gone.
 
-## Why Three Phases Are Enough For Now
+## Why Compatibility Phases Still Exist
 
-World War 2 combat could be modeled with many phases: orders, command, movement, defensive fire, indirect fire, morale, assault, recovery, reserves, and logistics. The demo uses three because it needs playability. Movement, Shooting, and Assault are broad buckets that players understand quickly. More phases would increase fidelity but also increase UI burden and test complexity.
+World War 2 combat could be modeled with many visible time slices: command, orders, movement, defensive fire, indirect fire, morale, assault, recovery, reserves, and logistics. The game now treats those as consequences of unit orders, but the codebase still contains older Movement, Shooting, and Assault names because downstream modules used them as UI and replay boundaries. Those names are legacy-only compatibility buckets. They are useful for migration and tests, but they are not the rules authority for new behavior.
 
-The current three-phase engine still has room for nuance through actions and pending choices. Smoke lives in Movement. Passenger fire lives in Shooting. Close combat and follow-up live in Assault. Morale can be triggered by shooting or assault. Recovery can happen in begin-turn or finish-turn helpers. The phase count stays small while rules stay expressive.
+The order-dice engine still has room for nuance through actions and pending choices. Smoke can belong to an Advance or other movement posture. Passenger fire belongs to a shooting-capable order. Close combat and follow-up belong to Run. Morale can be triggered by fire or assault. Recovery can happen at order assignment, order-test resolution, or turn-end cleanup. The visible order list stays small while rules stay expressive.
 
-If future development adds phases, it should be because a repeated rule cannot be expressed cleanly inside the current rhythm. Adding a phase affects UI labels, controls, AI loops, replay, tests, and player expectations. That is a major design change.
+If future development adds more order types, it should be because a repeated rule cannot be expressed cleanly through Fire, Advance, Run, Ambush, Rally, or Down. Adding a new order affects UI labels, controls, AI loops, replay, tests, and player expectations. That is a major design change.
 
 ## Final Timing Note
 
 Time is the hidden structure of the whole game. Units, weapons, transports, objectives, and AI all depend on when actions happen. The engine's phase model gives the code a shared clock. Respect that clock, and new rules will usually find a natural home. Ignore it, and even correct-looking features will create strange edge cases.
 
-The maintainer's practical question should always be: what has already happened this turn, what is allowed to happen now, and what must wait until later? The current code answers that through global phase, active player, per-unit flags, pending choices, and recorded action order. That combination is stronger than any one field alone. A unit may be in Movement phase but unable to move because it is pinned. A game may be in Shooting phase but unable to advance because hit allocation is pending. A battle may be in the AI turn but paused because the human must choose casualties. These cases are not exceptions to the turn engine; they are the turn engine doing its job carefully.
+The maintainer's practical question should always be: which die was drawn, which unit can receive it, which order was assigned, what has already happened this turn, and what must wait until later? The current code answers that through order-dice state, active side, per-unit flags, pending choices, and recorded action order. That combination is stronger than any one field alone. A unit may be active but unable to execute because it failed an order test. A game may have a spent die but be unable to finish the turn because hit allocation is pending. A battle may be in the AI turn but paused because the human must choose casualties. These cases are not exceptions to the turn engine; they are the turn engine doing its job carefully.
 
 That carefulness is what keeps a dense ruleset playable instead of merely busy, especially as more weapons, vehicles, scenarios, saved battles, AI routines, historical hooks, campaign systems, tutorials, and UI commands are added.
 

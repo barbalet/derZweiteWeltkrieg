@@ -196,10 +196,43 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         XCTAssertEqual(firstStep?.activeSideID, opening.activeSideID)
         XCTAssertEqual(firstStep?.phase, .movement)
         XCTAssertEqual(firstStep?.status, .succeeded)
+        XCTAssertTrue(firstStep?.detail.contains("Advance order") == true)
+        XCTAssertTrue(session.snapshot().log.contains { $0.contains("Issued Advance") })
         XCTAssertEqual(controller.runState, .paused)
         XCTAssertEqual(controller.phaseAdvances, 1)
         XCTAssertLessThanOrEqual(controller.phaseProgressFraction, 1)
         XCTAssertGreaterThan(controller.phaseBudgetRemaining, 0)
+    }
+
+    func testHistoricalAutoplayOrderAdvisorChoosesRallyAndDownResponses() throws {
+        let pinnedSnapshot = Self.makeOrderAdvisorSnapshot(pinCount: 2)
+        let pinnedPlan = HistoricalAutoplaySidePlan(
+            sideID: "montgomery",
+            controllerLabel: "Montgomery AI",
+            movementPriorityNames: ["Alam el Halfa ridge"]
+        )
+
+        let rallyDecision = try XCTUnwrap(
+            HistoricalAutoplayOrderAdvisor.decision(in: pinnedSnapshot, sidePlan: pinnedPlan)
+        )
+
+        XCTAssertEqual(rallyDecision.unitID, 1)
+        XCTAssertEqual(rallyDecision.order, .rally)
+        XCTAssertTrue(rallyDecision.requiresOrderTest)
+        XCTAssertTrue(rallyDecision.summary.contains("Rally order"))
+
+        let ambushThreatSnapshot = Self.makeOrderAdvisorSnapshot(
+            phase: .shooting,
+            targetAmbush: true
+        )
+        let reactionDecision = try XCTUnwrap(
+            HistoricalAutoplayOrderAdvisor.decision(in: ambushThreatSnapshot, sidePlan: pinnedPlan)
+        )
+
+        XCTAssertEqual(reactionDecision.order, .down)
+        XCTAssertEqual(reactionDecision.targetID, 2)
+        XCTAssertTrue(reactionDecision.respondsToAmbushOrDown)
+        XCTAssertTrue(reactionDecision.summary.contains("Ambush/Down reaction"))
     }
 
     func testHistoricalAutoplayRunControllerCompletesToDebriefWithBothSidesActing() throws {
@@ -386,15 +419,143 @@ final class HistoricalCampaignContractsTests: XCTestCase {
                     sideID: "montgomery",
                     controllerLabel: "Montgomery AI",
                     movementPriorityNames: ["Alam el Halfa ridge"],
-                    movementDistance: 4
+                    movementDistance: 4,
+                    tacticalPlan: HistoricalAutoplayTacticalPlan(
+                        id: "montgomery-demo-order-dice",
+                        armyFamilyName: "British Eighth Army",
+                        behaviorProfileName: "Ridge defense",
+                        strategicGoal: "Hold the ridge with deliberate order-dice activations.",
+                        targetPriorities: ["Alam el Halfa ridge", "Axis armor"],
+                        orders: [
+                            HistoricalAutoplayTacticalOrder(
+                                id: "montgomery-advance-ridge",
+                                turnWindow: "Opening turn",
+                                phase: .movement,
+                                order: .advance,
+                                target: "Alam el Halfa ridge",
+                                instruction: "Advance only far enough to keep the anti-tank lane coherent."
+                            ),
+                            HistoricalAutoplayTacticalOrder(
+                                id: "montgomery-fire-axis-armor",
+                                turnWindow: "Contact turn",
+                                phase: .shooting,
+                                order: .fire,
+                                target: "Axis armor",
+                                instruction: "Fire before moving if armour presents a clean lane."
+                            ),
+                            HistoricalAutoplayTacticalOrder(
+                                id: "montgomery-run-counterattack",
+                                turnWindow: "Close turn",
+                                phase: .assault,
+                                order: .run,
+                                target: "Axis armor",
+                                instruction: "Use Run only for decisive local counterattacks."
+                            ),
+                        ]
+                    )
                 ),
                 HistoricalAutoplaySidePlan(
                     sideID: "axis",
                     controllerLabel: "Axis AI",
                     movementPriorityNames: ["Southern approach"],
-                    movementDistance: 6
+                    movementDistance: 6,
+                    tacticalPlan: HistoricalAutoplayTacticalPlan(
+                        id: "axis-demo-order-dice",
+                        armyFamilyName: "German and Italian Panzer Army Africa",
+                        behaviorProfileName: "Ridge probe",
+                        strategicGoal: "Probe the ridge with one order-dice activation at a time.",
+                        targetPriorities: ["Southern approach", "Alam el Halfa ridge"],
+                        orders: [
+                            HistoricalAutoplayTacticalOrder(
+                                id: "axis-advance-approach",
+                                turnWindow: "Opening turn",
+                                phase: .movement,
+                                order: .advance,
+                                target: "Southern approach",
+                                instruction: "Advance through the approach lane without outrunning support."
+                            ),
+                            HistoricalAutoplayTacticalOrder(
+                                id: "axis-fire-ridge",
+                                turnWindow: "Contact turn",
+                                phase: .shooting,
+                                order: .fire,
+                                target: "Alam el Halfa ridge",
+                                instruction: "Suppress the ridge before committing to contact."
+                            ),
+                            HistoricalAutoplayTacticalOrder(
+                                id: "axis-run-lane",
+                                turnWindow: "Close turn",
+                                phase: .assault,
+                                order: .run,
+                                target: "Alam el Halfa ridge",
+                                instruction: "Run only when the lane is open enough to force contact."
+                            ),
+                        ]
+                    )
                 ),
             ]
+        )
+    }
+
+    fileprivate static func makeOrderAdvisorSnapshot(
+        phase: HistoricalBoardPhase = .movement,
+        pinCount: Int = 0,
+        targetAmbush: Bool = false
+    ) -> HistoricalBoardSnapshot<DemoHistoricalBattleID> {
+        HistoricalBoardSnapshot(
+            battleID: .alamElHalfa,
+            turnNumber: 1,
+            activeSideID: "montgomery",
+            phase: phase,
+            mission: HistoricalBoardMissionSnapshot(
+                name: "Alam el Halfa ridge",
+                targetScore: 8,
+                humanScore: 0,
+                aiScore: 0
+            ),
+            units: [
+                HistoricalBoardUnitSnapshot(
+                    id: 1,
+                    sideID: "montgomery",
+                    name: "6-pounder anti-tank screen",
+                    kind: "Gun",
+                    role: "Anti-tank lane",
+                    position: HistoricalBattleCoordinate(x: 42, y: 22),
+                    facingDegrees: 180,
+                    canMoveNow: phase == .movement,
+                    canShootNow: phase == .shooting,
+                    canAssaultNow: phase == .assault,
+                    selected: true,
+                    availableOrders: HistoricalBoardOrder.allCases,
+                    orderDiceSummary: "Order None | Regular | Pins \(pinCount)",
+                    pinCount: pinCount
+                ),
+                HistoricalBoardUnitSnapshot(
+                    id: 2,
+                    sideID: "axis",
+                    name: "Panzer probe",
+                    kind: "Vehicle",
+                    role: "Axis armor",
+                    position: HistoricalBattleCoordinate(x: 28, y: 34),
+                    facingDegrees: 0,
+                    targeted: true,
+                    currentOrder: targetAmbush ? .ambush : nil,
+                    orderDiceSummary: targetAmbush ? "Order Ambush | Regular | Pins 0" : "Order None | Regular | Pins 0",
+                    retainedOrder: targetAmbush,
+                    ambushOrderActive: targetAmbush
+                ),
+            ],
+            zones: [],
+            objectives: [
+                HistoricalBoardObjectiveSnapshot(
+                    id: 1,
+                    name: "Alam el Halfa ridge",
+                    location: HistoricalBattleCoordinate(x: 52, y: 24),
+                    radius: 5,
+                    controllingSideID: "montgomery"
+                ),
+            ],
+            log: ["Order advisor fixture opened."]
         )
     }
 }

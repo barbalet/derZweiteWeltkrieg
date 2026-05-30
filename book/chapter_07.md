@@ -4,6 +4,14 @@ Combat is where the project most clearly chooses simulation over animation. Shoo
 
 The combat code lives mostly in [`../Sources/DerZweiteWeltkriegCore/der_Zweite_Weltkrieg.c`](../Sources/DerZweiteWeltkriegCore/der_Zweite_Weltkrieg.c). The public surface is compact: `game_shoot_unit`, `game_fire_passenger`, `game_assault_unit`, `game_choose_pending_weapon_destroy`, `game_choose_pending_hit_allocation`, and `game_set_preferred_casualty_group`. The private implementation is extensive because combat has many branches.
 
+## Order-Dice Combat Timing
+
+Combat is now driven by the unit's order. A Fire order is the clean stationary shooting posture. An Advance order allows movement and then fire with the movement context recorded for modifiers. A Run order normally gives up shooting and is the ordinary path into close quarters. Ambush waits for an opportunity trigger, Down improves survival, and Rally spends the activation removing pin pressure instead of attacking.
+
+This matters because the legality question is no longer simply "is the game in Shooting or Assault?" The stronger question is "what order does this unit currently hold, and has any order test or reaction branch been resolved?" The engine keeps the older phase-shaped commands as compatibility helpers, but order-dice combat should enter through assigned orders. Tests and UI summaries should therefore assert the order, pin count, morale quality, retained state, and reaction flags alongside ordinary shooting or assault results.
+
+The reference flow used by the repository is direct: declare target, resolve reactions such as Down or Ambush, check range and line of sight, apply hit modifiers, roll damage or penetration, apply pins, morale, casualties, vehicle damage, and any pending choices. The code should keep each of those steps inspectable enough for logs, snapshots, replay signatures, and AI decisions.
+
 ## Shooting
 
 `game_shoot_unit` begins with familiar guards: no pending resolution, valid attacker, legal target, shooting phase, enemy target, not already shot, can shoot now, and no firing into close combat. It then calculates edge-to-edge range and splits behavior by whether the attacker uses vehicle rules.
