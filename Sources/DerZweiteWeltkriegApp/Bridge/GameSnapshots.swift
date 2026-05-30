@@ -520,9 +520,29 @@ struct UnitSnapshot: Identifiable {
     let lastShootingRangeChecked: Bool
     let lastShootingHitRollsResolved: Bool
     let lastShootingDamageResolved: Bool
+    let lastShootingBaseToHit: Int
+    let lastShootingPointBlankModifier: Int
+    let lastShootingPinModifier: Int
+    let lastShootingLongRangeModifier: Int
+    let lastShootingInexperiencedModifier: Int
+    let lastShootingMoveModifier: Int
+    let lastShootingDownModifier: Int
+    let lastShootingSmallUnitModifier: Int
+    let lastShootingCoverModifier: Int
+    let lastShootingToHitModifier: Int
+    let lastShootingNeededToHit: Int
+    let lastShootingDamageValue: Int
+    let lastShootingPenetrationModifier: Int
+    let lastShootingDamageRoll: Int
+    let lastShootingDamageSuccess: Bool
     let lastShootingModelsRemoved: Int
     let lastShootingPinsAdded: Int
     let lastShootingMoraleChecked: Bool
+    let lastShootingMoraleRoll: Int
+    let lastShootingMoraleTarget: Int
+    let lastShootingMoralePinModifier: Int
+    let lastShootingMoraleOfficerModifier: Int
+    let lastShootingMoraleFailed: Bool
     let embarked: Bool
     let embarkedUnitID: Int
     let embarkedInTransportID: Int
@@ -605,9 +625,29 @@ struct UnitSnapshot: Identifiable {
         lastShootingRangeChecked = raw.last_shooting_range_checked
         lastShootingHitRollsResolved = raw.last_shooting_hit_rolls_resolved
         lastShootingDamageResolved = raw.last_shooting_damage_resolved
+        lastShootingBaseToHit = Int(raw.last_shooting_base_to_hit)
+        lastShootingPointBlankModifier = Int(raw.last_shooting_point_blank_modifier)
+        lastShootingPinModifier = Int(raw.last_shooting_pin_modifier)
+        lastShootingLongRangeModifier = Int(raw.last_shooting_long_range_modifier)
+        lastShootingInexperiencedModifier = Int(raw.last_shooting_inexperienced_modifier)
+        lastShootingMoveModifier = Int(raw.last_shooting_move_modifier)
+        lastShootingDownModifier = Int(raw.last_shooting_down_modifier)
+        lastShootingSmallUnitModifier = Int(raw.last_shooting_small_unit_modifier)
+        lastShootingCoverModifier = Int(raw.last_shooting_cover_modifier)
+        lastShootingToHitModifier = Int(raw.last_shooting_to_hit_modifier)
+        lastShootingNeededToHit = Int(raw.last_shooting_needed_to_hit)
+        lastShootingDamageValue = Int(raw.last_shooting_damage_value)
+        lastShootingPenetrationModifier = Int(raw.last_shooting_penetration_modifier)
+        lastShootingDamageRoll = Int(raw.last_shooting_damage_roll)
+        lastShootingDamageSuccess = raw.last_shooting_damage_success
         lastShootingModelsRemoved = Int(raw.last_shooting_models_removed)
         lastShootingPinsAdded = Int(raw.last_shooting_pins_added)
         lastShootingMoraleChecked = raw.last_shooting_morale_checked
+        lastShootingMoraleRoll = Int(raw.last_shooting_morale_roll)
+        lastShootingMoraleTarget = Int(raw.last_shooting_morale_target)
+        lastShootingMoralePinModifier = Int(raw.last_shooting_morale_pin_modifier)
+        lastShootingMoraleOfficerModifier = Int(raw.last_shooting_morale_officer_modifier)
+        lastShootingMoraleFailed = raw.last_shooting_morale_failed
         embarked = raw.embarked
         embarkedUnitID = Int(raw.embarked_unit_id)
         embarkedInTransportID = Int(raw.embarked_in_transport_id)
@@ -664,6 +704,15 @@ struct UnitSnapshot: Identifiable {
         }
         if lastShootingRangeChecked {
             parts.append("Shot \(String(format: "%.1f", Double(lastShootingRange)))")
+        }
+        if lastShootingNeededToHit > 0 {
+            parts.append("Hit \(lastShootingNeededToHit)+")
+        }
+        if lastShootingDamageValue > 0 {
+            parts.append("DV \(lastShootingDamageValue)")
+        }
+        if lastShootingMoraleRoll > 0 {
+            parts.append("Morale \(lastShootingMoraleRoll)/\(lastShootingMoraleTarget)")
         }
         if lastOrderTestResult != DZW_ORDER_TEST_NOT_REQUIRED {
             parts.append(lastOrderTestResultName)

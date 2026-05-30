@@ -924,6 +924,128 @@ final class DerZweiteWeltkriegTests: XCTestCase {
         XCTAssertEqual(String(cString: game_target_reaction_name(shooter.last_shooting_target_reaction)), "Down")
     }
 
+    func testOrderDicePointBlankHitModifierAndDamageValueAreRecorded() {
+        guard let game = game_create_demo(101) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 4, 17.0, 40.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 1, in: game))
+        XCTAssertTrue(game_shoot_unit(game, 1, 4))
+
+        let shooter = unitView(withID: 1, in: game)
+        XCTAssertEqual(Int(shooter.last_shooting_base_to_hit), 3)
+        XCTAssertEqual(Int(shooter.last_shooting_point_blank_modifier), -1)
+        XCTAssertEqual(Int(shooter.last_shooting_needed_to_hit), 2)
+        XCTAssertEqual(Int(shooter.last_shooting_damage_value), 4)
+        XCTAssertGreaterThan(Int(shooter.last_shooting_damage_roll), 0)
+    }
+
+    func testOrderDiceLongRangeDownSmallUnitAndCoverModifiersStack() {
+        guard let game = game_create_demo(102) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 13, 35.0, 36.0))
+        XCTAssertTrue(game_toggle_cover(game, 13, true))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_DOWN, to: 13, in: game, preserving: [1]))
+        XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 1, in: game))
+        XCTAssertTrue(game_shoot_unit(game, 1, 13))
+
+        let shooter = unitView(withID: 1, in: game)
+        XCTAssertEqual(Int(shooter.last_shooting_long_range_modifier), 1)
+        XCTAssertEqual(Int(shooter.last_shooting_down_modifier), 1)
+        XCTAssertEqual(Int(shooter.last_shooting_small_unit_modifier), 1)
+        XCTAssertEqual(Int(shooter.last_shooting_cover_modifier), 2)
+        XCTAssertGreaterThanOrEqual(Int(shooter.last_shooting_to_hit_modifier), 5)
+        XCTAssertGreaterThan(Int(shooter.last_shooting_needed_to_hit), Int(shooter.last_shooting_base_to_hit))
+    }
+
+    func testOrderDiceAdvanceFireRecordsMovingInexperiencedFirerModifiers() {
+        guard let game = game_create_demo(103) else {
+            XCTFail("Failed to create demo game")
+            return
+        }
+        defer { game_destroy(game) }
+
+        XCTAssertTrue(game_deploy_unit(game, 5, 31.0, 36.0))
+        XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+        XCTAssertTrue(assignOrder(DZW_ORDER_ADVANCE, to: 5, in: game))
+        XCTAssertTrue(game_move_unit(game, 5, 25.0, 36.0))
+        XCTAssertTrue(game_shoot_unit(game, 5, 1))
+
+        let shooter = unitView(withID: 5, in: game)
+        XCTAssertEqual(shooter.morale_quality, DZW_MORALE_INEXPERIENCED)
+        XCTAssertEqual(Int(shooter.last_shooting_inexperienced_modifier), 1)
+        XCTAssertEqual(Int(shooter.last_shooting_move_modifier), 1)
+        XCTAssertGreaterThanOrEqual(Int(shooter.last_shooting_to_hit_modifier), 2)
+    }
+
+    func testOrderDiceSmallArmsFireAddsPinsAndMoraleDetailsAfterCasualties() {
+        var observedMoraleCheck = false
+
+        for seed in 116...180 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_deploy_unit(game, 4, 17.0, 40.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 1, in: game))
+            XCTAssertTrue(game_shoot_unit(game, 1, 4))
+
+            let shooter = unitView(withID: 1, in: game)
+            let target = unitView(withID: 4, in: game)
+            XCTAssertGreaterThanOrEqual(Int(target.pin_count), 1)
+            XCTAssertGreaterThanOrEqual(Int(shooter.last_shooting_pins_added), 1)
+
+            if shooter.last_shooting_morale_checked {
+                XCTAssertGreaterThan(Int(shooter.last_shooting_morale_roll), 0)
+                XCTAssertGreaterThanOrEqual(Int(shooter.last_shooting_morale_target), 2)
+                XCTAssertLessThanOrEqual(Int(shooter.last_shooting_morale_pin_modifier), -1)
+                observedMoraleCheck = true
+                break
+            }
+        }
+
+        XCTAssertTrue(observedMoraleCheck)
+    }
+
+    func testOrderDiceVehicleDamageValueAndPenetrationAreRecorded() {
+        var recordedVehicleDamage = false
+
+        for seed in 106...160 {
+            guard let game = game_create_demo(UInt32(seed)) else {
+                continue
+            }
+            defer { game_destroy(game) }
+
+            XCTAssertTrue(game_deploy_unit(game, 6, 30.0, 10.0))
+            XCTAssertTrue(game_set_ruleset(game, DZW_RULESET_ORDER_DICE))
+            XCTAssertTrue(assignOrder(DZW_ORDER_FIRE, to: 7, in: game))
+            XCTAssertTrue(game_shoot_unit(game, 7, 6))
+
+            let shooter = unitView(withID: 7, in: game)
+            if shooter.last_shooting_penetration_modifier == 5 {
+                XCTAssertEqual(Int(shooter.last_shooting_damage_value), 6)
+                XCTAssertEqual(Int(shooter.last_shooting_penetration_modifier), 5)
+                XCTAssertGreaterThan(Int(shooter.last_shooting_damage_roll), 0)
+                XCTAssertTrue(shooter.last_shooting_damage_success)
+                recordedVehicleDamage = true
+                break
+            }
+        }
+
+        XCTAssertTrue(recordedVehicleDamage)
+    }
+
     func testArmyPresetDemoLoadsSelectedMatchup() {
         guard let game = game_create_demo_with_armies(500, DZW_ARMY_BRITISH, DZW_ARMY_ITALIAN) else {
             XCTFail("Failed to create army preset demo")

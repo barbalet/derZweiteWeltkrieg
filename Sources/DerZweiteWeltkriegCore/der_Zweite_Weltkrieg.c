@@ -24,6 +24,7 @@
 #define DZW_MAX_LOG_LINES 256
 #define DZW_LOG_LINE_LENGTH 192
 #define DZW_JAMMED_WEAPON_ARC_DEGREES 10
+#define DZW_POINT_BLANK_RANGE 6.0f
 #define DZW_MAX_DEPLOYMENT_SLOTS_PER_SIDE 10
 #define DZW_MAX_ARMY_CATALOG_UNITS 16
 #ifdef HEINZ_GUDERIAN_GAME
@@ -135,6 +136,20 @@ typedef struct {
 } weapon_slot_t;
 
 typedef struct {
+    int base_to_hit;
+    int point_blank_modifier;
+    int pin_modifier;
+    int long_range_modifier;
+    int inexperienced_modifier;
+    int move_modifier;
+    int down_modifier;
+    int small_unit_modifier;
+    int cover_modifier;
+    int total_modifier;
+    int needed_to_hit;
+} shooting_hit_modifiers_t;
+
+typedef struct {
     int id;
     const char *name;
     terrain_kind_t kind;
@@ -237,9 +252,29 @@ typedef struct {
     bool last_shooting_range_checked;
     bool last_shooting_hit_rolls_resolved;
     bool last_shooting_damage_resolved;
+    int last_shooting_base_to_hit;
+    int last_shooting_point_blank_modifier;
+    int last_shooting_pin_modifier;
+    int last_shooting_long_range_modifier;
+    int last_shooting_inexperienced_modifier;
+    int last_shooting_move_modifier;
+    int last_shooting_down_modifier;
+    int last_shooting_small_unit_modifier;
+    int last_shooting_cover_modifier;
+    int last_shooting_to_hit_modifier;
+    int last_shooting_needed_to_hit;
+    int last_shooting_damage_value;
+    int last_shooting_penetration_modifier;
+    int last_shooting_damage_roll;
+    bool last_shooting_damage_success;
     int last_shooting_models_removed;
     int last_shooting_pins_added;
     bool last_shooting_morale_checked;
+    int last_shooting_morale_roll;
+    int last_shooting_morale_target;
+    int last_shooting_morale_pin_modifier;
+    int last_shooting_morale_officer_modifier;
+    bool last_shooting_morale_failed;
     bool destroyed;
     bool manual_in_cover;
     bool manual_hull_down;
@@ -382,6 +417,7 @@ static bool can_place_unit_at(const game_t *game, const unit_t *unit, float x, f
 static bool unit_can_move_now(const game_t *game, const unit_t *unit);
 static float move_toward_point_legally(const game_t *game, unit_t *unit, float target_x, float target_y, float distance, int ignore_unit_id);
 static bool find_legal_position_along_heading(const game_t *game, const unit_t *unit, float angle_degrees, float requested_distance, float *out_x, float *out_y, float *out_distance);
+static int add_pin_markers_from_fire(game_t *game, unit_t *unit, int pins, const char *source_name);
 
 static weapon_profile_t with_fire_arc(weapon_profile_t weapon, int fire_arc_degrees) {
     weapon.fire_arc_degrees = fire_arc_degrees;
@@ -2187,13 +2223,169 @@ static int defensive_to_hit_modifier_for_unit(const game_t *game, const unit_t *
     return unit_down_order_active(unit) ? 1 : 0;
 }
 
-static int apply_shooting_to_hit_modifiers(const game_t *game, const unit_t *attacker, const unit_t *target, int needed_to_hit) {
-    (void)attacker;
-    needed_to_hit += defensive_to_hit_modifier_for_unit(game, target);
+static int clamp_to_hit_target(int needed_to_hit) {
     if (needed_to_hit < 2) {
         return 2;
     }
     return needed_to_hit;
+}
+
+static int cover_to_hit_modifier_for_unit(const game_t *game, const unit_t *unit, const weapon_profile_t *weapon) {
+    if (game == NULL || unit == NULL || (weapon != NULL && weapon->ignores_cover)) {
+        return 0;
+    }
+    int cover_save = cover_save_for_unit(game, unit);
+    if (cover_save <= 0) {
+        return 0;
+    }
+    return cover_save <= 5 ? 2 : 1;
+}
+
+static int small_unit_to_hit_modifier_for_unit(const unit_t *unit) {
+    if (unit == NULL || unit_uses_vehicle_rules(unit) || unit_uses_artillery_rules(unit)) {
+        return 0;
+    }
+    return unit->models > 0 && unit->models <= 3 ? 1 : 0;
+}
+
+static bool weapon_counts_long_range(const weapon_profile_t *weapon, float range) {
+    return weapon != NULL && weapon->range > 0 && range > (float)weapon->range * 0.5f;
+}
+
+static shooting_hit_modifiers_t shooting_hit_modifiers_for_attack(const game_t *game, const unit_t *attacker, const unit_t *target, const weapon_profile_t *weapon, float range) {
+    shooting_hit_modifiers_t modifiers;
+    memset(&modifiers, 0, sizeof(modifiers));
+    modifiers.base_to_hit = required_to_hit_ballistic(attacker != NULL ? attacker->ballistic_skill : 0);
+
+    if (game == NULL || game->ruleset != DZW_RULESET_ORDER_DICE || attacker == NULL || target == NULL) {
+        modifiers.needed_to_hit = clamp_to_hit_target(modifiers.base_to_hit);
+        return modifiers;
+    }
+
+    if (range <= DZW_POINT_BLANK_RANGE && (weapon == NULL || !weapon->barrage)) {
+        modifiers.point_blank_modifier = -1;
+    }
+    if (attacker->pin_count > 0) {
+        modifiers.pin_modifier = attacker->pin_count;
+    }
+    if (weapon_counts_long_range(weapon, range)) {
+        modifiers.long_range_modifier = 1;
+    }
+    if (attacker->morale_quality == DZW_MORALE_INEXPERIENCED) {
+        modifiers.inexperienced_modifier = 1;
+    }
+    if (attacker->moved_this_turn || attacker->moved_distance > 0.01f) {
+        modifiers.move_modifier = 1;
+    }
+    modifiers.down_modifier = defensive_to_hit_modifier_for_unit(game, target);
+    modifiers.small_unit_modifier = small_unit_to_hit_modifier_for_unit(target);
+    modifiers.cover_modifier = cover_to_hit_modifier_for_unit(game, target, weapon);
+
+    modifiers.total_modifier =
+        modifiers.point_blank_modifier +
+        modifiers.pin_modifier +
+        modifiers.long_range_modifier +
+        modifiers.inexperienced_modifier +
+        modifiers.move_modifier +
+        modifiers.down_modifier +
+        modifiers.small_unit_modifier +
+        modifiers.cover_modifier;
+    modifiers.needed_to_hit = clamp_to_hit_target(modifiers.base_to_hit + modifiers.total_modifier);
+    return modifiers;
+}
+
+static void record_shooting_hit_modifiers(unit_t *attacker, const shooting_hit_modifiers_t *modifiers) {
+    if (attacker == NULL || modifiers == NULL || attacker->last_shooting_needed_to_hit > 0) {
+        return;
+    }
+    attacker->last_shooting_base_to_hit = modifiers->base_to_hit;
+    attacker->last_shooting_point_blank_modifier = modifiers->point_blank_modifier;
+    attacker->last_shooting_pin_modifier = modifiers->pin_modifier;
+    attacker->last_shooting_long_range_modifier = modifiers->long_range_modifier;
+    attacker->last_shooting_inexperienced_modifier = modifiers->inexperienced_modifier;
+    attacker->last_shooting_move_modifier = modifiers->move_modifier;
+    attacker->last_shooting_down_modifier = modifiers->down_modifier;
+    attacker->last_shooting_small_unit_modifier = modifiers->small_unit_modifier;
+    attacker->last_shooting_cover_modifier = modifiers->cover_modifier;
+    attacker->last_shooting_to_hit_modifier = modifiers->total_modifier;
+    attacker->last_shooting_needed_to_hit = modifiers->needed_to_hit;
+}
+
+static int apply_shooting_to_hit_modifiers(game_t *game, unit_t *attacker, const unit_t *target, const weapon_profile_t *weapon, float range, int needed_to_hit) {
+    shooting_hit_modifiers_t modifiers = shooting_hit_modifiers_for_attack(game, attacker, target, weapon, range);
+    if (needed_to_hit > 0) {
+        modifiers.base_to_hit = needed_to_hit;
+        modifiers.needed_to_hit = clamp_to_hit_target(needed_to_hit + modifiers.total_modifier);
+    }
+    record_shooting_hit_modifiers(attacker, &modifiers);
+    return modifiers.needed_to_hit;
+}
+
+static int infantry_damage_value_for_quality(dzw_morale_quality_t quality) {
+    switch (quality) {
+        case DZW_MORALE_INEXPERIENCED:
+            return 3;
+        case DZW_MORALE_VETERAN:
+            return 5;
+        case DZW_MORALE_REGULAR:
+        default:
+            return 4;
+    }
+}
+
+static int damage_value_for_infantry_unit(const unit_t *unit) {
+    return infantry_damage_value_for_quality(unit != NULL ? unit->morale_quality : DZW_MORALE_REGULAR);
+}
+
+static int damage_value_for_vehicle_armour(const unit_t *vehicle, int armour_value) {
+    if (vehicle != NULL && vehicle->open_topped && armour_value <= 10) {
+        return 6;
+    }
+    if (armour_value <= 10) {
+        return 7;
+    }
+    if (armour_value <= 11) {
+        return 8;
+    }
+    if (armour_value <= 12) {
+        return 9;
+    }
+    if (armour_value <= 14) {
+        return 10;
+    }
+    return 11;
+}
+
+static int penetration_modifier_for_weapon(const weapon_profile_t *weapon) {
+    if (weapon == NULL) {
+        return 0;
+    }
+    int modifier = weapon->strength - 4;
+    if (weapon->flame && modifier < 1) {
+        modifier = 1;
+    }
+    return modifier > 0 ? modifier : 0;
+}
+
+static void record_shooting_damage_attempt(unit_t *attacker, int damage_value, int penetration_modifier, int damage_roll, bool success) {
+    if (attacker == NULL || damage_roll <= 0) {
+        return;
+    }
+    if (attacker->last_shooting_damage_roll > 0 && penetration_modifier < attacker->last_shooting_penetration_modifier) {
+        attacker->last_shooting_damage_success = attacker->last_shooting_damage_success || success;
+        return;
+    }
+    attacker->last_shooting_damage_value = damage_value;
+    attacker->last_shooting_penetration_modifier = penetration_modifier;
+    attacker->last_shooting_damage_roll = damage_roll;
+    attacker->last_shooting_damage_success = attacker->last_shooting_damage_success || success;
+}
+
+static bool roll_order_dice_damage(game_t *game, unit_t *attacker, int damage_value, int penetration_modifier) {
+    int roll = roll_d6(game);
+    bool success = roll + penetration_modifier >= damage_value;
+    record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, roll, success);
+    return success;
 }
 
 static order_die_view_t order_die_view_from(order_die_t die, bool available) {
@@ -2484,9 +2676,29 @@ static void reset_unit_shooting_execution_details(unit_t *unit) {
     unit->last_shooting_range_checked = false;
     unit->last_shooting_hit_rolls_resolved = false;
     unit->last_shooting_damage_resolved = false;
+    unit->last_shooting_base_to_hit = 0;
+    unit->last_shooting_point_blank_modifier = 0;
+    unit->last_shooting_pin_modifier = 0;
+    unit->last_shooting_long_range_modifier = 0;
+    unit->last_shooting_inexperienced_modifier = 0;
+    unit->last_shooting_move_modifier = 0;
+    unit->last_shooting_down_modifier = 0;
+    unit->last_shooting_small_unit_modifier = 0;
+    unit->last_shooting_cover_modifier = 0;
+    unit->last_shooting_to_hit_modifier = 0;
+    unit->last_shooting_needed_to_hit = 0;
+    unit->last_shooting_damage_value = 0;
+    unit->last_shooting_penetration_modifier = 0;
+    unit->last_shooting_damage_roll = 0;
+    unit->last_shooting_damage_success = false;
     unit->last_shooting_models_removed = 0;
     unit->last_shooting_pins_added = 0;
     unit->last_shooting_morale_checked = false;
+    unit->last_shooting_morale_roll = 0;
+    unit->last_shooting_morale_target = 0;
+    unit->last_shooting_morale_pin_modifier = 0;
+    unit->last_shooting_morale_officer_modifier = 0;
+    unit->last_shooting_morale_failed = false;
 }
 
 static bool unit_has_unresolved_required_order_test(const game_t *game, const unit_t *unit) {
@@ -2681,11 +2893,13 @@ static void resolve_fubar_order_result(game_t *game, unit_t *unit) {
             unit->assaulted_this_turn = true;
             unit->last_fubar_result = DZW_FUBAR_FRIENDLY_FIRE;
             unit->last_fubar_target_id = target->id;
+            add_pin_markers_from_fire(game, unit, 1, "FUBAR");
             dzw_log(game, "%s rolls FUBAR Friendly Fire and mistakes %s for the target.", unit->name, target->name);
             return;
         }
 
         set_unit_down_from_failed_order(game, unit, DZW_FUBAR_DOWN);
+        add_pin_markers_from_fire(game, unit, 1, "FUBAR");
         dzw_log(game, "%s rolls FUBAR Friendly Fire but has no legal friendly-fire target, so it goes Down.", unit->name);
         return;
     }
@@ -2693,6 +2907,7 @@ static void resolve_fubar_order_result(game_t *game, unit_t *unit) {
     const unit_t *enemy = nearest_enemy_unit(game, unit);
     if (enemy == NULL) {
         set_unit_down_from_failed_order(game, unit, DZW_FUBAR_DOWN);
+        add_pin_markers_from_fire(game, unit, 1, "FUBAR");
         dzw_log(game, "%s rolls FUBAR Panic but sees no enemy, so it goes Down.", unit->name);
         return;
     }
@@ -2704,6 +2919,7 @@ static void resolve_fubar_order_result(game_t *game, unit_t *unit) {
     bool found_position = find_legal_position_along_heading(game, unit, panic_heading, fubar_panic_run_distance_for_unit(unit), &destination_x, &destination_y, &actual_distance);
     if (!found_position || actual_distance <= 0.01f) {
         set_unit_down_from_failed_order(game, unit, DZW_FUBAR_DOWN);
+        add_pin_markers_from_fire(game, unit, 1, "FUBAR");
         dzw_log(game, "%s rolls FUBAR Panic but has no legal panic path, so it goes Down.", unit->name);
         return;
     }
@@ -2726,6 +2942,7 @@ static void resolve_fubar_order_result(game_t *game, unit_t *unit) {
     if (unit_is_transport(unit)) {
         sync_embarked_unit_position(game, unit);
     }
+    add_pin_markers_from_fire(game, unit, 1, "FUBAR");
     dzw_log(game, "%s rolls FUBAR Panic and runs %.1f\" away from %s.", unit->name, actual_distance, enemy->name);
 }
 
@@ -3505,6 +3722,28 @@ static void pin_unit_until_next_turn(const game_t *game, unit_t *unit) {
     if (unit->pin_count < 1) {
         unit->pin_count = 1;
     }
+}
+
+static int add_pin_markers_from_fire(game_t *game, unit_t *unit, int pins, const char *source_name) {
+    if (game == NULL || unit == NULL || unit->destroyed || unit->falling_back || pins <= 0) {
+        return 0;
+    }
+
+    int before = unit->pin_count;
+    int next_turn = next_turn_number_for_player(game, unit->owner);
+    if (unit->pinned_until_turn < next_turn) {
+        unit->pinned_until_turn = next_turn;
+    }
+    unit->pin_count += pins;
+    if (unit->pin_count < 1) {
+        unit->pin_count = 1;
+    }
+
+    int added = unit->pin_count - before;
+    if (added > 0) {
+        dzw_log(game, "%s gains %d pin marker%s from %s.", unit->name, added, added == 1 ? "" : "s", source_name != NULL ? source_name : "incoming fire");
+    }
+    return added > 0 ? added : 0;
 }
 
 static void resolve_destroyed_transport_passengers(game_t *game, unit_t *transport, bool annihilate_passengers) {
@@ -4308,25 +4547,67 @@ static void begin_turn(game_t *game) {
     dzw_log(game, "Turn %d begins for %s in the %s phase.", game->turn_number, player_name(game->active_player), phase_name(game->phase));
 }
 
-static void dzw_apply_shooting_morale(game_t *game, unit_t *unit) {
-    if (unit->destroyed || unit->morale_checked_this_phase || unit->shooting_phase_strength <= 0) {
+static void record_shooting_morale_attempt(unit_t *attacker, int morale_roll, int morale_target, int pin_modifier, int officer_modifier, bool failed) {
+    if (attacker == NULL || morale_roll <= 0) {
         return;
+    }
+    attacker->last_shooting_morale_roll = morale_roll;
+    attacker->last_shooting_morale_target = morale_target;
+    attacker->last_shooting_morale_pin_modifier = pin_modifier;
+    attacker->last_shooting_morale_officer_modifier = officer_modifier;
+    attacker->last_shooting_morale_failed = failed;
+}
+
+static bool dzw_apply_shooting_morale(game_t *game, unit_t *unit, unit_t *attacker) {
+    if (unit->destroyed || unit->morale_checked_this_phase) {
+        return false;
+    }
+    if (unit->shooting_phase_strength <= 0) {
+        unit->shooting_phase_strength = unit->models + unit->casualties_this_shooting_phase;
+    }
+    if (unit->shooting_phase_strength <= 0) {
+        return false;
+    }
+
+    if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+        if (unit->casualties_this_shooting_phase <= 0) {
+            return false;
+        }
+
+        unit->morale_checked_this_phase = true;
+        int pin_modifier = order_test_pin_modifier_for_unit(game, unit);
+        int officer_modifier = nearby_officer_modifier_for_unit(game, unit);
+        int morale_target = clamped_order_test_target(morale_target_for_quality(unit->morale_quality) + pin_modifier + officer_modifier);
+        int morale_roll = roll_2d6(game);
+        bool failed = morale_roll > morale_target;
+        record_shooting_morale_attempt(attacker, morale_roll, morale_target, pin_modifier, officer_modifier, failed);
+        if (!failed) {
+            dzw_log(game, "%s holds after losing %d model%s; morale roll %d vs target %d.", unit->name, unit->casualties_this_shooting_phase, unit->casualties_this_shooting_phase == 1 ? "" : "s", morale_roll, morale_target);
+            return true;
+        }
+
+        dzw_log(game, "%s fails morale after enemy fire; morale roll %d vs target %d.", unit->name, morale_roll, morale_target);
+        resolve_fall_back(game, unit, roll_2d6(game));
+        return true;
     }
 
     int threshold = (unit->shooting_phase_strength + 3) / 4;
     if (unit->casualties_this_shooting_phase < threshold) {
-        return;
+        return false;
     }
 
     unit->morale_checked_this_phase = true;
     int morale_roll = roll_2d6(game);
+    bool failed = morale_roll > unit->leadership;
+    record_shooting_morale_attempt(attacker, morale_roll, unit->leadership, 0, 0, failed);
     if (morale_roll <= unit->leadership) {
         dzw_log(game, "%s holds after losing %d models; morale roll %d vs Leadership %d.", unit->name, unit->casualties_this_shooting_phase, morale_roll, unit->leadership);
-        return;
+        return true;
     }
 
     dzw_log(game, "%s breaks after enemy fire; morale roll %d vs Leadership %d.", unit->name, morale_roll, unit->leadership);
     resolve_fall_back(game, unit, roll_2d6(game));
+    return true;
 }
 
 static void apply_pinning(game_t *game, unit_t *unit, int modifier, const char *source_name) {
@@ -4999,10 +5280,14 @@ static void resolve_mixed_infantry_hits(game_t *game, const unit_t *attacker, un
     (void)resolve_allocated_mixed_infantry_hits(game, attacker->name, target, weapon, allocated_hits);
 }
 
-static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker, unit_t *target, const weapon_profile_t *weapon, int shots) {
+static void resolve_weapon_against_infantry(game_t *game, unit_t *attacker, unit_t *target, const weapon_profile_t *weapon, int shots) {
     int hits = 0;
     int wounds = 0;
     int unsaved_wounds = 0;
+    float range = edge_distance_between_units(attacker, target);
+    if (range < 0.0f) {
+        range = 0.0f;
+    }
 
     if (weapon->flame) {
         hits = estimate_flame_hits(game, attacker, target, weapon->range);
@@ -5012,8 +5297,25 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         }
 
         dzw_log(game, "%s sweeps %s over %s: %d template hit%s, cover ignored.", attacker->name, weapon->name, target->name, hits, hits == 1 ? "" : "s");
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            add_pin_markers_from_fire(game, target, 1, weapon->name);
+        }
         if (unit_has_mixed_profiles(target)) {
             resolve_mixed_infantry_hits(game, attacker, target, weapon, hits);
+            return;
+        }
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            int damage_value = damage_value_for_infantry_unit(target);
+            int penetration_modifier = penetration_modifier_for_weapon(weapon);
+            for (int hit = 0; hit < hits; hit += 1) {
+                if (!roll_order_dice_damage(game, attacker, damage_value, penetration_modifier)) {
+                    continue;
+                }
+                wounds += 1;
+                unsaved_wounds += 1;
+            }
+            dzw_log(game, "%s's %s converts %d hit%s into %d damage success%s against DV %d.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", unsaved_wounds, unsaved_wounds == 1 ? "" : "es", damage_value);
+            apply_infantry_damage(game, target, unsaved_wounds, weapon->strength, weapon->name, true, NULL);
             return;
         }
         for (int hit = 0; hit < hits; hit += 1) {
@@ -5047,7 +5349,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         if (weapon->ordnance || weapon->barrage) {
             direct_hit = scatter_marker(game, target->x, target->y, &marker_x, &marker_y, &scatter_distance);
         } else {
-            int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, required_to_hit_ballistic(attacker->ballistic_skill));
+            int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, weapon, range, required_to_hit_ballistic(attacker->ballistic_skill));
             if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
                 dzw_log(game, "%s's %s misses cleanly.", attacker->name, weapon->name);
                 return;
@@ -5066,8 +5368,25 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
             dzw_log(game, "%s fires %s: %d template hit%s on %s.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", target->name);
         }
 
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            add_pin_markers_from_fire(game, target, weapon->ordnance || weapon->barrage ? 2 : 1, weapon->name);
+        }
         if (unit_has_mixed_profiles(target)) {
             resolve_mixed_infantry_hits(game, attacker, target, weapon, hits);
+            return;
+        }
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            int damage_value = damage_value_for_infantry_unit(target);
+            int penetration_modifier = penetration_modifier_for_weapon(weapon);
+            for (int hit = 0; hit < hits; hit += 1) {
+                if (!roll_order_dice_damage(game, attacker, damage_value, penetration_modifier)) {
+                    continue;
+                }
+                wounds += 1;
+                unsaved_wounds += 1;
+            }
+            dzw_log(game, "%s's %s converts %d hit%s into %d damage success%s against DV %d.", attacker->name, weapon->name, hits, hits == 1 ? "" : "s", unsaved_wounds, unsaved_wounds == 1 ? "" : "es", damage_value);
+            apply_infantry_damage(game, target, unsaved_wounds, weapon->strength, weapon->name, true, NULL);
             return;
         }
         for (int hit = 0; hit < hits; hit += 1) {
@@ -5092,7 +5411,7 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
         return;
     }
 
-    int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, required_to_hit_ballistic(attacker->ballistic_skill));
+    int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, weapon, range, required_to_hit_ballistic(attacker->ballistic_skill));
     for (int shot = 0; shot < shots; shot += 1) {
         if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
             continue;
@@ -5101,7 +5420,27 @@ static void resolve_weapon_against_infantry(game_t *game, const unit_t *attacker
     }
 
     if (unit_has_mixed_profiles(target)) {
+        if (game->ruleset == DZW_RULESET_ORDER_DICE && hits > 0) {
+            add_pin_markers_from_fire(game, target, 1, weapon->name);
+        }
         resolve_mixed_infantry_hits(game, attacker, target, weapon, hits);
+        return;
+    }
+
+    if (game->ruleset == DZW_RULESET_ORDER_DICE && hits > 0) {
+        int damage_value = damage_value_for_infantry_unit(target);
+        int penetration_modifier = penetration_modifier_for_weapon(weapon);
+        add_pin_markers_from_fire(game, target, 1, weapon->name);
+        for (int hit = 0; hit < hits; hit += 1) {
+            if (!roll_order_dice_damage(game, attacker, damage_value, penetration_modifier)) {
+                continue;
+            }
+            wounds += 1;
+            unsaved_wounds += 1;
+        }
+
+        dzw_log(game, "%s fires %s: %d shot%s, %d hit%s, %d damage success%s against DV %d.", attacker->name, weapon->name, shots, shots == 1 ? "" : "s", hits, hits == 1 ? "" : "s", unsaved_wounds, unsaved_wounds == 1 ? "" : "es", damage_value);
+        apply_infantry_damage(game, target, unsaved_wounds, weapon->strength, weapon->name, true, NULL);
         return;
     }
 
@@ -5174,11 +5513,11 @@ static bool finalize_pending_hit_allocation_choice(game_t *game, bool apply_shoo
     }
 
     clear_pending_hit_allocation_choice(game);
-    if (allocation_kind == DZW_PENDING_HIT_ALLOCATION_SHOOTING && !target->destroyed && target->models < target_models_before && barrage) {
+    if (game->ruleset == DZW_RULESET_FIXED_PHASES && allocation_kind == DZW_PENDING_HIT_ALLOCATION_SHOOTING && !target->destroyed && target->models < target_models_before && barrage) {
         apply_pinning(game, target, ordnance ? -1 : 0, source_name);
     }
     if (apply_shooting_morale && !target->destroyed && allocation_kind == DZW_PENDING_HIT_ALLOCATION_SHOOTING) {
-        dzw_apply_shooting_morale(game, target);
+        (void)dzw_apply_shooting_morale(game, target, NULL);
     }
     if (out_unsaved_wounds != NULL) {
         *out_unsaved_wounds = unsaved_wounds;
@@ -5186,8 +5525,15 @@ static bool finalize_pending_hit_allocation_choice(game_t *game, bool apply_shoo
     return true;
 }
 
-static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker, unit_t *target, const weapon_profile_t *weapon, int shots) {
+static void resolve_weapon_against_vehicle(game_t *game, unit_t *attacker, unit_t *target, const weapon_profile_t *weapon, int shots) {
     int armour_value = vehicle_armour_for_arc(target, attacker->x, attacker->y);
+    int damage_value = game->ruleset == DZW_RULESET_ORDER_DICE ? damage_value_for_vehicle_armour(target, armour_value) : armour_value;
+    int penetration_modifier = game->ruleset == DZW_RULESET_ORDER_DICE ? penetration_modifier_for_weapon(weapon) : weapon->strength;
+    const char *damage_label = game->ruleset == DZW_RULESET_ORDER_DICE ? "DV" : "AV";
+    float range = edge_distance_between_units(attacker, target);
+    if (range < 0.0f) {
+        range = 0.0f;
+    }
     bool protective_glancing_only = target->smoke_active || hull_down_for_unit(game, target) || (target->recon && target->moved_distance > 6.0f);
 
     if (weapon->flame) {
@@ -5199,15 +5545,22 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
 
         dzw_log(game, "%s bathes %s in %s: %d template hit%s.", attacker->name, target->name, weapon->name, hits, hits == 1 ? "" : "s");
         for (int hit = 0; hit < hits; hit += 1) {
-            int penetration_roll = roll_d6(game) + weapon->strength;
-            if (penetration_roll < armour_value) {
-                dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
+            int raw_damage_roll = roll_d6(game);
+            int penetration_roll = raw_damage_roll + penetration_modifier;
+            if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+                record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, penetration_roll >= damage_value);
+            }
+            if (penetration_roll < damage_value) {
+                dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs %s %d).", attacker->name, weapon->name, target->name, penetration_roll, damage_label, damage_value);
                 continue;
             }
 
-            bool glancing_hit = penetration_roll == armour_value;
+            bool glancing_hit = penetration_roll == damage_value;
             if (!glancing_hit && protective_glancing_only) {
                 glancing_hit = true;
+            }
+            if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+                add_pin_markers_from_fire(game, target, 1, weapon->name);
             }
 
             if (glancing_hit) {
@@ -5233,7 +5586,7 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
         if (weapon->ordnance || weapon->barrage) {
             direct_hit = scatter_marker(game, target->x, target->y, &marker_x, &marker_y, &scatter_distance);
         } else {
-            int needed_to_hit = required_to_hit_ballistic(attacker->ballistic_skill);
+            int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, weapon, range, required_to_hit_ballistic(attacker->ballistic_skill));
             if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
                 dzw_log(game, "%s's %s misses %s.", attacker->name, weapon->name, target->name);
                 return;
@@ -5248,13 +5601,20 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
 
         dzw_log(game, "%s lands %d blast hit%s on %s with %s (%s).", attacker->name, hits, hits == 1 ? "" : "s", target->name, weapon->name, direct_hit ? "direct hit" : "scatter");
         for (int hit = 0; hit < hits; hit += 1) {
-            int penetration_roll = roll_d6(game) + weapon->strength;
-            if (penetration_roll < armour_value) {
-                dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
+            int raw_damage_roll = roll_d6(game);
+            int penetration_roll = raw_damage_roll + penetration_modifier;
+            if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+                record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, penetration_roll >= damage_value);
+            }
+            if (penetration_roll < damage_value) {
+                dzw_log(game, "%s's %s fails to penetrate %s (roll %d vs %s %d).", attacker->name, weapon->name, target->name, penetration_roll, damage_label, damage_value);
                 continue;
             }
 
-            bool glancing_hit = penetration_roll == armour_value || protective_glancing_only;
+            bool glancing_hit = penetration_roll == damage_value || protective_glancing_only;
+            if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+                add_pin_markers_from_fire(game, target, weapon->ordnance || weapon->barrage ? 2 : 1, weapon->name);
+            }
             if (glancing_hit) {
                 dzw_log(game, "%s scores a glancing hit on %s with %s.", attacker->name, target->name, weapon->name);
                 apply_vehicle_damage(game, attacker, target, true);
@@ -5273,21 +5633,28 @@ static void resolve_weapon_against_vehicle(game_t *game, const unit_t *attacker,
         return;
     }
 
-    int needed_to_hit = required_to_hit_ballistic(attacker->ballistic_skill);
+    int needed_to_hit = apply_shooting_to_hit_modifiers(game, attacker, target, weapon, range, required_to_hit_ballistic(attacker->ballistic_skill));
     for (int shot = 0; shot < shots; shot += 1) {
         if (!roll_to_hit_with_linked(game, needed_to_hit, weapon->linked)) {
             continue;
         }
 
-        int penetration_roll = roll_d6(game) + weapon->strength;
-        if (penetration_roll < armour_value) {
-            dzw_log(game, "%s's %s bounces off %s (penetration %d vs AV %d).", attacker->name, weapon->name, target->name, penetration_roll, armour_value);
+        int raw_damage_roll = roll_d6(game);
+        int penetration_roll = raw_damage_roll + penetration_modifier;
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            record_shooting_damage_attempt(attacker, damage_value, penetration_modifier, raw_damage_roll, penetration_roll >= damage_value);
+        }
+        if (penetration_roll < damage_value) {
+            dzw_log(game, "%s's %s bounces off %s (penetration %d vs %s %d).", attacker->name, weapon->name, target->name, penetration_roll, damage_label, damage_value);
             continue;
         }
 
-        bool glancing_hit = penetration_roll == armour_value;
+        bool glancing_hit = penetration_roll == damage_value;
         if (!glancing_hit && protective_glancing_only) {
             glancing_hit = true;
+        }
+        if (game->ruleset == DZW_RULESET_ORDER_DICE) {
+            add_pin_markers_from_fire(game, target, 1, weapon->name);
         }
 
         if (glancing_hit) {
@@ -5353,7 +5720,7 @@ static bool resolve_vehicle_follow_on_fire(game_t *game, unit_t *attacker, unit_
             return true;
         }
 
-        if (target->kind == DZW_UNIT_INFANTRY && target->models < target_models_before && slot->profile.barrage) {
+        if (game->ruleset == DZW_RULESET_FIXED_PHASES && target->kind == DZW_UNIT_INFANTRY && target->models < target_models_before && slot->profile.barrage) {
             apply_pinning(game, target, slot->profile.ordnance ? -1 : 0, slot->profile.name);
         }
         if (target->destroyed) {
@@ -5393,7 +5760,7 @@ static bool continue_pending_vehicle_shot_sequence(game_t *game) {
         return true;
     }
     if (target->kind == DZW_UNIT_INFANTRY) {
-        dzw_apply_shooting_morale(game, target);
+        (void)dzw_apply_shooting_morale(game, target, attacker);
     }
     return true;
 }
@@ -7542,9 +7909,29 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.last_shooting_range_checked = unit->last_shooting_range_checked;
     view.last_shooting_hit_rolls_resolved = unit->last_shooting_hit_rolls_resolved;
     view.last_shooting_damage_resolved = unit->last_shooting_damage_resolved;
+    view.last_shooting_base_to_hit = unit->last_shooting_base_to_hit;
+    view.last_shooting_point_blank_modifier = unit->last_shooting_point_blank_modifier;
+    view.last_shooting_pin_modifier = unit->last_shooting_pin_modifier;
+    view.last_shooting_long_range_modifier = unit->last_shooting_long_range_modifier;
+    view.last_shooting_inexperienced_modifier = unit->last_shooting_inexperienced_modifier;
+    view.last_shooting_move_modifier = unit->last_shooting_move_modifier;
+    view.last_shooting_down_modifier = unit->last_shooting_down_modifier;
+    view.last_shooting_small_unit_modifier = unit->last_shooting_small_unit_modifier;
+    view.last_shooting_cover_modifier = unit->last_shooting_cover_modifier;
+    view.last_shooting_to_hit_modifier = unit->last_shooting_to_hit_modifier;
+    view.last_shooting_needed_to_hit = unit->last_shooting_needed_to_hit;
+    view.last_shooting_damage_value = unit->last_shooting_damage_value;
+    view.last_shooting_penetration_modifier = unit->last_shooting_penetration_modifier;
+    view.last_shooting_damage_roll = unit->last_shooting_damage_roll;
+    view.last_shooting_damage_success = unit->last_shooting_damage_success;
     view.last_shooting_models_removed = unit->last_shooting_models_removed;
     view.last_shooting_pins_added = unit->last_shooting_pins_added;
     view.last_shooting_morale_checked = unit->last_shooting_morale_checked;
+    view.last_shooting_morale_roll = unit->last_shooting_morale_roll;
+    view.last_shooting_morale_target = unit->last_shooting_morale_target;
+    view.last_shooting_morale_pin_modifier = unit->last_shooting_morale_pin_modifier;
+    view.last_shooting_morale_officer_modifier = unit->last_shooting_morale_officer_modifier;
+    view.last_shooting_morale_failed = unit->last_shooting_morale_failed;
     view.embarked = unit_is_embarked(unit);
     view.embarked_unit_id = unit->embarked_unit_id;
     view.embarked_in_transport_id = unit->embarked_in_transport_id;
@@ -8257,10 +8644,10 @@ bool game_fire_passenger(game_t *game, int transport_id, int target_id) {
         return true;
     }
     if (target->kind == DZW_UNIT_INFANTRY) {
-        if (target->models < target_models_before && slot->profile.barrage) {
+        if (game->ruleset == DZW_RULESET_FIXED_PHASES && target->models < target_models_before && slot->profile.barrage) {
             apply_pinning(game, target, slot->profile.ordnance ? -1 : 0, slot->profile.name);
         }
-        dzw_apply_shooting_morale(game, target);
+        (void)dzw_apply_shooting_morale(game, target, passenger);
     }
     return true;
 }
@@ -8453,7 +8840,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
                 resolve_weapon_against_vehicle(game, attacker, target, &ordnance_slot->profile, 1);
             } else {
                 resolve_weapon_against_infantry(game, attacker, target, &ordnance_slot->profile, 1);
-                if (target->models < shooting_target_models_before && ordnance_slot->profile.barrage) {
+                if (game->ruleset == DZW_RULESET_FIXED_PHASES && target->models < shooting_target_models_before && ordnance_slot->profile.barrage) {
                     apply_pinning(game, target, ordnance_slot->profile.ordnance ? -1 : 0, ordnance_slot->profile.name);
                 }
             }
@@ -8461,8 +8848,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
             if (target->destroyed || game_has_pending_weapon_destroy_choice(game)) {
                 attacker->shot_this_turn = true;
                 if (target->kind == DZW_UNIT_INFANTRY) {
-                    dzw_apply_shooting_morale(game, target);
-                    shooting_morale_checked = true;
+                    shooting_morale_checked = dzw_apply_shooting_morale(game, target, attacker);
                 }
                 finish_shooting_procedure(attacker, target, shooting_target_models_before, shooting_target_pins_before, shooting_morale_checked);
                 return true;
@@ -8498,7 +8884,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
             resolve_weapon_against_vehicle(game, attacker, target, &slot->profile, total_shots);
         } else {
             resolve_weapon_against_infantry(game, attacker, target, &slot->profile, total_shots);
-            if (target->models < shooting_target_models_before && slot->profile.barrage) {
+            if (game->ruleset == DZW_RULESET_FIXED_PHASES && target->models < shooting_target_models_before && slot->profile.barrage) {
                 apply_pinning(game, target, slot->profile.ordnance ? -1 : 0, slot->profile.name);
             }
         }
@@ -8524,8 +8910,7 @@ bool game_shoot_unit(game_t *game, int attacker_id, int target_id) {
 
     attacker->shot_this_turn = true;
     if (target->kind == DZW_UNIT_INFANTRY) {
-        dzw_apply_shooting_morale(game, target);
-        shooting_morale_checked = true;
+        shooting_morale_checked = dzw_apply_shooting_morale(game, target, attacker);
     }
     finish_shooting_procedure(attacker, target, shooting_target_models_before, shooting_target_pins_before, shooting_morale_checked);
     return true;
