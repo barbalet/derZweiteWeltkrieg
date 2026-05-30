@@ -115,6 +115,78 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
     public let pivotBudget: Int
     public let pivotCountUsed: Int
     public let movementRejectionReason: String
+    public let assaultMoveAllowance: Double
+    public let frontArmour: Int
+    public let sideArmour: Int
+    public let rearArmour: Int
+    public let defensiveToHitModifier: Int
+    public let fastVehicle: Bool
+    public let reconVehicle: Bool
+    public let openToppedVehicle: Bool
+    public let smokeAvailable: Bool
+    public let smokeActive: Bool
+    public let crewShaken: Bool
+    public let crewStunned: Bool
+    public let immobilized: Bool
+    public let wrecked: Bool
+    public let wreckBlocksMovement: Bool
+    public let lastShootingTargetID: Int?
+    public let lastShootingRange: Double
+    public let lastShootingTargetReaction: String
+    public let lastShootingBaseToHit: Int
+    public let lastShootingPointBlankModifier: Int
+    public let lastShootingPinModifier: Int
+    public let lastShootingLongRangeModifier: Int
+    public let lastShootingInexperiencedModifier: Int
+    public let lastShootingMoveModifier: Int
+    public let lastShootingDownModifier: Int
+    public let lastShootingSmallUnitModifier: Int
+    public let lastShootingCoverModifier: Int
+    public let lastShootingToHitModifier: Int
+    public let lastShootingNeededToHit: Int
+    public let lastShootingDamageValue: Int
+    public let lastShootingPenetrationModifier: Int
+    public let lastShootingDamageRoll: Int
+    public let lastShootingDamageSuccess: Bool
+    public let lastShootingVehicleArmourModifier: Int
+    public let lastShootingVehicleLongRangePenalty: Int
+    public let lastShootingVehicleOpenToppedIndirectModifier: Int
+    public let lastShootingVehicleDamageClass: String
+    public let lastVehicleDamageTableRoll: Int
+    public let lastVehicleDamageResult: String
+    public let lastVehicleDamageMoraleRoll: Int
+    public let lastVehicleDamageMoraleTarget: Int
+    public let lastVehicleDamageMoraleFailed: Bool
+    public let lastShootingModelsRemoved: Int
+    public let lastShootingPinsAdded: Int
+    public let lastShootingMoraleChecked: Bool
+    public let lastShootingMoraleRoll: Int
+    public let lastShootingMoraleTarget: Int
+    public let lastShootingMoralePinModifier: Int
+    public let lastShootingMoraleOfficerModifier: Int
+    public let lastShootingMoraleFailed: Bool
+    public let lastAssaultTargetID: Int?
+    public let lastAssaultRange: Double
+    public let lastAssaultTargetReaction: String
+    public let lastAssaultAttackerWounds: Int
+    public let lastAssaultDefenderWounds: Int
+    public let lastAssaultDrawRounds: Int
+    public let lastAssaultWinnerID: Int?
+    public let lastAssaultLoserID: Int?
+    public let lastAssaultLoserDestroyed: Bool
+    public let lastAssaultRegroupDistance: Double
+    public let lastAssaultVehicleTarget: Bool
+    public let lastAssaultAntitankEquipped: Bool
+    public let lastAssaultEnclosedArmourOrderTestRequired: Bool
+    public let lastAssaultEnclosedArmourOrderTestRoll: Int
+    public let lastAssaultEnclosedArmourOrderTestTarget: Int
+    public let lastAssaultEnclosedArmourOrderTestFailed: Bool
+    public let lastAssaultVehicleDefensiveFireResolved: Bool
+    public let lastAssaultVehicleHits: Int
+    public let lastAssaultVehicleDamageValue: Int
+    public let lastAssaultVehiclePenetrationModifier: Int
+    public let lastAssaultVehicleDamageRoll: Int
+    public let lastAssaultVehicleDamageClass: String
 
     public init(
         id: Int,
@@ -154,7 +226,79 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
         canReverseNow: Bool = false,
         pivotBudget: Int = 0,
         pivotCountUsed: Int = 0,
-        movementRejectionReason: String = ""
+        movementRejectionReason: String = "",
+        assaultMoveAllowance: Double = 0,
+        frontArmour: Int = 0,
+        sideArmour: Int = 0,
+        rearArmour: Int = 0,
+        defensiveToHitModifier: Int = 0,
+        fastVehicle: Bool = false,
+        reconVehicle: Bool = false,
+        openToppedVehicle: Bool = false,
+        smokeAvailable: Bool = false,
+        smokeActive: Bool = false,
+        crewShaken: Bool = false,
+        crewStunned: Bool = false,
+        immobilized: Bool = false,
+        wrecked: Bool = false,
+        wreckBlocksMovement: Bool = false,
+        lastShootingTargetID: Int? = nil,
+        lastShootingRange: Double = 0,
+        lastShootingTargetReaction: String = "None",
+        lastShootingBaseToHit: Int = 0,
+        lastShootingPointBlankModifier: Int = 0,
+        lastShootingPinModifier: Int = 0,
+        lastShootingLongRangeModifier: Int = 0,
+        lastShootingInexperiencedModifier: Int = 0,
+        lastShootingMoveModifier: Int = 0,
+        lastShootingDownModifier: Int = 0,
+        lastShootingSmallUnitModifier: Int = 0,
+        lastShootingCoverModifier: Int = 0,
+        lastShootingToHitModifier: Int = 0,
+        lastShootingNeededToHit: Int = 0,
+        lastShootingDamageValue: Int = 0,
+        lastShootingPenetrationModifier: Int = 0,
+        lastShootingDamageRoll: Int = 0,
+        lastShootingDamageSuccess: Bool = false,
+        lastShootingVehicleArmourModifier: Int = 0,
+        lastShootingVehicleLongRangePenalty: Int = 0,
+        lastShootingVehicleOpenToppedIndirectModifier: Int = 0,
+        lastShootingVehicleDamageClass: String = "None",
+        lastVehicleDamageTableRoll: Int = 0,
+        lastVehicleDamageResult: String = "None",
+        lastVehicleDamageMoraleRoll: Int = 0,
+        lastVehicleDamageMoraleTarget: Int = 0,
+        lastVehicleDamageMoraleFailed: Bool = false,
+        lastShootingModelsRemoved: Int = 0,
+        lastShootingPinsAdded: Int = 0,
+        lastShootingMoraleChecked: Bool = false,
+        lastShootingMoraleRoll: Int = 0,
+        lastShootingMoraleTarget: Int = 0,
+        lastShootingMoralePinModifier: Int = 0,
+        lastShootingMoraleOfficerModifier: Int = 0,
+        lastShootingMoraleFailed: Bool = false,
+        lastAssaultTargetID: Int? = nil,
+        lastAssaultRange: Double = 0,
+        lastAssaultTargetReaction: String = "None",
+        lastAssaultAttackerWounds: Int = 0,
+        lastAssaultDefenderWounds: Int = 0,
+        lastAssaultDrawRounds: Int = 0,
+        lastAssaultWinnerID: Int? = nil,
+        lastAssaultLoserID: Int? = nil,
+        lastAssaultLoserDestroyed: Bool = false,
+        lastAssaultRegroupDistance: Double = 0,
+        lastAssaultVehicleTarget: Bool = false,
+        lastAssaultAntitankEquipped: Bool = false,
+        lastAssaultEnclosedArmourOrderTestRequired: Bool = false,
+        lastAssaultEnclosedArmourOrderTestRoll: Int = 0,
+        lastAssaultEnclosedArmourOrderTestTarget: Int = 0,
+        lastAssaultEnclosedArmourOrderTestFailed: Bool = false,
+        lastAssaultVehicleDefensiveFireResolved: Bool = false,
+        lastAssaultVehicleHits: Int = 0,
+        lastAssaultVehicleDamageValue: Int = 0,
+        lastAssaultVehiclePenetrationModifier: Int = 0,
+        lastAssaultVehicleDamageRoll: Int = 0,
+        lastAssaultVehicleDamageClass: String = "None"
     ) {
         self.id = id
         self.name = name
@@ -194,6 +338,78 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
         self.pivotBudget = pivotBudget
         self.pivotCountUsed = pivotCountUsed
         self.movementRejectionReason = movementRejectionReason
+        self.assaultMoveAllowance = assaultMoveAllowance
+        self.frontArmour = frontArmour
+        self.sideArmour = sideArmour
+        self.rearArmour = rearArmour
+        self.defensiveToHitModifier = defensiveToHitModifier
+        self.fastVehicle = fastVehicle
+        self.reconVehicle = reconVehicle
+        self.openToppedVehicle = openToppedVehicle
+        self.smokeAvailable = smokeAvailable
+        self.smokeActive = smokeActive
+        self.crewShaken = crewShaken
+        self.crewStunned = crewStunned
+        self.immobilized = immobilized
+        self.wrecked = wrecked
+        self.wreckBlocksMovement = wreckBlocksMovement
+        self.lastShootingTargetID = lastShootingTargetID
+        self.lastShootingRange = lastShootingRange
+        self.lastShootingTargetReaction = lastShootingTargetReaction
+        self.lastShootingBaseToHit = lastShootingBaseToHit
+        self.lastShootingPointBlankModifier = lastShootingPointBlankModifier
+        self.lastShootingPinModifier = lastShootingPinModifier
+        self.lastShootingLongRangeModifier = lastShootingLongRangeModifier
+        self.lastShootingInexperiencedModifier = lastShootingInexperiencedModifier
+        self.lastShootingMoveModifier = lastShootingMoveModifier
+        self.lastShootingDownModifier = lastShootingDownModifier
+        self.lastShootingSmallUnitModifier = lastShootingSmallUnitModifier
+        self.lastShootingCoverModifier = lastShootingCoverModifier
+        self.lastShootingToHitModifier = lastShootingToHitModifier
+        self.lastShootingNeededToHit = lastShootingNeededToHit
+        self.lastShootingDamageValue = lastShootingDamageValue
+        self.lastShootingPenetrationModifier = lastShootingPenetrationModifier
+        self.lastShootingDamageRoll = lastShootingDamageRoll
+        self.lastShootingDamageSuccess = lastShootingDamageSuccess
+        self.lastShootingVehicleArmourModifier = lastShootingVehicleArmourModifier
+        self.lastShootingVehicleLongRangePenalty = lastShootingVehicleLongRangePenalty
+        self.lastShootingVehicleOpenToppedIndirectModifier = lastShootingVehicleOpenToppedIndirectModifier
+        self.lastShootingVehicleDamageClass = lastShootingVehicleDamageClass
+        self.lastVehicleDamageTableRoll = lastVehicleDamageTableRoll
+        self.lastVehicleDamageResult = lastVehicleDamageResult
+        self.lastVehicleDamageMoraleRoll = lastVehicleDamageMoraleRoll
+        self.lastVehicleDamageMoraleTarget = lastVehicleDamageMoraleTarget
+        self.lastVehicleDamageMoraleFailed = lastVehicleDamageMoraleFailed
+        self.lastShootingModelsRemoved = lastShootingModelsRemoved
+        self.lastShootingPinsAdded = lastShootingPinsAdded
+        self.lastShootingMoraleChecked = lastShootingMoraleChecked
+        self.lastShootingMoraleRoll = lastShootingMoraleRoll
+        self.lastShootingMoraleTarget = lastShootingMoraleTarget
+        self.lastShootingMoralePinModifier = lastShootingMoralePinModifier
+        self.lastShootingMoraleOfficerModifier = lastShootingMoraleOfficerModifier
+        self.lastShootingMoraleFailed = lastShootingMoraleFailed
+        self.lastAssaultTargetID = lastAssaultTargetID
+        self.lastAssaultRange = lastAssaultRange
+        self.lastAssaultTargetReaction = lastAssaultTargetReaction
+        self.lastAssaultAttackerWounds = lastAssaultAttackerWounds
+        self.lastAssaultDefenderWounds = lastAssaultDefenderWounds
+        self.lastAssaultDrawRounds = lastAssaultDrawRounds
+        self.lastAssaultWinnerID = lastAssaultWinnerID
+        self.lastAssaultLoserID = lastAssaultLoserID
+        self.lastAssaultLoserDestroyed = lastAssaultLoserDestroyed
+        self.lastAssaultRegroupDistance = lastAssaultRegroupDistance
+        self.lastAssaultVehicleTarget = lastAssaultVehicleTarget
+        self.lastAssaultAntitankEquipped = lastAssaultAntitankEquipped
+        self.lastAssaultEnclosedArmourOrderTestRequired = lastAssaultEnclosedArmourOrderTestRequired
+        self.lastAssaultEnclosedArmourOrderTestRoll = lastAssaultEnclosedArmourOrderTestRoll
+        self.lastAssaultEnclosedArmourOrderTestTarget = lastAssaultEnclosedArmourOrderTestTarget
+        self.lastAssaultEnclosedArmourOrderTestFailed = lastAssaultEnclosedArmourOrderTestFailed
+        self.lastAssaultVehicleDefensiveFireResolved = lastAssaultVehicleDefensiveFireResolved
+        self.lastAssaultVehicleHits = lastAssaultVehicleHits
+        self.lastAssaultVehicleDamageValue = lastAssaultVehicleDamageValue
+        self.lastAssaultVehiclePenetrationModifier = lastAssaultVehiclePenetrationModifier
+        self.lastAssaultVehicleDamageRoll = lastAssaultVehicleDamageRoll
+        self.lastAssaultVehicleDamageClass = lastAssaultVehicleDamageClass
     }
 
     public var roleLine: String {
@@ -726,7 +942,79 @@ public final class NativeBoardSession {
                 canReverseNow: unit.can_reverse_now,
                 pivotBudget: Int(unit.pivot_budget),
                 pivotCountUsed: Int(unit.pivot_count_used),
-                movementRejectionReason: nativeBoardCString(unit.movement_rejection_reason)
+                movementRejectionReason: nativeBoardCString(unit.movement_rejection_reason),
+                assaultMoveAllowance: Double(unit.assault_move_allowance),
+                frontArmour: Int(unit.front_armour),
+                sideArmour: Int(unit.side_armour),
+                rearArmour: Int(unit.rear_armour),
+                defensiveToHitModifier: Int(unit.defensive_to_hit_modifier),
+                fastVehicle: unit.fast,
+                reconVehicle: unit.recon,
+                openToppedVehicle: unit.open_topped,
+                smokeAvailable: unit.smoke_available,
+                smokeActive: unit.smoke_active,
+                crewShaken: unit.crew_shaken,
+                crewStunned: unit.crew_stunned,
+                immobilized: unit.immobilized,
+                wrecked: unit.wrecked,
+                wreckBlocksMovement: unit.wreck_blocks_movement,
+                lastShootingTargetID: optionalNativeBoardID(unit.last_shooting_target_id),
+                lastShootingRange: Double(unit.last_shooting_range),
+                lastShootingTargetReaction: nativeBoardCString(game_target_reaction_name(unit.last_shooting_target_reaction)),
+                lastShootingBaseToHit: Int(unit.last_shooting_base_to_hit),
+                lastShootingPointBlankModifier: Int(unit.last_shooting_point_blank_modifier),
+                lastShootingPinModifier: Int(unit.last_shooting_pin_modifier),
+                lastShootingLongRangeModifier: Int(unit.last_shooting_long_range_modifier),
+                lastShootingInexperiencedModifier: Int(unit.last_shooting_inexperienced_modifier),
+                lastShootingMoveModifier: Int(unit.last_shooting_move_modifier),
+                lastShootingDownModifier: Int(unit.last_shooting_down_modifier),
+                lastShootingSmallUnitModifier: Int(unit.last_shooting_small_unit_modifier),
+                lastShootingCoverModifier: Int(unit.last_shooting_cover_modifier),
+                lastShootingToHitModifier: Int(unit.last_shooting_to_hit_modifier),
+                lastShootingNeededToHit: Int(unit.last_shooting_needed_to_hit),
+                lastShootingDamageValue: Int(unit.last_shooting_damage_value),
+                lastShootingPenetrationModifier: Int(unit.last_shooting_penetration_modifier),
+                lastShootingDamageRoll: Int(unit.last_shooting_damage_roll),
+                lastShootingDamageSuccess: unit.last_shooting_damage_success,
+                lastShootingVehicleArmourModifier: Int(unit.last_shooting_vehicle_armour_modifier),
+                lastShootingVehicleLongRangePenalty: Int(unit.last_shooting_vehicle_long_range_penalty),
+                lastShootingVehicleOpenToppedIndirectModifier: Int(unit.last_shooting_vehicle_open_topped_indirect_modifier),
+                lastShootingVehicleDamageClass: vehicleDamageClassName(unit.last_shooting_vehicle_damage_class),
+                lastVehicleDamageTableRoll: Int(unit.last_vehicle_damage_table_roll),
+                lastVehicleDamageResult: nativeBoardCString(game_vehicle_damage_result_name(unit.last_vehicle_damage_result)),
+                lastVehicleDamageMoraleRoll: Int(unit.last_vehicle_damage_morale_roll),
+                lastVehicleDamageMoraleTarget: Int(unit.last_vehicle_damage_morale_target),
+                lastVehicleDamageMoraleFailed: unit.last_vehicle_damage_morale_failed,
+                lastShootingModelsRemoved: Int(unit.last_shooting_models_removed),
+                lastShootingPinsAdded: Int(unit.last_shooting_pins_added),
+                lastShootingMoraleChecked: unit.last_shooting_morale_checked,
+                lastShootingMoraleRoll: Int(unit.last_shooting_morale_roll),
+                lastShootingMoraleTarget: Int(unit.last_shooting_morale_target),
+                lastShootingMoralePinModifier: Int(unit.last_shooting_morale_pin_modifier),
+                lastShootingMoraleOfficerModifier: Int(unit.last_shooting_morale_officer_modifier),
+                lastShootingMoraleFailed: unit.last_shooting_morale_failed,
+                lastAssaultTargetID: optionalNativeBoardID(unit.last_assault_target_id),
+                lastAssaultRange: Double(unit.last_assault_range),
+                lastAssaultTargetReaction: nativeBoardCString(game_target_reaction_name(unit.last_assault_target_reaction)),
+                lastAssaultAttackerWounds: Int(unit.last_assault_attacker_wounds),
+                lastAssaultDefenderWounds: Int(unit.last_assault_defender_wounds),
+                lastAssaultDrawRounds: Int(unit.last_assault_draw_rounds),
+                lastAssaultWinnerID: optionalNativeBoardID(unit.last_assault_winner_id),
+                lastAssaultLoserID: optionalNativeBoardID(unit.last_assault_loser_id),
+                lastAssaultLoserDestroyed: unit.last_assault_loser_destroyed,
+                lastAssaultRegroupDistance: Double(unit.last_assault_regroup_distance),
+                lastAssaultVehicleTarget: unit.last_assault_vehicle_target,
+                lastAssaultAntitankEquipped: unit.last_assault_antitank_equipped,
+                lastAssaultEnclosedArmourOrderTestRequired: unit.last_assault_enclosed_armour_order_test_required,
+                lastAssaultEnclosedArmourOrderTestRoll: Int(unit.last_assault_enclosed_armour_order_test_roll),
+                lastAssaultEnclosedArmourOrderTestTarget: Int(unit.last_assault_enclosed_armour_order_test_target),
+                lastAssaultEnclosedArmourOrderTestFailed: unit.last_assault_enclosed_armour_order_test_failed,
+                lastAssaultVehicleDefensiveFireResolved: unit.last_assault_vehicle_defensive_fire_resolved,
+                lastAssaultVehicleHits: Int(unit.last_assault_vehicle_hits),
+                lastAssaultVehicleDamageValue: Int(unit.last_assault_vehicle_damage_value),
+                lastAssaultVehiclePenetrationModifier: Int(unit.last_assault_vehicle_penetration_modifier),
+                lastAssaultVehicleDamageRoll: Int(unit.last_assault_vehicle_damage_roll),
+                lastAssaultVehicleDamageClass: vehicleDamageClassName(unit.last_assault_vehicle_damage_class)
             )
         }
     }
@@ -1031,6 +1319,23 @@ private func nativeBoardCString(_ pointer: UnsafePointer<CChar>?) -> String {
         return ""
     }
     return String(cString: pointer)
+}
+
+private func optionalNativeBoardID(_ id: Int32) -> Int? {
+    id > 0 ? Int(id) : nil
+}
+
+private func vehicleDamageClassName(_ damageClass: dzw_vehicle_damage_class_t) -> String {
+    switch damageClass {
+    case DZW_VEHICLE_DAMAGE_SUPERFICIAL:
+        return "Superficial"
+    case DZW_VEHICLE_DAMAGE_FULL:
+        return "Full"
+    case DZW_VEHICLE_DAMAGE_MASSIVE:
+        return "Massive"
+    default:
+        return "None"
+    }
 }
 
 private func unitKindName(_ kind: unit_kind_t) -> String {

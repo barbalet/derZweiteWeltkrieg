@@ -8458,6 +8458,9 @@ unit_view_t game_unit_view(const game_t *game, int index) {
     view.destroyed = unit->destroyed;
     view.wrecked = unit->wrecked;
     view.wreck_blocks_movement = unit_is_wreck_blocker(unit);
+    view.crew_shaken = unit->crew_shaken;
+    view.crew_stunned = unit->crew_stunned;
+    view.immobilized = unit->immobilized;
     view.last_assault_target_id = unit->last_assault_target_id;
     view.last_assault_range = unit->last_assault_range;
     view.last_assault_target_reaction = unit->last_assault_target_reaction;

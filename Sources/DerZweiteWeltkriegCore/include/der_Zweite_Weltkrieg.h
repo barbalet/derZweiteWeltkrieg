@@ -411,6 +411,9 @@ typedef struct {
     bool destroyed;
     bool wrecked;
     bool wreck_blocks_movement;
+    bool crew_shaken;
+    bool crew_stunned;
+    bool immobilized;
     int last_assault_target_id;
     float last_assault_range;
     dzw_target_reaction_t last_assault_target_reaction;
