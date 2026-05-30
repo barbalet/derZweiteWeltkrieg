@@ -107,6 +107,14 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
     public let retainedOrder: Bool
     public let downOrderActive: Bool
     public let ambushOrderActive: Bool
+    public let advanceMoveAllowance: Double
+    public let runMoveAllowance: Double
+    public let currentOrderMoveAllowance: Double
+    public let reverseMoveAllowance: Double
+    public let canReverseNow: Bool
+    public let pivotBudget: Int
+    public let pivotCountUsed: Int
+    public let movementRejectionReason: String
 
     public init(
         id: Int,
@@ -138,7 +146,15 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
         moraleQuality: String = "Regular",
         retainedOrder: Bool = false,
         downOrderActive: Bool = false,
-        ambushOrderActive: Bool = false
+        ambushOrderActive: Bool = false,
+        advanceMoveAllowance: Double = 0,
+        runMoveAllowance: Double = 0,
+        currentOrderMoveAllowance: Double = 0,
+        reverseMoveAllowance: Double = 0,
+        canReverseNow: Bool = false,
+        pivotBudget: Int = 0,
+        pivotCountUsed: Int = 0,
+        movementRejectionReason: String = ""
     ) {
         self.id = id
         self.name = name
@@ -170,6 +186,14 @@ public struct NativeBoardUnitSnapshot: Identifiable, Codable, Hashable, Sendable
         self.retainedOrder = retainedOrder
         self.downOrderActive = downOrderActive
         self.ambushOrderActive = ambushOrderActive
+        self.advanceMoveAllowance = advanceMoveAllowance
+        self.runMoveAllowance = runMoveAllowance
+        self.currentOrderMoveAllowance = currentOrderMoveAllowance
+        self.reverseMoveAllowance = reverseMoveAllowance
+        self.canReverseNow = canReverseNow
+        self.pivotBudget = pivotBudget
+        self.pivotCountUsed = pivotCountUsed
+        self.movementRejectionReason = movementRejectionReason
     }
 
     public var roleLine: String {
@@ -694,7 +718,15 @@ public final class NativeBoardSession {
                 moraleQuality: nativeBoardCString(game_morale_quality_name(unit.morale_quality)),
                 retainedOrder: unit.retained_order,
                 downOrderActive: unit.down_order_active,
-                ambushOrderActive: unit.ambush_order_active
+                ambushOrderActive: unit.ambush_order_active,
+                advanceMoveAllowance: Double(unit.advance_move_allowance),
+                runMoveAllowance: Double(unit.run_move_allowance),
+                currentOrderMoveAllowance: Double(unit.current_order_move_allowance),
+                reverseMoveAllowance: Double(unit.reverse_move_allowance),
+                canReverseNow: unit.can_reverse_now,
+                pivotBudget: Int(unit.pivot_budget),
+                pivotCountUsed: Int(unit.pivot_count_used),
+                movementRejectionReason: nativeBoardCString(unit.movement_rejection_reason)
             )
         }
     }
