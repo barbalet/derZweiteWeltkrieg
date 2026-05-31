@@ -221,10 +221,30 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
             Text(selectedUnit?.name ?? "No unit selected")
                 .font(.callout.weight(.semibold))
                 .lineLimit(2)
+            if let selectedUnit {
+                Text(unitOrderDetail(selectedUnit))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(unitMoraleDetail(selectedUnit))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(vehicleDamageDetail(selectedUnit))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(targetedUnit.map { "Target: \($0.name)" } ?? "No target")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+            if let targetedUnit {
+                Text(targetReactionDetail(targetedUnit))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -628,8 +648,47 @@ public struct HistoricalPlayableBattleView<ID: HistoricalBattleID>: View {
         } else {
             status = "opposing"
         }
-        let pins = unit.pinCount > 0 ? " | pins \(unit.pinCount)" : ""
-        return "\(unit.sideID) | \(unit.role) | \(status)\(pins)"
+        let retained = unit.retainedOrder ? " | retained" : ""
+        return "\(unit.sideID) | \(unit.role) | \(status) | \(unit.moraleQuality) | pins \(unit.pinCount)\(retained)"
+    }
+
+    private func unitOrderDetail(_ unit: HistoricalBoardUnitSnapshot) -> String {
+        let order = unit.currentOrder?.rawValue ?? "None"
+        let available = unit.availableOrders.isEmpty
+            ? "none"
+            : unit.availableOrders.map(\.rawValue).joined(separator: ", ")
+        let retained = unit.retainedOrder ? "retained" : "not retained"
+        return "Order \(order) | Available \(available) | \(retained)"
+    }
+
+    private func unitMoraleDetail(_ unit: HistoricalBoardUnitSnapshot) -> String {
+        if unit.pinCount > 0 {
+            return "\(unit.moraleQuality) morale | \(unit.pinCount) pins | order test likely before non-Down orders"
+        }
+        return "\(unit.moraleQuality) morale | pins 0 | no order test pressure"
+    }
+
+    private func targetReactionDetail(_ unit: HistoricalBoardUnitSnapshot) -> String {
+        if unit.downOrderActive {
+            return "Target reacts from Down before range or damage."
+        }
+        if unit.ambushOrderActive {
+            return "Target reacts from Ambush before movement or fire resolves."
+        }
+        return "Target reacts after declaration."
+    }
+
+    private func vehicleDamageDetail(_ unit: HistoricalBoardUnitSnapshot) -> String {
+        guard unit.kind == "Armour" || unit.kind == "Vehicle" else {
+            return "Vehicle damage n/a"
+        }
+        if unit.destroyed {
+            return "Vehicle damage: knocked out"
+        }
+        if unit.downOrderActive {
+            return "Vehicle damage: halted Down"
+        }
+        return "Vehicle damage: none"
     }
 
     private func handleUnitTap(_ unit: HistoricalBoardUnitSnapshot) {

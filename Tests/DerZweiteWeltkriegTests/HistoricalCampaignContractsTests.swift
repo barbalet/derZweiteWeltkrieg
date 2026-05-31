@@ -157,6 +157,22 @@ final class HistoricalCampaignContractsTests: XCTestCase {
         XCTAssertEqual(audit.estimatedOverlappingTokenPairs, 0)
     }
 
+    func testSharedPlayableSurfaceExposesOrderDiceInspectorDetails() throws {
+        let source = try String(
+            contentsOfFile: "Sources/DerZweiteWeltkriegHistorical/HistoricalPlayableBattleView.swift",
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(source.contains("unitOrderDetail(selectedUnit)"))
+        XCTAssertTrue(source.contains("unitMoraleDetail(selectedUnit)"))
+        XCTAssertTrue(source.contains("vehicleDamageDetail(selectedUnit)"))
+        XCTAssertTrue(source.contains("targetReactionDetail(targetedUnit)"))
+        XCTAssertTrue(source.contains("Order \\(order) | Available \\(available) | \\(retained)"))
+        XCTAssertTrue(source.contains("order test likely before non-Down orders"))
+        XCTAssertTrue(source.contains("Vehicle damage:"))
+        XCTAssertTrue(source.contains("| \\(unit.moraleQuality) | pins \\(unit.pinCount)"))
+    }
+
     func testHistoricalAutoplayContractCapturesMontyTestShape() {
         let contract = HistoricalAutoplayContract(
             primarySurfaceName: "MontyTestFirstBattleAutoplayView",
