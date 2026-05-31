@@ -67,6 +67,62 @@ public struct NativeBoardActionMessage: Codable, Hashable, Sendable {
     }
 }
 
+public struct NativeBoardOrderDieSnapshot: Codable, Hashable, Sendable {
+    public let sequence: Int
+    public let owner: NativeBoardPlayer
+
+    public init(sequence: Int, owner: NativeBoardPlayer) {
+        self.sequence = sequence
+        self.owner = owner
+    }
+}
+
+public struct NativeBoardOrderDiceSnapshot: Codable, Hashable, Sendable {
+    public let rulesetActive: Bool
+    public let current: NativeBoardOrderDieSnapshot?
+    public let remaining: [NativeBoardOrderDieSnapshot]
+    public let spent: [NativeBoardOrderDieSnapshot]
+    public let retained: [NativeBoardOrderDieSnapshot]
+
+    public init(
+        rulesetActive: Bool,
+        current: NativeBoardOrderDieSnapshot?,
+        remaining: [NativeBoardOrderDieSnapshot],
+        spent: [NativeBoardOrderDieSnapshot],
+        retained: [NativeBoardOrderDieSnapshot]
+    ) {
+        self.rulesetActive = rulesetActive
+        self.current = current
+        self.remaining = remaining
+        self.spent = spent
+        self.retained = retained
+    }
+
+    public var hasCurrentDie: Bool {
+        current != nil
+    }
+
+    public var totalDice: Int {
+        remaining.count + spent.count + retained.count + (current == nil ? 0 : 1)
+    }
+
+    public func remainingCount(for owner: NativeBoardPlayer) -> Int {
+        remaining.filter { $0.owner == owner }.count
+    }
+
+    public func spentCount(for owner: NativeBoardPlayer) -> Int {
+        spent.filter { $0.owner == owner }.count
+    }
+
+    public func retainedCount(for owner: NativeBoardPlayer) -> Int {
+        retained.filter { $0.owner == owner }.count
+    }
+
+    public func currentCount(for owner: NativeBoardPlayer) -> Int {
+        current?.owner == owner ? 1 : 0
+    }
+}
+
 public struct NativeBoardMissionSnapshot: Codable, Hashable, Sendable {
     public let name: String
     public let targetScore: Int
@@ -531,6 +587,7 @@ public struct NativeBoardSnapshot: Codable, Hashable, Sendable {
     public let objectives: [NativeBoardObjectiveSnapshot]
     public let logLines: [String]
     public let lastAction: NativeBoardActionMessage
+    public let orderDice: NativeBoardOrderDiceSnapshot
     public let boardReport: NativeScenarioBoardReport
     public let deploymentReport: NativeScenarioDeploymentReport
 
@@ -546,6 +603,7 @@ public struct NativeBoardSnapshot: Codable, Hashable, Sendable {
         objectives: [NativeBoardObjectiveSnapshot],
         logLines: [String],
         lastAction: NativeBoardActionMessage,
+        orderDice: NativeBoardOrderDiceSnapshot,
         boardReport: NativeScenarioBoardReport,
         deploymentReport: NativeScenarioDeploymentReport
     ) {
@@ -560,6 +618,7 @@ public struct NativeBoardSnapshot: Codable, Hashable, Sendable {
         self.objectives = objectives
         self.logLines = logLines
         self.lastAction = lastAction
+        self.orderDice = orderDice
         self.boardReport = boardReport
         self.deploymentReport = deploymentReport
     }
@@ -667,6 +726,7 @@ public final class NativeBoardSession {
             objectives: objectiveSnapshots(),
             logLines: logLines(),
             lastAction: lastAction,
+            orderDice: orderDiceSnapshot(),
             boardReport: loadedGame.boardReport,
             deploymentReport: loadedGame.deploymentReport
         )
@@ -1219,6 +1279,42 @@ public final class NativeBoardSession {
             }
         }
         return false
+    }
+
+    private func orderDiceSnapshot() -> NativeBoardOrderDiceSnapshot {
+        NativeBoardOrderDiceSnapshot(
+            rulesetActive: game_ruleset(handle) == DZW_RULESET_ORDER_DICE,
+            current: Self.orderDieSnapshot(game_current_order_die_view(handle)),
+            remaining: orderDiceList(
+                count: Int(game_order_dice_remaining_count(handle)),
+                view: { game_order_dice_remaining_view(self.handle, Int32($0)) }
+            ),
+            spent: orderDiceList(
+                count: Int(game_order_dice_spent_count(handle)),
+                view: { game_order_dice_spent_view(self.handle, Int32($0)) }
+            ),
+            retained: orderDiceList(
+                count: Int(game_order_dice_retained_count(handle)),
+                view: { game_order_dice_retained_view(self.handle, Int32($0)) }
+            )
+        )
+    }
+
+    private func orderDiceList(
+        count: Int,
+        view: (Int) -> order_die_view_t
+    ) -> [NativeBoardOrderDieSnapshot] {
+        (0..<count).compactMap { Self.orderDieSnapshot(view($0)) }
+    }
+
+    private static func orderDieSnapshot(_ view: order_die_view_t) -> NativeBoardOrderDieSnapshot? {
+        guard view.available else {
+            return nil
+        }
+        return NativeBoardOrderDieSnapshot(
+            sequence: Int(view.sequence),
+            owner: NativeBoardPlayer(view.owner)
+        )
     }
 
     private func firstOrderAssignableUnit(owner: player_t, excluding excludedIDs: [Int]) -> unit_view_t? {
