@@ -934,7 +934,10 @@ public final class NativeBoardSession {
     }
 
     @discardableResult
-    public func prepareNextOrderDiceActivation(preferredOwner: NativeBoardPlayer? = nil) -> Bool {
+    public func prepareNextOrderDiceActivation(
+        preferredOwner: NativeBoardPlayer? = nil,
+        selectsUnit: Bool = true
+    ) -> Bool {
         if !orderDiceRulesetActive {
             guard game_set_ruleset(handle, DZW_RULESET_ORDER_DICE) else {
                 return failFromEngine("Order mode blocked")
@@ -964,8 +967,13 @@ public final class NativeBoardSession {
             }
         }
 
-        selectFirstActiveUnit()
-        selectNearestEnemyToSelectedUnit()
+        if selectsUnit {
+            selectFirstActiveUnit()
+            selectNearestEnemyToSelectedUnit()
+        } else {
+            selectedUnitID = nil
+            selectedTargetID = nil
+        }
         let current = game_current_order_die_view(handle)
         lastAction = NativeBoardActionMessage(
             status: current.available ? .succeeded : .blocked,
